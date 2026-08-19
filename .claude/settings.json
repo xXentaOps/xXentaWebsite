@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --yes create-vite@latest temp-app --template react)",
+      "Bash(npm install *)",
+      "Bash(rm -f src/assets/hero.png src/assets/react.svg)",
+      "Bash(rmdir src/assets)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(jobs)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" http://localhost:5173/src/App.jsx)",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" http://localhost:5173/src/Scene.jsx)",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" http://localhost:5173/src/index.css)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process -Id 17876)",
+      "PowerShell(Stop-Process -Id 17876 -Force -Confirm:$false)",
+      "Bash(node -e \"const p=require\\('./node_modules/three/package.json'\\); console.log\\(p.version\\); console.log\\(JSON.stringify\\(p.exports, null, 2\\).slice\\(0,2000\\)\\)\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" \"http://localhost:5173/src/components/GlassLogo/GlassLogoPreview.jsx\")",
+      "Bash(curl -s -w \"\\\\nHTTP:%{http_code}\\\\n\" \"http://localhost:5173/src/three/useLogoShapes.js\")",
+      "Bash(npm ls *)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(npx --yes playwright install chromium)",
+      "Bash(npm init *)",
+      "Bash(node check_preview.mjs)",
+      "Bash(node debug_svg.mjs)",
+      "Bash(node check_glass.mjs)",
+      "Bash(node check_glass_lowpower.mjs)",
+      "Bash(node check_glass_mobile.mjs)",
+      "Bash(node check_glass_full.mjs)",
+      "Bash(node check_blob_rotation.mjs)",
+      "Bash(node check_text_passthrough.mjs)",
+      "Bash(node check_memory.mjs)",
+      "Bash(curl -s http://localhost:5173/ --max-time 5)",
+      "Bash(npx oxlint *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5173/ --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"dev server: %{http_code}\\\\n\" http://localhost:5173/ --max-time 5)"
+    ]
+  }
+}

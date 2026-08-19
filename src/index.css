@@ -1,0 +1,83 @@
+@import "tailwindcss";
+@import "@fontsource/plus-jakarta-sans/200.css";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* html, not body — confirmed directly (see GlassLogoPreview's own scroll
+   lock, which had to target both for the same reason) that <html> is this
+   page's actual scrolling element, so it's the one whose scrollbar shows.
+   Purely cosmetic: scrollbar-width/-ms-overflow-style hide it in Firefox/
+   old Edge, the pseudo-element below hides it in Chromium/WebKit — none of
+   these stop scrolling itself, wheel/touch/keyboard all still work exactly
+   as before. */
+html {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  /* 200 (ExtraLight) is this family's actual floor — it has no true Thin
+     (100) cut, so this is as light as it gets while staying solid/filled. */
+  font-weight: 200;
+}
+
+/* Moves a track exactly -25% of its own width — one quarter, matching
+   ClientLogoCarousel's own four-copies-duplicated TRACK_ITEMS (see its own
+   comment for why two copies, and thus -50%, wasn't actually enough to
+   loop seamlessly on typical viewport widths). */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-25%);
+  }
+}
+
+/* First-load entrance for plain DOM elements that aren't already animated
+   via framer-motion (see e.g. GlassLogoHero's xXenta/nav spans) — used with
+   an animate-[fadeInUp_..._both] utility so it plays once on mount and
+   holds its end state, rather than the element reverting to its pre-
+   animation styles (opacity 0) once the keyframes finish, which the
+   default 'none' fill-mode would do. */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bg-grid {
+  background-color: #000;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cline x1='64' y1='0' x2='64' y2='128' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3Cline x1='0' y1='64' x2='128' y2='64' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3Cline x1='59' y1='64' x2='69' y2='64' stroke='rgba(255,255,255,0.16)' stroke-width='1.5'/%3E%3Cline x1='64' y1='59' x2='64' y2='69' stroke='rgba(255,255,255,0.16)' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}
+
+/* Same grid pattern as .bg-grid, but on the hero's own navy (#0F172B)
+   instead of pure black — for BackgroundGlowSection, which continues that
+   section's look below the fold rather than App.jsx's separate placeholder
+   scene (the only other user of .bg-grid, kept as its own rule so this
+   doesn't change that background too). */
+.bg-grid-navy {
+  background-color: #0f172b;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cline x1='64' y1='0' x2='64' y2='128' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3Cline x1='0' y1='64' x2='128' y2='64' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3Cline x1='59' y1='64' x2='69' y2='64' stroke='rgba(255,255,255,0.16)' stroke-width='1.5'/%3E%3Cline x1='64' y1='59' x2='64' y2='69' stroke='rgba(255,255,255,0.16)' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}
