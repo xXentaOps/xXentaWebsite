@@ -28,6 +28,21 @@ html::-webkit-scrollbar {
   display: none;
 }
 
+/* Same cosmetic scrollbar-hiding technique as html's own above, scoped to
+   one element instead of the whole page — for TeamCarousel's horizontal
+   scroller, which is meant to read as a slide/drag surface (with its own
+   snap points and peeking next card as the affordance), not a bare
+   scrollable list with a visible track. Wheel/touch/keyboard scrolling
+   inside it is untouched. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   /* 200 (ExtraLight) is this family's actual floor — it has no true Thin

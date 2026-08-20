@@ -289,6 +289,19 @@ export const TransmissionMaterial = /* @__PURE__ */ React.forwardRef(
       background,
       anisotropy,
       anisotropicBlur,
+      // Gates only the *ongoing* per-frame backdrop capture below (two
+      // extra full-scene renders to the FBO targets every frame it's on) —
+      // the element itself stays mounted regardless, so its FBO
+      // allocation and first shader compile happen once, whenever the
+      // caller first mounts it, not repeatedly every time `active` flips
+      // true. A caller that toggles this on/off a lot (the About Us
+      // badge, mounted once at scene-ready but only meant to pay its real
+      // per-frame cost while actually visible/open — see
+      // GoogleCloudGlassBadge's own comment) gets to skip that ongoing
+      // cost while inactive without paying a fresh mount cost each time
+      // it re-activates, unlike the hero's own logo which never toggles
+      // this at all (default true).
+      active = true,
       ...props
     },
     fref
@@ -308,7 +321,7 @@ export const TransmissionMaterial = /* @__PURE__ */ React.forwardRef(
     let parent
     useFrame((state) => {
       ref.current.time = state.clock.elapsedTime
-      if (ref.current.buffer === fboMain.texture && !transmissionSampler) {
+      if (active && ref.current.buffer === fboMain.texture && !transmissionSampler) {
         parent = ref.current.__r3f?.parent?.object
         if (parent) {
           oldTone = state.gl.toneMapping

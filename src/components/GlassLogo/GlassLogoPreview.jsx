@@ -95,6 +95,20 @@ export default function GlassLogoPreview() {
     let isClosing = false
     let releaseTimer = null
     let ceilingTimer = null
+    // When the current dismiss() happened — lets onWheel tell "trailing
+    // momentum from the dismiss gesture itself, still within the close
+    // animation's own duration" apart from "a visitor who's simply resumed
+    // scrolling down the real page, same as they would if this feature
+    // didn't exist." Both look identical at the wheel-event level (more
+    // deltaY>0 ticks while isClosing), but only the first is what
+    // QUIET_PERIOD_MS's re-arming below exists to wait out — once the
+    // close animation has actually finished, continuing to defer the
+    // unlock by another QUIET_PERIOD_MS per tick has nothing left to
+    // protect against, and it's what made an ordinary "keep scrolling down
+    // after About Us closes" gesture feel like the page had stopped
+    // responding — reported directly as "a couple of extra seconds before
+    // the scroll actually happens."
+    let dismissedAt = 0
     // The last time a wheel event was seen while real scrollY was still >0
     // — i.e., the page was genuinely still scrolling through the carousel/
     // glow sections, not yet resting at the hero. 0 (an effectively
@@ -115,7 +129,21 @@ export default function GlassLogoPreview() {
     // cleanly on the hero and stop, the same way it would if this feature
     // didn't exist at all, while a visitor already resting at the hero who
     // then deliberately scrolls up still opens it immediately.
-    const ARRIVAL_SETTLE_MS = 900
+    //
+    // 450, not the original 900 — matching QUIET_PERIOD_MS below (the
+    // dismiss side's own tuned answer to the same "how long can trailing
+    // wheel momentum keep firing after a scroll gesture hits its stop"
+    // question). 900 swallowed a *second*, genuinely deliberate upward
+    // gesture whenever it started soon after landing on the hero — with
+    // nothing left to actually scroll (already at scrollY 0), that second
+    // gesture produced no feedback at all, reported directly as "the
+    // scroll up doesn't register." If a hard flick's momentum turns out to
+    // still poke through occasionally at 450 (worth checking — landing on
+    // the hero from a fast flick should still always just land there, never
+    // reveal About Us on its own), raise this back toward 900 rather than
+    // dropping QUIET_PERIOD_MS instead, which is tuned against a separate,
+    // already-confirmed regression.
+    const ARRIVAL_SETTLE_MS = 450
 
     function lock() {
       if (isLocked) return
@@ -178,6 +206,7 @@ export default function GlassLogoPreview() {
       setIsAboutUsOpen(false)
       lock()
       isClosing = true
+      dismissedAt = performance.now()
       clearTimeout(ceilingTimer)
       ceilingTimer = setTimeout(unlock, WHEEL_CEILING_MS)
       scheduleRelease(ABOUT_US_TRANSITION.duration * 1000)
@@ -204,7 +233,14 @@ export default function GlassLogoPreview() {
         return
       }
       if (isClosing) {
-        scheduleRelease(QUIET_PERIOD_MS)
+        // Past the close animation's own duration, there's no more
+        // trailing-momentum ambiguity left to wait out — see dismissedAt's
+        // own comment above.
+        if (performance.now() - dismissedAt >= ABOUT_US_TRANSITION.duration * 1000) {
+          unlock()
+        } else {
+          scheduleRelease(QUIET_PERIOD_MS)
+        }
         return
       }
       if (event.deltaY < -4 && isRestingAtTop()) open()

@@ -70,3 +70,16 @@ export const EDGE_STYLE = {
   opacity: 0.9,
   color: [0.23, 0.51, 0.96], // #3B82F6 — same blue as BUTTON_STYLE
 }
+
+// How much bigger the grid reads once About Us is open — shared between
+// BackgroundGrid (the hero's own grid) and AboutUsSection (a separate
+// canvas's grid), both zooming to this exact same scale in lockstep as
+// About Us opens, so neither can end up bigger than the other. The two sit
+// right against each other along the seam between the hero sliding away and
+// About Us sliding in for the entire transition — a hero grid that stayed
+// at 1x while the About Us grid zoomed past it (tried first) read as a
+// visible cut right at that seam, since the two sides' cells were then
+// different sizes for the whole transition. Zooming both together, off one
+// shared number, is what actually gives the illusion of a single continuous
+// background sliding rather than two separate grids meeting at an edge.
+export const ABOUT_US_GRID_ZOOM_SCALE = 1.25

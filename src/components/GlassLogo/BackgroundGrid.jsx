@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Html, shaderMaterial } from '@react-three/drei'
 import { extend, useFrame, useThree } from '@react-three/fiber'
-import { DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
+import { animate, useMotionValue } from 'framer-motion'
+import { MathUtils } from 'three'
+import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
+import { ABOUT_US_TRANSITION } from './aboutUsTransition'
 
 // Three of the grid's own cells, promoted into square buttons — their 4
 // corners drawn as bigger, brighter blue versions of the ambient grid's own
@@ -487,11 +490,54 @@ const LABEL_START_X_FACTOR = 0.4
 // the interactive area and the label both land precisely on the visible
 // cross regardless of window size — the same "compute once, share" approach
 // that avoided drift everywhere else this piece uses derived layout math.
-export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isForceScrollingRef }) {
+export function BackgroundGrid({ z, isAboutUsOpen, onActiveIndexChange, onScrollLockChange, isForceScrollingRef }) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
   const size = useThree((state) => state.size)
   const { width, height } = viewport.getCurrentViewport(camera, [0, 0, z])
+  // Zooms this grid to the exact same scale, in lockstep, as
+  // AboutUsSection's own separate-canvas grid — see ABOUT_US_GRID_ZOOM_SCALE
+  // for why the two share one constant and one spring instance rather than
+  // two independently-tuned ones. Only the two GridPlane meshes below get
+  // wrapped in the scaling group, not the button hit-zones/labels (computed
+  // from buttonPositions etc. further down, in real un-zoomed world units):
+  // those stop mattering the moment this section starts sliding away behind
+  // About Us, so leaving them be avoids re-deriving all of that button
+  // layout math against a second, moving scale for no visible benefit.
+  //
+  // Scaling alone (tried first, matching AboutUsSection's own grid) scales
+  // around this group's local origin — this canvas's own vertical *center*
+  // — which reads fine on its own, but not once you look at the seam: as
+  // this section slides away and About Us slides in over it (see
+  // GlassLogoHero's own y-slide comment for why the two edges are always
+  // exactly coincident, one screen height apart, throughout that motion),
+  // the row of cells right at that seam is the one place a purely
+  // center-anchored zoom visibly fails, because both canvases' cells drift
+  // *toward* the seam as they grow from their own separate centers —
+  // squeezing that one shared row from both sides at once. What the seam
+  // actually needs is a grid that zooms as if pinned to *it*, not to this
+  // canvas's own middle — this canvas's own top edge (world Y = +height/2
+  // at this depth) is exactly that seam position (see GlassLogoHero), so
+  // position.y is solved each frame to keep whatever pattern feature sits
+  // there fixed in place while everything else scales around it: at
+  // scale 1 that's 0 (no correction needed, matching today's rest state);
+  // beyond that, the group needs to shift *down* by the same fraction the
+  // top edge would otherwise have moved *up*, cancelling it out exactly.
+  const gridGroupRef = useRef(null)
+  const zoomProgress = useMotionValue(isAboutUsOpen ? 1 : 0)
+
+  useEffect(() => {
+    const controls = animate(zoomProgress, isAboutUsOpen ? 1 : 0, ABOUT_US_TRANSITION)
+    return () => controls.stop()
+  }, [isAboutUsOpen, zoomProgress])
+
+  useFrame(() => {
+    const group = gridGroupRef.current
+    if (!group) return
+    const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, zoomProgress.get())
+    group.scale.set(scale, scale, 1)
+    group.position.y = (height / 2) * (1 - scale)
+  })
   // World-units-per-pixel at this depth, times the fixed pixel target — the
   // world-space cell size that projects to exactly TARGET_CELL_PX on screen
   // regardless of window size.
@@ -573,24 +619,102 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
 
   return (
     <>
-      <GridPlane z={z} width={width} height={height} repeat={repeat} style={THROUGH_GLASS_STYLE} layer={0} />
-      <GridPlane
-        z={z}
-        width={width}
-        height={height}
-        repeat={repeat}
-        style={DIRECT_STYLE}
-        layer={OVERLAY_LAYER}
-        buttonColumnLeftUV={buttonColumnLeftUV}
-        buttonColumnRightUV={buttonColumnRightUV}
-        buttonBottomUV={buttonBottomUV}
-        buttonTopUV={buttonTopUV}
-        // hoveredIndex, not visibleIndex — the color brighten is a pure
-        // hover cue. Selecting a button keeps its label/hero-title tie-in
-        // (see visibleIndex below) but its corners fall back to the same
-        // base blue as the other two once the pointer leaves it.
-        activeIndex={hoveredIndex}
-      />
+      {/* The two button-label Html blocks below (and the "coming soon"
+          caption) live inside this group too, not as siblings — they're
+          positioned from the same raw, unzoomed buttonPositions/cellSize
+          values as the shader-drawn corners are, so putting them under the
+          identical scale+position transform (see the useFrame above) is
+          what keeps the label text riding along with its own button's
+          corners as the grid zooms, rather than the two drifting apart the
+          instant the zoom starts. drei's Html reprojects from each
+          element's real (transformed) world position every frame — the same
+          mechanism that already kept the hero's own team-photo markers
+          pinned through a tilting parent — without distorting the text
+          itself: only *position* inherits the group's scale, never the
+          rendered DOM glyphs, so the labels stay crisp at any zoom level.
+          The hit-zones just below stay OUTSIDE this group deliberately:
+          they stop mattering the moment this section starts sliding away
+          behind About Us, so there's no reason to re-derive their raycast
+          geometry against a second, moving scale. */}
+      <group ref={gridGroupRef}>
+        <GridPlane z={z} width={width} height={height} repeat={repeat} style={THROUGH_GLASS_STYLE} layer={0} />
+        <GridPlane
+          z={z}
+          width={width}
+          height={height}
+          repeat={repeat}
+          style={DIRECT_STYLE}
+          layer={OVERLAY_LAYER}
+          buttonColumnLeftUV={buttonColumnLeftUV}
+          buttonColumnRightUV={buttonColumnRightUV}
+          buttonBottomUV={buttonBottomUV}
+          buttonTopUV={buttonTopUV}
+          // hoveredIndex, not visibleIndex — the color brighten is a pure
+          // hover cue. Selecting a button keeps its label/hero-title tie-in
+          // (see visibleIndex below) but its corners fall back to the same
+          // base blue as the other two once the pointer leaves it.
+          activeIndex={hoveredIndex}
+        />
+
+        {buttonPositions.map((pos, i) => (
+          <Html
+            key={i}
+            position={[pos.x - cellSize / 2 + cellSize * LABEL_START_X_FACTOR, pos.y, z + 0.01]}
+            // drei's Html only honors pointer-events via this inline style
+            // (its `pointerEvents` prop is a no-op outside `transform`
+            // mode) — kept pass-through on the wrapper itself (its box is
+            // larger than the visible glyphs, e.g. line-height padding) so
+            // that empty margin doesn't block ButtonHitZone's 3D hit-zone
+            // underneath; the span below opts itself back in with its own
+            // pointer-events-auto, so only the actual text is clickable.
+            style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+          >
+            <span
+              onClick={() => setSelectedIndex(i)}
+              // fadeInUp (see index.css) is a first-load-only entrance, kept
+              // separate from the transition-colors hover/select fade below —
+              // that one needs to keep firing on every hover, this one only
+              // once, ever, per label.
+              className={`pointer-events-auto block animate-[fadeInUp_1s_ease-out_both] cursor-pointer select-none whitespace-nowrap text-xs font-extralight tracking-[0.2em] uppercase transition-colors duration-200 ${
+                visibleIndex === i ? 'text-white/40' : 'text-white/15'
+              }`}
+            >
+              {BUTTON_LABELS[i]}
+            </span>
+          </Html>
+        ))}
+
+        {/* "AI for Achievers"'s own caption — always mounted like the labels
+            above (same reasoning: a fade, not a mount/unmount pop), but
+            opacity-only, not color-only, since at rest this should be fully
+            invisible rather than merely dim like the unselected labels are.
+            Positioned off comingSoonPos directly, not derived from the label
+            span above, so "AI for Achievers" itself never moves regardless of
+            whether this is showing. */}
+        {comingSoonPos && (
+          <Html
+            position={[
+              comingSoonPos.x - cellSize / 2 + cellSize * (LABEL_START_X_FACTOR + COMING_SOON_RIGHT_OFFSET),
+              comingSoonPos.y - cellSize * COMING_SOON_Y_OFFSET,
+              z + 0.01,
+            ]}
+            style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+          >
+            <span
+              // text-white/15 — the same grey GlassLogoHero's own nav links
+              // (NAV_LINKS there) sit at while unselected, not the brighter
+              // text-white/40 the grid labels above use, so this reads as a
+              // quieter aside next to "AI for Achievers" rather than
+              // competing with it for attention.
+              className={`block cursor-default select-none whitespace-nowrap text-xs font-extralight tracking-[0.2em] uppercase text-white/15 transition-opacity duration-200 ${
+                visibleIndex === comingSoonIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              [COMING SOON]
+            </span>
+          </Html>
+        )}
+      </group>
 
       {buttonPositions.map((pos, i) => (
         <ButtonHitZone
@@ -634,96 +758,6 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
         />
       ))}
 
-      {/* All three always mounted (not just the visible one) — same
-          "faint until hovered/selected" treatment as the navbar links (see
-          NAV_LINKS in GlassLogoHero): dim by default, brightening to the
-          same text-white/40 on a CSS color transition rather than
-          mounting/unmounting with a rise+blur entrance. pos is each
-          button's own square center, so its left edge sits cellSize/2 back
-          from pos.x; the label starts a little further in than that
-          (LABEL_START_X_FACTOR, just under half a cell) — a point a little
-          left of the square's exact horizontal center. Vertically, drei's
-          Html positions at pos.y directly plus the translateY(-50%) style
-          below, since pos.y is already the square's vertical center.
-          The text is a real, directly clickable button — same as the
-          navbar links — via its own onClick below, since a DOM click here
-          is consumed by this element and never reaches ButtonHitZone's mesh
-          underneath. Hover is deliberately *not* independently handled
-          here, though: R3F's raycaster runs off live pointer coordinates
-          every frame regardless of which DOM element is visually on top
-          (see eventSource in GlassLogoHero, which is what keeps those
-          coordinates updating at all while over this label), so
-          ButtonHitZone underneath already correctly reports "hovering"
-          across the *entire* square, label included — this text is only a
-          sub-region of it, positioned inside it. A first attempt gave the
-          label its own onMouseEnter/onMouseLeave too, which seemed
-          harmless (same hoveredIndex, same value) but wasn't: leaving the
-          label's own small DOM box while still well inside the square
-          fired this element's onMouseLeave and cleared hoveredIndex, with
-          no compensating re-enter from the mesh (it never left, so it
-          never re-fires) — so the button would drop back out of its
-          hovered state the moment the cursor crossed from the text onto
-          the rest of its own square. Leaving hover to the mesh alone,
-          which already tracks the true full-square boundary correctly,
-          avoids that entirely. */}
-      {buttonPositions.map((pos, i) => (
-        <Html
-          key={i}
-          position={[pos.x - cellSize / 2 + cellSize * LABEL_START_X_FACTOR, pos.y, z + 0.01]}
-          // drei's Html only honors pointer-events via this inline style
-          // (its `pointerEvents` prop is a no-op outside `transform`
-          // mode) — kept pass-through on the wrapper itself (its box is
-          // larger than the visible glyphs, e.g. line-height padding) so
-          // that empty margin doesn't block ButtonHitZone's 3D hit-zone
-          // underneath; the span below opts itself back in with its own
-          // pointer-events-auto, so only the actual text is clickable.
-          style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
-        >
-          <span
-            onClick={() => setSelectedIndex(i)}
-            // fadeInUp (see index.css) is a first-load-only entrance, kept
-            // separate from the transition-colors hover/select fade below —
-            // that one needs to keep firing on every hover, this one only
-            // once, ever, per label.
-            className={`pointer-events-auto block animate-[fadeInUp_1s_ease-out_both] cursor-pointer select-none whitespace-nowrap text-xs font-extralight tracking-[0.2em] uppercase transition-colors duration-200 ${
-              visibleIndex === i ? 'text-white/40' : 'text-white/15'
-            }`}
-          >
-            {BUTTON_LABELS[i]}
-          </span>
-        </Html>
-      ))}
-
-      {/* "AI for Achievers"'s own caption — always mounted like the labels
-          above (same reasoning: a fade, not a mount/unmount pop), but
-          opacity-only, not color-only, since at rest this should be fully
-          invisible rather than merely dim like the unselected labels are.
-          Positioned off comingSoonPos directly, not derived from the label
-          span above, so "AI for Achievers" itself never moves regardless of
-          whether this is showing. */}
-      {comingSoonPos && (
-        <Html
-          position={[
-            comingSoonPos.x - cellSize / 2 + cellSize * (LABEL_START_X_FACTOR + COMING_SOON_RIGHT_OFFSET),
-            comingSoonPos.y - cellSize * COMING_SOON_Y_OFFSET,
-            z + 0.01,
-          ]}
-          style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
-        >
-          <span
-            // text-white/15 — the same grey GlassLogoHero's own nav links
-            // (NAV_LINKS there) sit at while unselected, not the brighter
-            // text-white/40 the grid labels above use, so this reads as a
-            // quieter aside next to "AI for Achievers" rather than
-            // competing with it for attention.
-            className={`block cursor-default select-none whitespace-nowrap text-xs font-extralight tracking-[0.2em] uppercase text-white/15 transition-opacity duration-200 ${
-              visibleIndex === comingSoonIndex ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            [COMING SOON]
-          </span>
-        </Html>
-      )}
     </>
   )
 }

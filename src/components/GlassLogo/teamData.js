@@ -1,29 +1,25 @@
-// Team data for the About Us hover reveal. Names are real; `role`, `bio`
-// and `email` are still stand-ins, marked with the same obvious-placeholder
-// bracket convention ClientLogoCarousel uses for its own placeholder client
-// names, so none of them could be mistaken for real content if this shipped
-// as-is. Replace the bracketed strings (and the example.com addresses) as
-// the real copy arrives; nothing else here needs to change with them.
+// Team data for the About Us "Meet the Team" carousel (TeamCarousel). Names
+// are real; `role`, `bio` and `email` are still stand-ins, marked with the
+// same obvious-placeholder bracket convention ClientLogoCarousel uses for
+// its own placeholder client names, so none of them could be mistaken for
+// real content if this shipped as-is. Replace the bracketed strings (and
+// the example.com addresses) as the real copy arrives; nothing else here
+// needs to change with them.
 //
-// Order is left-to-right in the group photo, the seven people first, then
-// the two dogs. That ordering is load-bearing: the dogs lie in front of the
-// people in the photograph, so their hover zones have to win the region the
-// two overlap, which TeamScene arranges by giving them a slightly nearer
-// depth — see DOG_HIT_Z there.
+// Order is left-to-right in the group photo (the seven people, then the two
+// dogs) and is what the carousel's own scroll order follows directly.
 //
-// x/y is each member's face, as a percentage of the photo's own width and
-// height. Measured against a labelled 5%/10% grid rendered over the real
-// photo rather than estimated by eye, so these land on the actual faces.
-// The hover zone (see hitRect in teamLayout) is placed from this point.
-//
-// headTop is a second, separately-measured point: the actual top of each
-// member's own hair/head (against a finer 1%-labelled grid), not derived
-// from x/y by a fixed offset. It has to be its own measurement rather than
-// "y minus some constant" because that constant would have to somehow know
-// how much hair (or, for Ardie, how little) sits above each person's own
-// face-center point — a fixed offset put the hover dot at wildly different
-// visual distances above different people's actual heads; measuring where
-// each head really ends is what makes that distance the same for everyone.
+// x/y and headTop no longer drive any live layout — each member's carousel
+// photo is a pre-cropped file at public/team/{id}.jpg (see TeamCarousel),
+// not sampled from the group photo at runtime. They're kept here as the
+// record of exactly where in the group photo each crop came from: x/y is
+// each member's face as a percentage of the photo's own width/height
+// (measured against a labelled grid rather than estimated by eye), and
+// headTop is the separately-measured top of their own hair/head (it has to
+// be its own measurement, not "y minus some constant" — that constant would
+// have to somehow know how much hair, or for Ardie how little, sits above
+// each person's own face-center point). Re-cropping from a new or better
+// group photo — see public/team-photo.jpg — starts from these same numbers.
 export const TEAM_MEMBERS = [
   {
     id: 'member-1',

@@ -119,6 +119,7 @@ export function GlassLogoHero({ isAboutUsOpen, onScrollLockChange, isForceScroll
         events={createFixedPointerEvents}
       >
         <Backdrop
+          isAboutUsOpen={isAboutUsOpen}
           onActiveIndexChange={setActiveIndex}
           onScrollLockChange={onScrollLockChange}
           isForceScrollingRef={isForceScrollingRef}
