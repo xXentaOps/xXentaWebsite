@@ -19,6 +19,12 @@
 // cubic ease-in-out reads. This spring is the same family of motion as
 // those (a damped harmonic oscillator, not a fixed bezier curve), which is
 // what actually made the previous curve feel like an outlier next to them.
+// Purely how the slide *looks* — scroll responsiveness no longer depends
+// on it at all. GlassLogoPreview's wheel handling releases its scroll lock
+// when the dismissing gesture's own momentum dies (see endGesture there),
+// not after this duration elapses, so lengthening or shortening this
+// changes the animation's pace and nothing else. It's only still read as a
+// fallback for the click paths, which have no gesture to end.
 export const ABOUT_US_TRANSITION = {
   type: 'spring',
   bounce: 0,

@@ -120,5 +120,16 @@ export function useLenis(locked = false, isForceScrollingRef) {
     lenisRef.current?.resize()
   }, [])
 
-  return { scrollTo, resize }
+  // Where the page is *committed* to ending up, as opposed to where it has
+  // eased to so far. Lenis approaches its target exponentially, so after a
+  // hard flick back to the top the target pins at 0 while the visible
+  // position keeps coasting down through the last hundred-odd pixels for
+  // the best part of a second. Callers that need to know "is there anything
+  // left above to scroll to" want this, not window.scrollY — see
+  // GlassLogoPreview, where using the eased position made a deliberate
+  // second scroll-up sit and wait for that coast to finish before it would
+  // open About Us.
+  const getTargetScroll = useCallback(() => lenisRef.current?.targetScroll ?? window.scrollY, [])
+
+  return { scrollTo, resize, getTargetScroll }
 }
