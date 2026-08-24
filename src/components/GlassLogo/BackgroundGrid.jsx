@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Html, shaderMaterial } from '@react-three/drei'
 import { extend, useFrame, useThree } from '@react-three/fiber'
-import { animate, useMotionValue } from 'framer-motion'
 import { MathUtils } from 'three'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
-import { ABOUT_US_TRANSITION } from './aboutUsTransition'
 
 // Three of the grid's own cells, promoted into square buttons — their 4
 // corners drawn as bigger, brighter blue versions of the ambient grid's own
@@ -490,7 +488,7 @@ const LABEL_START_X_FACTOR = 0.4
 // the interactive area and the label both land precisely on the visible
 // cross regardless of window size — the same "compute once, share" approach
 // that avoided drift everywhere else this piece uses derived layout math.
-export function BackgroundGrid({ z, isAboutUsOpen, onActiveIndexChange, onScrollLockChange, isForceScrollingRef }) {
+export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress }) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
   const size = useThree((state) => state.size)
@@ -523,18 +521,16 @@ export function BackgroundGrid({ z, isAboutUsOpen, onActiveIndexChange, onScroll
   // scale 1 that's 0 (no correction needed, matching today's rest state);
   // beyond that, the group needs to shift *down* by the same fraction the
   // top edge would otherwise have moved *up*, cancelling it out exactly.
+  //
+  // aboutUsProgress is owned and animated by GlassLogoPreview and handed to both
+  // canvases — see there for why this is one shared value rather than a
+  // spring started independently on each side.
   const gridGroupRef = useRef(null)
-  const zoomProgress = useMotionValue(isAboutUsOpen ? 1 : 0)
-
-  useEffect(() => {
-    const controls = animate(zoomProgress, isAboutUsOpen ? 1 : 0, ABOUT_US_TRANSITION)
-    return () => controls.stop()
-  }, [isAboutUsOpen, zoomProgress])
 
   useFrame(() => {
     const group = gridGroupRef.current
     if (!group) return
-    const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, zoomProgress.get())
+    const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, aboutUsProgress.get())
     group.scale.set(scale, scale, 1)
     group.position.y = (height / 2) * (1 - scale)
   })

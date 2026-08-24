@@ -22,6 +22,13 @@ body,
 html {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  /* Every section on this page paints this same navy, so the page behind
+     them may as well too. It is only ever visible in one place: the sliver
+     below GlassLogoHero while it is compensating an opening About Us back
+     over the page's own last few pixels of scroll (see openScrollComp in
+     GlassLogoPreview). Without this that sliver is the browser's default
+     white, which is far louder than the thing it replaced. */
+  background-color: #0f172b;
 }
 
 html::-webkit-scrollbar {

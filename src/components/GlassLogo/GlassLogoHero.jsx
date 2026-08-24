@@ -1,7 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas, events } from '@react-three/fiber'
-import { motion } from 'framer-motion'
-import { ABOUT_US_TRANSITION } from './aboutUsTransition'
+import { motion, useTransform } from 'framer-motion'
 import { Backdrop } from './Backdrop'
 import { HeroTitle } from './HeroTitle'
 import { ReflectionEnvironment } from './ReflectionEnvironment'
@@ -38,7 +37,7 @@ function createFixedPointerEvents(store) {
   return { ...events(store), compute: computeClientPointer }
 }
 
-export function GlassLogoHero({ isAboutUsOpen, onScrollLockChange, isForceScrollingRef }) {
+export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScrollComp, aboutUsProgress }) {
   const tier = usePerformanceTier()
   // Lifted here because BackgroundGrid (inside Backdrop) and HeroTitle are
   // siblings under Canvas, not parent/child — this is the nearest shared
@@ -75,6 +74,14 @@ export function GlassLogoHero({ isAboutUsOpen, onScrollLockChange, isForceScroll
   // useFrame can skip its render calls entirely while this is false,
   // without R3F's loop or clock ever being touched.
   const isHeroVisibleRef = useRef(true)
+  // Down and out of the viewport as About Us opens. Derived from the shared
+  // reveal progress rather than animated here (see aboutUsProgress in
+  // GlassLogoPreview): AboutUsSection derives `(p - 1) * 100%` from the very
+  // same number, so the two are exactly one screen apart at every possible
+  // value of it — including every value an interrupted, retargeted or
+  // hurried transition passes through, which two separately-run animations
+  // sharing one spring config cannot promise.
+  const slideY = useTransform(aboutUsProgress, (p) => `${p * 100}%`)
   useEffect(() => {
     const section = eventSourceRef.current
     if (!section) return
@@ -92,23 +99,32 @@ export function GlassLogoHero({ isAboutUsOpen, onScrollLockChange, isForceScroll
   }, [])
 
   return (
-    // A transform (animate={{ y }}), not a layout property — this section
-    // keeps contributing exactly the same h-screen of document flow either
-    // way, so ClientLogoCarousel/BackgroundGlowSection right after it never
-    // shift, and real scrolling into them stays completely unaffected by
-    // whether About Us is open. isAboutUsOpen just visually displaces this
-    // section's own painted pixels downward, out of the viewport — paired
-    // with AboutUsSection animating the exact opposite offset (-100% -> 0%)
-    // over the identical ABOUT_US_TRANSITION, so the seam between the two
-    // never opens up: at any instant they're moving together, exactly one
-    // screen height apart, giving the illusion of one continuous surface
-    // sliding down to reveal what was "above" it, with no real scroll (and
-    // so no change to this section's own real position) ever involved.
+    // The outer wrapper carries one thing only: openScrollComp, the offset
+    // that puts this section back where it was painted the frame before
+    // open() snapped real scroll to the top (see GlassLogoPreview). It has
+    // to be its own element rather than folded into the section's own `y`
+    // below, because an element has exactly one translateY and the section
+    // needs its for a percentage-based slide that stays correct across a
+    // resize — the compensation is pixels, and mixing the two units in one
+    // animated value isn't something framer can interpolate. Two nested
+    // transforms compose for free, which is all this needs. AboutUsSection
+    // wraps itself in the identical offset, so the pair still moves as one.
+    <motion.div style={{ y: openScrollComp }}>
+    {/* A transform (see slideY above), not a layout property — this section
+        keeps contributing exactly the same h-screen of document flow either
+        way, so ClientLogoCarousel/BackgroundGlowSection right after it never
+        shift, and real scrolling into them stays completely unaffected by
+        whether About Us is open. The reveal just visually displaces this
+        section's own painted pixels downward, out of the viewport — paired
+        with AboutUsSection's exactly opposite offset, read off the same
+        shared progress value, so the seam between the two never opens up: at
+        any instant they're exactly one screen height apart, giving the
+        illusion of one continuous surface sliding down to reveal what was
+        "above" it, with no real scroll (and so no change to this section's
+        own real position) ever involved. */}
     <motion.section
       ref={eventSourceRef}
-      initial={false}
-      animate={{ y: isAboutUsOpen ? '100%' : '0%' }}
-      transition={ABOUT_US_TRANSITION}
+      style={{ y: slideY }}
       className="relative h-screen w-full overflow-hidden bg-[#0F172B]"
     >
       <Canvas
@@ -119,7 +135,7 @@ export function GlassLogoHero({ isAboutUsOpen, onScrollLockChange, isForceScroll
         events={createFixedPointerEvents}
       >
         <Backdrop
-          isAboutUsOpen={isAboutUsOpen}
+          aboutUsProgress={aboutUsProgress}
           onActiveIndexChange={setActiveIndex}
           onScrollLockChange={onScrollLockChange}
           isForceScrollingRef={isForceScrollingRef}
@@ -130,6 +146,7 @@ export function GlassLogoHero({ isAboutUsOpen, onScrollLockChange, isForceScroll
         </Suspense>
       </Canvas>
     </motion.section>
+    </motion.div>
   )
 }
 

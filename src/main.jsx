@@ -32,7 +32,23 @@ if ('scrollRestoration' in window.history) {
 }
 window.scrollTo(0, 0)
 
-createRoot(document.getElementById('root')).render(
+// The root is cached on the container rather than created fresh on every
+// evaluation of this module, because this module does not only run once.
+// Vite re-executes it whenever an edit invalidates the module graph all the
+// way up to here (any change to a non-component export several files down
+// will do it), and a bare createRoot() call then mounts a *second* complete
+// copy of the app into the same container, appended below the first —
+// hero, carousel, glow, hero, carousel, glow, on and on, looking exactly
+// like the page had started repeating itself. Two of everything comes with
+// it: two sets of wheel/keydown listeners racing to open and dismiss About
+// Us, two Lenis instances driving the same scroll, and two of each R3F
+// canvas animating the same grids out of step with one another. React warns
+// about this ("call root.render() on the existing root instead"); reusing
+// the root is what it is asking for, and it makes an HMR reload behave the
+// same as a cold one.
+const container = document.getElementById('root')
+container.__reactRoot ??= createRoot(container)
+container.__reactRoot.render(
   <StrictMode>
     <Suspense fallback={null}>{isLogoPreview ? <GlassLogoPreview /> : <App />}</Suspense>
   </StrictMode>,

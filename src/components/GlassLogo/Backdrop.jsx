@@ -6,7 +6,7 @@ import { BLOB_WIDTH_OVERSCALE, PLANE_SIZE, PLANE_Z } from './sceneConstants'
 // Lives inside the Canvas: a real scene-space gradient (not CSS) so
 // MeshTransmissionMaterial's backbuffer sampling can actually pick it up and
 // blur/refract it through the glass.
-export function Backdrop({ isAboutUsOpen, onActiveIndexChange, onScrollLockChange, isForceScrollingRef }) {
+export function Backdrop({ onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress }) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
 
@@ -29,7 +29,7 @@ export function Backdrop({ isAboutUsOpen, onActiveIndexChange, onScrollLockChang
           drawing over the top of everything. */}
       <BackgroundGrid
         z={PLANE_Z + 1}
-        isAboutUsOpen={isAboutUsOpen}
+        aboutUsProgress={aboutUsProgress}
         onActiveIndexChange={onActiveIndexChange}
         onScrollLockChange={onScrollLockChange}
         isForceScrollingRef={isForceScrollingRef}

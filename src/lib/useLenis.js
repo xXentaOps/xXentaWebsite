@@ -16,22 +16,38 @@ import Lenis from 'lenis'
 // the one input path that leaves untouched.)
 const SCROLL_KEYS = new Set([' ', 'Spacebar', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown'])
 
-// Lenis's own lerp-based scrollTo (no duration/easing given, so it falls
-// back to this) damps toward its target exactly like MathUtils.damp
-// elsewhere on this piece — internally, `lerp * 60` becomes that damp
-// call's own lambda, so this is directly comparable to (and tuned to sit
-// close to) TILT_LAMBDA in GlassLogoGroup. The default lerp (0.1 → lambda
-// 6) read as noticeably brisker than that, jarring next to how weighted
-// everything else here feels — this trims it down to lambda 4.5, the same
-// "heavier" pace, without slowing it enough to feel sluggish for what's
-// otherwise a large, fast scroll distance.
-const FORCE_SCROLL_LERP = 0.075
+// The one damping rate every scroll on this piece runs at: ordinary wheel
+// scrolling (handed to Lenis's own constructor below), the forced scroll-
+// back-to-top, and the logo's scroll-to-hero alike.
+//
+// Lenis's lerp-based scrolling damps toward its target exactly like
+// MathUtils.damp elsewhere on this piece — internally, `lerp * 60` becomes
+// that damp call's own lambda, so this is directly comparable to (and tuned
+// to sit close to) TILT_LAMBDA in GlassLogoGroup. Lenis's default lerp (0.1
+// → lambda 6) read as noticeably brisker than that, jarring next to how
+// weighted everything else here feels — this trims it down to lambda 4.5,
+// the same "heavier" pace, without slowing it enough to feel sluggish for
+// what's otherwise a large, fast scroll distance.
+//
+// Applying it to plain wheel scrolling too (rather than only to the
+// programmatic scrolls, which is all it used to cover) is what makes the
+// weight actually consistent: moving between the hero and the section below
+// it is exactly one screen of travel, the same journey as moving between
+// the hero and About Us — but that one is a 1.6s spring while this was
+// still running at Lenis's brisk default, so ordinary scrolling felt
+// distinctly *lighter* than the reveal it sits next to (reported directly).
+// One lambda for every way the page moves means there's nothing left for
+// either to feel light or heavy against.
+const SCROLL_LERP = 0.075
 
 export function useLenis(locked = false, isForceScrollingRef) {
   const lenisRef = useRef(null)
 
   useEffect(() => {
-    const lenis = new Lenis()
+    // See SCROLL_LERP — passed here, not just to the scrollTo calls below,
+    // so a visitor's own wheel scrolling carries the same weight as every
+    // scroll this file performs on their behalf.
+    const lenis = new Lenis({ lerp: SCROLL_LERP })
     lenisRef.current = lenis
 
     function raf(time) {
@@ -71,7 +87,7 @@ export function useLenis(locked = false, isForceScrollingRef) {
       lenis.scrollTo(0, {
         lock: true,
         force: true,
-        lerp: FORCE_SCROLL_LERP,
+        lerp: SCROLL_LERP,
         onComplete: () => {
           if (isForceScrollingRef) isForceScrollingRef.current = false
           lenis.stop()
@@ -96,11 +112,11 @@ export function useLenis(locked = false, isForceScrollingRef) {
   // mechanism above — currently just the xXenta logo (see onLogoClick in
   // GlassLogoPreview), which needs to animate back to the hero on demand
   // when clicked from further down the page (the carousel/glow sections),
-  // with no locking behavior of its own once it gets there. FORCE_SCROLL_LERP
+  // with no locking behavior of its own once it gets there. SCROLL_LERP
   // as the default (not Lenis's own, brisker default) gives it the same
   // "weighted" pace as the rest of this piece's scroll-linked motion.
   const scrollTo = useCallback((target, options) => {
-    lenisRef.current?.scrollTo(target, { lerp: FORCE_SCROLL_LERP, ...options })
+    lenisRef.current?.scrollTo(target, { lerp: SCROLL_LERP, ...options })
   }, [])
 
   // Forces Lenis to re-measure its own cached scroll dimensions — needed by

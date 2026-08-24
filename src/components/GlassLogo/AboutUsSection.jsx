@@ -1,9 +1,8 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { animate, motion, useMotionValue } from 'framer-motion'
+import { motion, useTransform } from 'framer-motion'
 import { MathUtils } from 'three'
 import { AboutUsIntro } from './AboutUsIntro'
-import { ABOUT_US_TRANSITION } from './aboutUsTransition'
 import { GridPlane } from './BackgroundGrid'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, THROUGH_GLASS_STYLE } from './gridConstants'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
@@ -26,18 +25,19 @@ import { useSeamlessGrid } from './useSeamlessGrid'
 // highlighted edge at an exact pixel target along the way. This section
 // isn't scrolled through at all — it's revealed and hidden as a whole (see
 // AboutUsSection's own y slide) — so there's no continuous progress to key
-// off and no edge to land; isOpen is the only input the zoom needs.
+// off and no edge to land; how far the reveal has got is the only input the
+// zoom needs.
 //
-// Driven by a framer-motion value animated with ABOUT_US_TRANSITION itself
-// (the exact same spring instance the section's own y slide uses below, and
-// BackgroundGrid's own copy of this same zoom uses too), not a separate
+// Driven by aboutUsProgress — literally the same motion value the section's
+// own y slide reads below, and the same one BackgroundGrid's copy of this
+// zoom reads in the other canvas (see GlassLogoPreview) — not a separate
 // MathUtils.damp — tried first, and it read as a visible cut: this canvas
 // sits directly against the hero's own (separate-canvas) grid along the
 // seam between them for the entire slide, so *any* mismatch between how far
 // the slide has physically gotten and how far the zoom has eased
 // independently shows up immediately as a cell-size jump right at that
 // seam. A damp settles on its own schedule — different from, and generally
-// faster than, an 1.8s spring — so the zoom was consistently arriving well
+// faster than, a 1.6s spring — so the zoom was consistently arriving well
 // ahead of the slide, sitting at its final (zoomed) size while the seam was
 // still visible. Animating a plain 0-1 value with the identical transition
 // guarantees the two can never drift apart: the zoom is only ever exactly
@@ -55,23 +55,20 @@ import { useSeamlessGrid } from './useSeamlessGrid'
 // keep whatever pattern feature sits there fixed while everything else
 // scales around it, the mirror image of BackgroundGrid's own top-edge
 // version.
-function SeamlessGridBackdrop({ isOpen }) {
+function SeamlessGridBackdrop({ aboutUsProgress }) {
   const { blobWidth, blobY, gridWidth, gridHeight, repeat, yPhaseShiftCells } = useSeamlessGrid(-1)
   // Only the grid planes, not the blob — leaving the blob's own much
   // larger, softer shape untouched keeps it reading as the stable backdrop
   // the grid zooms in front of, the same split BackgroundGlowSection uses.
+  // aboutUsProgress is owned and animated by GlassLogoPreview and handed to
+  // both canvases — see there for why this is one shared value rather than a
+  // spring started independently on each side.
   const gridGroupRef = useRef(null)
-  const zoomProgress = useMotionValue(isOpen ? 1 : 0)
-
-  useEffect(() => {
-    const controls = animate(zoomProgress, isOpen ? 1 : 0, ABOUT_US_TRANSITION)
-    return () => controls.stop()
-  }, [isOpen, zoomProgress])
 
   useFrame(() => {
     const group = gridGroupRef.current
     if (!group) return
-    const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, zoomProgress.get())
+    const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, aboutUsProgress.get())
     group.scale.set(scale, scale, 1)
     group.position.y = (gridHeight / 2) * (scale - 1)
   })
@@ -138,8 +135,8 @@ function SceneRenderGate({ isVisibleRef }) {
 // badge positioned using a rect from before the slide-in ever happened
 // (top around -410px on a 1000px-tall screen) and never updated again,
 // which is why it rendered somewhere off in the dark rather than under the
-// photo. AboutUsSection calls remeasure from the section's own
-// onAnimationComplete, once the slide genuinely finishes.
+// photo. AboutUsSection calls remeasure off the shared reveal progress
+// landing exactly on 0 or 1, once the slide genuinely finishes.
 function useDomAnchorRect(ref) {
   const [rect, setRect] = useState(null)
   const measureRef = useRef(() => {})
@@ -169,17 +166,39 @@ function useDomAnchorRect(ref) {
 // always be GlassLogoHero, reachable at real scrollY 0 exactly as before
 // this existed, with nothing scrollable above it. This never touches real
 // document scroll at all: it sits pinned to the viewport, resting just
-// above it (y: '-100%') until isOpen flips, then slides down to cover the
-// screen (y: '0%') — see ABOUT_US_TRANSITION, shared with GlassLogoHero's
-// own opposite slide (0% -> 100%, down and out) so the two move in lock-
-// step and the seam between them never opens up. z-10: above the hero
-// (default stacking) so it visibly covers it once revealed, below the
+// above it at (p - 1) * 100% and sliding down to cover the screen as the
+// shared reveal progress reaches 1 — the exact opposite of GlassLogoHero's
+// own p * 100%, read off that same one number (see aboutUsProgress in
+// GlassLogoPreview), so the two are one screen apart by arithmetic and the
+// seam between them cannot open up. z-10 (now on the offset
+// wrapper below, which is what actually does the positioning): above the
+// hero (default stacking) so it visibly covers it once revealed, below the
 // navbar's own z-20 so that stays on top throughout.
-export function AboutUsSection({ isOpen }) {
+export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   const tier = usePerformanceTier()
   const sectionRef = useRef(null)
   const badgeAnchorRef = useRef(null)
   const [badgeRect, remeasureBadgeRect] = useDomAnchorRect(badgeAnchorRef)
+  // Down from just above the viewport as About Us opens — the exact opposite
+  // of GlassLogoHero's own offset, derived from the same shared number so the
+  // pair is one screen apart at every value it can take (see aboutUsProgress
+  // in GlassLogoPreview).
+  const slideY = useTransform(aboutUsProgress, (p) => `${(p - 1) * 100}%`)
+  // Remeasure the badge anchor once the slide has genuinely landed, which is
+  // what this used to get from the section's own onAnimationComplete before
+  // the slide moved out to a shared motion value. A settling spring lands
+  // exactly on its target, so an equality check here fires once, at the end,
+  // and never mid-flight — including when a hurried close retargets it (see
+  // ABOUT_US_HURRY_CLOSE_TRANSITION), which onAnimationComplete would have
+  // reported twice.
+  const remeasureRef = useRef(remeasureBadgeRect)
+  remeasureRef.current = remeasureBadgeRect
+  useEffect(
+    () => aboutUsProgress.on('change', (p) => {
+      if (p === 0 || p === 1) remeasureRef.current()
+    }),
+    [aboutUsProgress],
+  )
   // Whether this section is actually painting anywhere on screen — see
   // SceneRenderGate. An IntersectionObserver rather than the isOpen prop:
   // it tracks the section's real painted position, CSS transform included,
@@ -229,19 +248,28 @@ export function AboutUsSection({ isOpen }) {
   }, [sceneReady])
 
   return (
+    // Carries openScrollComp — the pixel offset that hides open()'s snap to
+    // the top (see GlassLogoPreview) — for GlassLogoHero's own reason: the
+    // section below needs its single translateY for the percentage slide,
+    // so the compensation gets an element of its own. This one has to hold
+    // the fixed positioning too, not just wrap it: a transformed ancestor
+    // becomes the containing block for any fixed descendant, so leaving
+    // `fixed` on the section inside would pin it to this wrapper's box the
+    // moment the offset went non-zero. The wrapper is fixed instead and the
+    // section is absolute within it, which is the same geometry with none
+    // of that. pointer-events-none because this covers the viewport even
+    // while closed; the section re-enables them for itself when open.
+    <motion.div className="pointer-events-none fixed inset-0 z-10" style={{ y: openScrollComp }}>
     <motion.section
       ref={sectionRef}
-      initial={false}
-      animate={{ y: isOpen ? '0%' : '-100%' }}
-      transition={ABOUT_US_TRANSITION}
-      onAnimationComplete={remeasureBadgeRect}
+      style={{ y: slideY }}
       aria-hidden={!isOpen}
-      className={`fixed inset-0 z-10 h-screen w-full overflow-hidden bg-[#0F172B] ${
+      className={`absolute inset-0 h-full w-full overflow-hidden bg-[#0F172B] ${
         isOpen ? 'pointer-events-auto' : 'pointer-events-none'
       }`}
     >
       <Canvas dpr={tier === 'high' ? [1, 2] : 1} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
-        <SeamlessGridBackdrop isOpen={isOpen} />
+        <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} />
         {/* Same modest white light the hero gives its own glass (see
             Backdrop) — the blue reflection environment below is meant to be
             the dominant source, this is just enough for the badge's edges
@@ -274,6 +302,7 @@ export function AboutUsSection({ isOpen }) {
 
       <AboutUsIntro isOpen={isOpen} badgeAnchorRef={badgeAnchorRef} />
     </motion.section>
+    </motion.div>
   )
 }
 
