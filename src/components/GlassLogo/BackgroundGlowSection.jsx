@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Html } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { MathUtils } from 'three'
@@ -81,7 +81,7 @@ function smoothstepEase(t) {
 //    full screen, rather than each canvas centering its own content
 //    independently. See yPhaseShiftCells and blobY below for the actual
 //    derivation.
-function SeamlessBackdrop({ carouselRef }) {
+function SeamlessBackdrop({ carouselRef, isVisibleRef }) {
   // screenOffset 1 — this section continues the pattern one screen *below*
   // the hero (see useSeamlessGrid for the shared derivation of
   // yPhaseShiftCells/blobY this used to do inline).
@@ -150,6 +150,13 @@ function SeamlessBackdrop({ carouselRef }) {
   // carousel has scrolled entirely away), so the zoom's full travel spans
   // the carousel's whole transit through the screen, start to finish.
   useFrame((_, delta) => {
+    // Nothing below is worth doing for a section that isn't on screen, and
+    // one part of it actively costs: measuring the carousel every frame
+    // reads layout back out of the DOM. Safe to skip because the render that
+    // would show the result is skipped too (see SceneRenderGate), and this
+    // runs at priority 0 — so on the frame the section does come back, this
+    // has already caught up before anything is drawn.
+    if (!isVisibleRef.current) return
     const group = gridGroupRef.current
     const carousel = carouselRef?.current
     if (!group || !carousel) return
@@ -239,15 +246,54 @@ function SeamlessBackdrop({ carouselRef }) {
   )
 }
 
+// Owns this canvas's one real visible render, so that there is somewhere to
+// *not* do it from. Giving any useFrame a priority turns off R3F's own
+// automatic render, which is the only way to stop drawing a canvas that is
+// nowhere near the screen — the same arrangement AboutUsSection's own gate
+// uses, minus its OVERLAY_LAYER handling, which this scene has no need for
+// (no glass here, so nothing is doing a backdrop capture that a layer split
+// would have to hide from).
+function SceneRenderGate({ isVisibleRef }) {
+  useFrame((state) => {
+    if (!isVisibleRef.current) return
+    state.gl.render(state.scene, state.camera)
+  }, 1)
+  return null
+}
+
 export function BackgroundGlowSection({ carouselRef }) {
+  const sectionRef = useRef(null)
+  // Whether this section is painting anywhere on screen. Until this existed
+  // it simply never stopped: GlassLogoHero and AboutUsSection each gate their
+  // own canvas on exactly this, and this one — a full-screen canvas a whole
+  // viewport below the fold — was drawing every frame for as long as the tab
+  // stayed open, including the entire time a visitor is sitting at the top
+  // looking at the hero. Roughly double the fill cost of the thing they were
+  // actually looking at, spent on something a screen away.
+  //
+  // A ref rather than state, and an IntersectionObserver rather than scroll
+  // math, for the same reasons the other two gates give: no re-render per
+  // frame, and it tracks where the section really paints.
+  const isVisibleRef = useRef(true)
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisibleRef.current = entry.isIntersecting
+    })
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <section className="relative h-screen w-full overflow-hidden bg-[#0F172B]">
+    <section ref={sectionRef} className="relative h-screen w-full overflow-hidden bg-[#0F172B]">
       {/* Capped the same way GlassLogoHero's own canvas is — left uncapped,
           this renders at the browser's raw devicePixelRatio, which on a 3x
           phone/laptop panel is a lot of extra fill rate for a plain grid +
           gradient with no fine detail that benefits from it. */}
       <Canvas dpr={[1, 2]} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
-        <SeamlessBackdrop carouselRef={carouselRef} />
+        <SeamlessBackdrop carouselRef={carouselRef} isVisibleRef={isVisibleRef} />
+        <SceneRenderGate isVisibleRef={isVisibleRef} />
       </Canvas>
     </section>
   )

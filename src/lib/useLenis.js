@@ -18,7 +18,11 @@ const SCROLL_KEYS = new Set([' ', 'Spacebar', 'PageUp', 'PageDown', 'Home', 'End
 
 // The one damping rate every scroll on this piece runs at: ordinary wheel
 // scrolling (handed to Lenis's own constructor below), the forced scroll-
-// back-to-top, and the logo's scroll-to-hero alike.
+// back-to-top, the logo's scroll-to-hero, and — exported for it — the
+// hand-driven About Us close in GlassLogoPreview, which is scrolling in
+// every sense except that what it moves is the reveal rather than the page,
+// and so has to carry the identical weight or the handover between them is
+// felt as a change of pace.
 //
 // Lenis's lerp-based scrolling damps toward its target exactly like
 // MathUtils.damp elsewhere on this piece — internally, `lerp * 60` becomes
@@ -38,7 +42,7 @@ const SCROLL_KEYS = new Set([' ', 'Spacebar', 'PageUp', 'PageDown', 'Home', 'End
 // distinctly *lighter* than the reveal it sits next to (reported directly).
 // One lambda for every way the page moves means there's nothing left for
 // either to feel light or heavy against.
-const SCROLL_LERP = 0.075
+export const SCROLL_LERP = 0.075
 
 export function useLenis(locked = false, isForceScrollingRef) {
   const lenisRef = useRef(null)

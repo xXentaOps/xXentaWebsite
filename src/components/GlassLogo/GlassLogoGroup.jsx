@@ -398,7 +398,12 @@ export function GlassLogoGroup({ targetSize = 4, highQuality = true, blurredText
         >
           <mesh geometry={mergedGeometry}>
             {highQuality ? (
-              <TransmissionMaterial ref={transmissionMaterialRef} thickness={depth} {...glassMaterialProps} />
+              <TransmissionMaterial
+                ref={transmissionMaterialRef}
+                thickness={depth}
+                activeRef={isHeroVisibleRef}
+                {...glassMaterialProps}
+              />
             ) : (
               <meshPhysicalMaterial
                 color="#e2e8f0"

@@ -302,6 +302,13 @@ export const TransmissionMaterial = /* @__PURE__ */ React.forwardRef(
       // it re-activates, unlike the hero's own logo which never toggles
       // this at all (default true).
       active = true,
+      // Same idea as `active`, for callers whose answer changes every frame
+      // and must not cost a re-render to say so — GlassLogoGroup passes the
+      // hero's own visibility ref. The hero's gate already skips the visible
+      // render and the capture+blur pipeline while it is off screen, but this
+      // pass sits at priority 0 inside the material itself, so it went on
+      // rendering the whole scene into its buffers regardless.
+      activeRef,
       ...props
     },
     fref
@@ -321,7 +328,7 @@ export const TransmissionMaterial = /* @__PURE__ */ React.forwardRef(
     let parent
     useFrame((state) => {
       ref.current.time = state.clock.elapsedTime
-      if (active && ref.current.buffer === fboMain.texture && !transmissionSampler) {
+      if (active && (!activeRef || activeRef.current) && ref.current.buffer === fboMain.texture && !transmissionSampler) {
         parent = ref.current.__r3f?.parent?.object
         if (parent) {
           oldTone = state.gl.toneMapping

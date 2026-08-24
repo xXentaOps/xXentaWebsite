@@ -70,37 +70,33 @@ export const ABOUT_US_CLOSE_TRANSITION = {
 // animate target, so picking the matching transition from it costs nothing
 // extra and can't drift out of sync with which direction is actually
 // playing.
-// The close, finished in a hurry. Used for exactly one thing: a visitor who
-// dismissed About Us and is already asking to scroll further down before the
-// close has played out.
+// Once a visitor asks to move on — a second downward gesture while the close
+// is still playing — the reveal commits to being off the screen within this
+// long, no matter how gently they asked.
 //
-// Real scroll stays locked for the whole close (see dismiss() in
-// GlassLogoPreview — About Us is a fixed overlay, so a page allowed to move
-// underneath it just slides beneath what is left of it). That is correct and
-// there is no version of it that lets scrolling start early: the reveal owns
-// the whole screen until it is off the screen. What there *is* room for is
-// noticing that a visitor pushing onward has stopped watching the animation,
-// and that holding them to its full unhurried pace from that point on is
-// only pace for its own sake — a second swipe down landing a couple of
-// seconds before the page would move, reported directly.
+// Their scroll still drives it directly and can beat this easily (see
+// driveCloseWithScroll in GlassLogoPreview); this is the floor underneath
+// that, and it exists because scroll alone cannot serve a light gesture. The
+// drive is a damped travel along one axis, so it only clears the panel once
+// the distance asked for overshoots what was left — which a hard swipe does
+// immediately and a gentle one may never do at all. Without a floor, a light
+// second swipe crept the panel a little and then sat waiting out its own
+// momentum tail before anything finished: about two seconds, against a hard
+// swipe's third of one, for the same request. Reported directly, along with
+// the entirely fair offer to just ignore light swipes instead — this is the
+// better half of that trade, since there is nothing ambiguous about the
+// gesture, only about how far it happened to travel.
 //
-// So the wait isn't shortened by unlocking sooner, it's shortened by
-// *arriving* sooner: the same slide, retargeted to close in this instead.
-// Deliberately not applied to an ordinary dismiss, which nobody is waiting
-// on and which stays at ABOUT_US_CLOSE_TRANSITION's unhurried pace.
-export const ABOUT_US_HURRY_CLOSE_TRANSITION = {
-  type: 'spring',
-  bounce: 0,
-  // Zero was asked for and is not available: by the time a second swipe
-  // lands, the close is only 200-400ms in, so p is still around 0.5-0.8 and
-  // About Us is covering most of the screen. Snapping it to 0 teleports the
-  // hero up by most of a viewport in one frame — the same hard cut this
-  // whole reveal has been fought over, just larger. This is the floor of
-  // what still reads as movement rather than a jump: about 600px of travel
-  // in a quarter second. Anything under it stops looking like the panel
-  // leaving and starts looking like the panel vanishing.
-  duration: 0.25,
-}
+// A quarter second: brisk enough to read as answering the swipe rather than
+// finishing an animation, slow enough to still be movement.
+export const ABOUT_US_CLOSE_COMMIT_SECONDS = 0.25
+// The decay rate of a critically-damped spring that settles in that long.
+// x(t) = (1 + wt)e^-wt reaches about 1% of where it started at wt = 6.6, so
+// the rate is that over the duration — the same shape as every other easing
+// on this piece, just solved for directly rather than handed to framer,
+// since it has to be combined per-frame with the scroll drive rather than
+// run on its own.
+export const ABOUT_US_CLOSE_COMMIT_OMEGA = 6.6 / ABOUT_US_CLOSE_COMMIT_SECONDS
 
 export function getAboutUsTransition(isOpen) {
   return isOpen ? ABOUT_US_OPEN_TRANSITION : ABOUT_US_CLOSE_TRANSITION

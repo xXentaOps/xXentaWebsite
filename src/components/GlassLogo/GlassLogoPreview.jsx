@@ -1,18 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { animate, useMotionValue } from 'framer-motion'
-import { useLenis } from '../../lib/useLenis'
+import { SCROLL_LERP, useLenis } from '../../lib/useLenis'
 import {
   ABOUT_US_CLOSE_TRANSITION,
-  ABOUT_US_HURRY_CLOSE_TRANSITION,
+  ABOUT_US_CLOSE_COMMIT_OMEGA,
   ABOUT_US_OPEN_TRANSITION,
   getAboutUsTransition,
 } from './aboutUsTransition'
 import AboutUsSection from './AboutUsSection'
 import BackgroundGlowSection from './BackgroundGlowSection'
 import ClientLogoCarousel from './ClientLogoCarousel'
+import FrameRateMeter from './FrameRateMeter'
 import GlassLogoHero from './GlassLogoHero'
 import { createGestureClassifier, GESTURE_END_MS } from './scrollGestureClassifier'
 import SiteNavbar from './SiteNavbar'
+
+// Read once, at module scope: it never changes for the life of the page, and
+// this keeps it out of every render. See FrameRateMeter — ?fps to show it.
+const SHOW_FRAME_RATE = new URLSearchParams(window.location.search).has('fps')
 
 export default function GlassLogoPreview() {
   // Lifted here (the nearest ancestor that both owns Lenis and sits above
@@ -97,8 +102,13 @@ export default function GlassLogoPreview() {
   // scroll back and forth. Sharing the value itself, not the recipe for it,
   // is what makes them incapable of disagreeing.
   const aboutUsProgress = useMotionValue(0)
+  // Whatever animation is currently driving that value, so the scroll-lock
+  // effect below can stop it and take the reveal over by hand — see
+  // driveCloseWithScroll. Written on every start, including its own.
+  const progressAnimRef = useRef(null)
   useEffect(() => {
     const controls = animate(aboutUsProgress, isAboutUsOpen ? 1 : 0, getAboutUsTransition(isAboutUsOpen))
+    progressAnimRef.current = controls
     return () => controls.stop()
   }, [isAboutUsOpen, aboutUsProgress])
   // scrollLocked (Achievers) OR scrollLockActive (About Us) — both go
@@ -204,6 +214,10 @@ export default function GlassLogoPreview() {
     // released when that gesture's momentum actually dies, not on a timer —
     // or the instant a genuinely new push arrives, whichever comes first.
     let unlockWhenGestureEnds = false
+    // A deliberate upward request that arrived before the page had finished
+    // coasting to a top it was already committed to — see the open decision
+    // in onWheel, and honoured in onScroll below the moment it arrives.
+    let pendingOpen = false
     // Rolling shape of the event stream — see scrollGestureClassifier.js.
     const classifier = createGestureClassifier()
     // When the page's real scroll position last actually changed. Wheel
@@ -216,6 +230,12 @@ export default function GlassLogoPreview() {
     let lastScrollMoveAt = 0
     function onScroll() {
       lastScrollMoveAt = performance.now()
+      // The page has finished coasting into range of a request that was made
+      // while it was still on its way. See pendingOpen.
+      if (pendingOpen && window.scrollY <= ARRIVING_EPSILON_PX) {
+        pendingOpen = false
+        open()
+      }
     }
     const SCROLL_SETTLE_MS = 150
 
@@ -302,6 +322,7 @@ export default function GlassLogoPreview() {
           compAnimation = animate(openScrollComp, 0, ABOUT_US_OPEN_TRANSITION)
         }
       }
+      pendingOpen = false
       isOpenNow = true
       setIsAboutUsOpen(true)
       // Reopening while a close is still playing: drop that close's pending
@@ -310,7 +331,7 @@ export default function GlassLogoPreview() {
       // preempting unlock this replaces cleared the same flag on the way
       // past (see dismiss).
       unlockWhenGestureEnds = false
-      hurrying = false
+      stopCloseDrive()
       clearTimeout(fallbackTimer)
       lock()
     }
@@ -349,15 +370,14 @@ export default function GlassLogoPreview() {
     // continuous flick is a single gesture that never asks to preempt at
     // all.
     //
-    // The cost is real and deliberate: continued scrolling is ignored, not
-    // queued, until the close has visually finished. Everything the reveal
-    // owns is exactly one screen tall, so there is no partial state to hand
-    // over mid-flight — the page either belongs to the reveal or to the
-    // document, and the reveal's own duration is how long that is. Shorten
-    // ABOUT_US_CLOSE_TRANSITION (already split from the open direction for
-    // this kind of reason) to trade feel against that wait.
+    // That leaves this timer as the release for a visitor who dismisses and
+    // then does nothing — the only case left that waits on a clock at all.
+    // Anyone who keeps scrolling waits on nothing: their own scroll is what
+    // moves the panel, and the lock lifts the instant it is gone. See
+    // driveCloseWithScroll.
     function dismiss() {
       window.scrollTo(0, 0)
+      pendingOpen = false
       isOpenNow = false
       setIsAboutUsOpen(false)
       lock()
@@ -374,25 +394,173 @@ export default function GlassLogoPreview() {
       }, ABOUT_US_CLOSE_TRANSITION.duration * 1000)
     }
 
-    // The visitor has dismissed About Us and is already pushing on down the
-    // page. Retarget the close — every part of it, since all of it is one
-    // motion value now — to land in ABOUT_US_HURRY_CLOSE_TRANSITION instead
-    // of the leisurely close it's partway through, and release the lock the
-    // moment it lands rather than on dismiss()'s own timer. animate() on a
-    // motion value supersedes whatever that value was already running, so
-    // there is nothing to stop first; the timer stays armed underneath as a
-    // backstop and its own unlockWhenGestureEnds check makes it a no-op once
-    // this has fired.
-    let hurrying = false
-    function hurryClose() {
-      if (hurrying || isOpenNow) return
-      hurrying = true
-      animate(aboutUsProgress, 0, ABOUT_US_HURRY_CLOSE_TRANSITION).then(() => {
-        hurrying = false
-        if (!unlockWhenGestureEnds) return
-        unlockWhenGestureEnds = false
-        unlock()
-      })
+    // Wheel deltas arrive in three different units depending on the input
+    // device. This is the one place on this piece where the number has to
+    // mean real distance rather than just "how hard", so it converts, using
+    // the same constants Lenis normalizes with internally (LINE_HEIGHT of
+    // 100/6, a page being one viewport) — a given gesture then moves the
+    // panel by exactly what it would have moved the page.
+    const WHEEL_LINE_PX = 100 / 6
+    function deltaToPixels(event) {
+      if (event.deltaMode === 1) return event.deltaY * WHEEL_LINE_PX
+      if (event.deltaMode === 2) return event.deltaY * window.innerHeight
+      return event.deltaY
+    }
+
+    // Wheel deltas move a *target*, which the reveal then eases toward, and
+    // never the reveal itself. Applying them straight to aboutUsProgress
+    // (which is what this did first) makes the panel step by whole raw
+    // deltas: the opening event of a quick swipe is often 150-250px, so it
+    // teleports a quarter of a screen in a single frame before the rest of
+    // the gesture eases along behind it — reported directly, as the hero
+    // jumping to another position before it started scrolling.
+    //
+    // Real scrolling on this piece never does that: Lenis damps toward a
+    // target it accumulates deltas into, which is exactly the weight that
+    // was tuned in (see SCROLL_LERP). Since the whole point here is that
+    // this *is* scrolling, as far as the visitor's hand is concerned, it
+    // damps against that same constant — lerp times 60 is the lambda, the
+    // conversion Lenis itself uses internally — rather than against a second
+    // rate that merely looked similar.
+    const CLOSE_DRIVE_LAMBDA = SCROLL_LERP * 60
+
+    // True while the visitor's own scrolling — rather than a clock — is what
+    // is moving the closing reveal.
+    let closeDrivenByScroll = false
+    // Both in pixels along one continuous axis that runs from -viewportHeight
+    // (About Us fully covering the screen) through 0 (the hero, at real
+    // scrollY 0) and onward into the real page. Pixels rather than progress,
+    // and unclamped rather than stopping at 0, because the whole point is
+    // that this axis does not end where the reveal does — see
+    // driveCloseWithScroll.
+    let closeDriveAt = 0
+    let closeDriveTarget = 0
+    let closeDriveFrame = 0
+    let closeDriveLastAt = 0
+    // Where the reveal was, and when, at the moment the visitor asked to move
+    // on — the two things the commitment floor is measured from. See
+    // ABOUT_US_CLOSE_COMMIT_OMEGA.
+    let closeCommitFrom = 0
+    let closeCommitStartedAt = 0
+    // ...and how fast it was already travelling at that moment, in progress
+    // per second. Carried into both of the things that take over from the
+    // close spring, neither of which starts from rest — see the handover in
+    // driveCloseWithScroll.
+    let closeCommitVelocity = 0
+
+    // The visitor dismissed About Us and is already pushing on down the page
+    // with the close still playing. Real scroll cannot start yet (see
+    // dismiss), but the reason it has nowhere to go is that About Us is
+    // still in the way — and About Us is, in every sense the geometry cares
+    // about, one screen above the hero. aboutUsProgress *is* that offset: at
+    // p the panel spans viewport [(p-1)h, p*h] and the hero picks up exactly
+    // where it ends, at [p*h, (1+p)h]. Dropping p by d/h moves both up by d,
+    // which is precisely what scrolling down by d does to a document.
+    //
+    // So the visitor's scroll drives it directly, 1:1, and the wait stops
+    // being something to shorten — there is no clock left in the path to
+    // wait out. Nothing jumps either, because nothing is skipped: the same
+    // slide plays, at the pace of the hand doing it. When p reaches 0 the
+    // hero is sitting exactly at real scrollY 0 and the lock lifts, so the
+    // handover to real scroll is continuous rather than a switch.
+    //
+    // Only ever a *later* gesture, never the dismissing one: the gesture
+    // that closes About Us has to land on the hero and stop there, however
+    // hard it was thrown (see gestureUsed, and rule 1 in dismiss). Its own
+    // momentum tail must not be able to keep pushing the panel and sail on
+    // into the carousel behind it.
+    function driveCloseWithScroll(pixels) {
+      if (isOpenNow || !unlockWhenGestureEnds) return
+      if (!closeDrivenByScroll) {
+        closeDrivenByScroll = true
+        // Hand over from the spring cleanly — left running, it writes its
+        // own value back over this one on the very next frame. The axis
+        // starts where the spring had got to, so the handover itself moves
+        // nothing; only the delta below does.
+        // Read before stopping it: the close spring is mid-flight and the
+        // reveal is already travelling. Handing over to something that
+        // starts from rest — which both the drive and the commitment floor
+        // below do, left to themselves — stalls it for a frame or two and
+        // then accelerates hard into the new pace, which is a tiny but real
+        // cut in the middle of the hero sliding back. Reported directly.
+        // Continuity of position was never the problem; continuity of speed
+        // was.
+        closeCommitVelocity = aboutUsProgress.getVelocity()
+        progressAnimRef.current?.stop()
+        closeDriveAt = -aboutUsProgress.get() * window.innerHeight
+        // A damped travel moves at lambda times the distance still to cover,
+        // so seeding the target this far ahead means the drive's very first
+        // frame continues at exactly the speed the spring was doing, with
+        // the visitor's own deltas landing on top of it from there.
+        closeDriveTarget =
+          closeDriveAt + (-closeCommitVelocity * window.innerHeight) / CLOSE_DRIVE_LAMBDA
+        closeCommitFrom = aboutUsProgress.get()
+        closeDriveLastAt = performance.now()
+        closeCommitStartedAt = closeDriveLastAt
+        closeDriveFrame = requestAnimationFrame(stepCloseDrive)
+      }
+      // Deliberately not clamped at 0. A swipe asks to travel some distance;
+      // if that is further than the panel had left to go, the excess belongs
+      // to the page beyond it, not in the bin. Clamping here (which is what
+      // this did first) threw that excess away and then made the lock wait
+      // for an exponential ease to converge on a target it had already been
+      // pinned to — about a second and a half of pure asymptote after the
+      // panel was, to look at, already gone. Reported directly, as the second
+      // swipe taking a couple of seconds to start scrolling.
+      closeDriveTarget += pixels
+    }
+
+    function stepCloseDrive(now) {
+      closeDriveFrame = 0
+      if (!closeDrivenByScroll) return
+      // Clamped, so a stalled tab resuming can't apply one enormous step and
+      // reintroduce the jump this whole loop exists to remove.
+      const dt = Math.min(0.05, (now - closeDriveLastAt) / 1000)
+      closeDriveLastAt = now
+      closeDriveAt += (closeDriveTarget - closeDriveAt) * (1 - Math.exp(-CLOSE_DRIVE_LAMBDA * dt))
+      // Whichever is further along: what the visitor's own scrolling has
+      // reached, or the commitment that the reveal will be gone within
+      // ABOUT_US_CLOSE_COMMIT_SECONDS of being asked. A hard swipe overtakes
+      // the floor and keeps its 1:1 feel; a light one is carried by it
+      // instead of stranding the panel somewhere in the middle.
+      const drivenProgress = Math.min(1, -closeDriveAt / window.innerHeight)
+      const sinceCommit = (now - closeCommitStartedAt) / 1000
+      const decay = ABOUT_US_CLOSE_COMMIT_OMEGA * sinceCommit
+      // The critically-damped solution with a starting speed, rather than the
+      // from-rest form of it: e^-wt * [x0 + (v0 + w*x0)t]. With v0 of 0 the
+      // bracket collapses back to x0(1 + wt), which is what this was before
+      // the reveal's existing motion had to survive the handover.
+      const committedProgress =
+        Math.exp(-decay) *
+        (closeCommitFrom + (closeCommitVelocity + ABOUT_US_CLOSE_COMMIT_OMEGA * closeCommitFrom) * sinceCommit)
+      const progress = Math.min(drivenProgress, committedProgress)
+      // Reaching 0 is the panel's bottom edge reaching the top of the screen
+      // — the reveal is off, the hero is exactly where real scrollY 0 puts
+      // it, and there is nothing left for this loop to own. Release on that,
+      // not on either easing settling: those are different moments, and both
+      // land a long way after anything is still visible. Half a pixel of a
+      // screen is the same as none.
+      if (progress * window.innerHeight < 0.5) {
+        aboutUsProgress.set(0)
+        releaseAfterClose()
+        return
+      }
+      aboutUsProgress.set(progress)
+      closeDriveFrame = requestAnimationFrame(stepCloseDrive)
+    }
+
+    function stopCloseDrive() {
+      closeDrivenByScroll = false
+      cancelAnimationFrame(closeDriveFrame)
+      closeDriveFrame = 0
+    }
+
+    function releaseAfterClose() {
+      stopCloseDrive()
+      clearTimeout(fallbackTimer)
+      if (!unlockWhenGestureEnds) return
+      unlockWhenGestureEnds = false
+      unlock()
     }
 
     function onWheel(event) {
@@ -409,13 +577,6 @@ export default function GlassLogoPreview() {
         gestureScrolled = false
         gestureUsed = false
       }
-      // A new downward gesture arriving mid-close doesn't get to unlock
-      // early — see dismiss() for what scrolling out from under a fixed
-      // overlay looks like — but it does get the close to stop dawdling.
-      // `fresh` rather than the classifier's releasesLock: identical value
-      // (releasesLock is what fresh is derived from), and this is the one
-      // call site left, so it reads off the flag it actually means.
-      if (fresh && delta > 0 && unlockWhenGestureEnds) hurryClose()
       clearTimeout(gestureTimer)
       gestureTimer = setTimeout(endGesture, GESTURE_END_MS)
 
@@ -424,7 +585,22 @@ export default function GlassLogoPreview() {
       // page merely coasts the last pixels, or the coast itself keeps
       // blocking the visitor's next request. See ARRIVING_EPSILON_PX.
       if (getTargetScroll() > TOP_EPSILON_PX) gestureScrolled = true
+      // Anything asking to go down, or a target that is no longer the top,
+      // means a held-open request has been changed its mind about — drop it
+      // rather than have it land later out of nowhere. See pendingOpen.
+      if (delta > 0 || getTargetScroll() > TOP_EPSILON_PX) pendingOpen = false
       if (absDelta < MIN_DELTA) return
+
+      // A downward push while the close is still playing moves the panel
+      // itself — see driveCloseWithScroll. `fresh` opens the door (a later
+      // gesture, never the dismissing one); closeDrivenByScroll then keeps
+      // it open for the rest of that same gesture, momentum tail included,
+      // so a flick carries the panel exactly as far as it would have carried
+      // the page.
+      if (delta > 0 && unlockWhenGestureEnds && (fresh || closeDrivenByScroll)) {
+        driveCloseWithScroll(deltaToPixels(event))
+        return
+      }
 
       if (isOpenNow) {
         // A downward push closes About Us on the first event that asks for
@@ -458,16 +634,34 @@ export default function GlassLogoPreview() {
       // can imitate, and trusting it here is what would let a stutter
       // reveal About Us mid-flick.
       // "Nowhere left above to scroll to" is a question about the scroll
-      // target, not about where the easing happens to have got to — with
-      // the visible position only used to make sure the leftover snap is
-      // small enough not to be seen. See ARRIVING_EPSILON_PX.
-      const atTop =
-        getTargetScroll() <= TOP_EPSILON_PX && window.scrollY <= ARRIVING_EPSILON_PX
+      // target, not about where the easing happens to have got to. Those two
+      // are a long way apart after a flick up from the section below: the
+      // target pins to 0 immediately, while the visible position takes about
+      // 0.45s to ease from a screen away into the ARRIVING_EPSILON_PX the
+      // opening snap can swallow unseen.
+      //
+      // So the visible position decides *when* this is honoured, never
+      // whether it is. Requiring both at once (which is what this did) threw
+      // away every request landing in that 0.45s outright, and did it
+      // unevenly: a hard swipe's momentum tail is still firing after the
+      // page has arrived, so its late events qualified and it appeared to
+      // work, while a gentle swipe's shorter tail died first and every one of
+      // its events was discarded. Same request, and only the strength of it
+      // decided whether the site noticed — reported directly, as a quick
+      // gentle swipe up not registering. Holding it for the moment the page
+      // arrives costs a fraction of a second in which the page is visibly
+      // still moving anyway, which is nothing like the same thing as a wait.
+      //
+      // Deliberately not a queue of one *gesture* — gestureUsed already makes
+      // this at most one request per gesture, and the flag is dropped the
+      // moment anything contradicts it (see below).
+      const committedToTop = getTargetScroll() <= TOP_EPSILON_PX
       const pageStillSettling = now - lastScrollMoveAt < SCROLL_SETTLE_MS
-      if (delta < 0 && !gestureScrolled && !gestureUsed && atTop && (!pageStillSettling || deliberate)) {
+      if (delta < 0 && !gestureScrolled && !gestureUsed && committedToTop && (!pageStillSettling || deliberate)) {
         gestureUsed = true
         classifier.lastActionAt = now
-        open()
+        if (window.scrollY <= ARRIVING_EPSILON_PX) open()
+        else pendingOpen = true
       }
     }
     // Keyboard scrolling has no momentum tail, so each keypress is its own
@@ -491,6 +685,7 @@ export default function GlassLogoPreview() {
       window.removeEventListener('scroll', onScroll)
       clearTimeout(gestureTimer)
       clearTimeout(fallbackTimer)
+      cancelAnimationFrame(closeDriveFrame)
       compAnimation?.stop()
     }
     // resize/getTargetScroll are both stable, [] -deps useCallbacks (see
@@ -545,6 +740,7 @@ export default function GlassLogoPreview() {
       />
       <ClientLogoCarousel sectionRef={carouselRef} />
       <BackgroundGlowSection carouselRef={carouselRef} />
+      {SHOW_FRAME_RATE && <FrameRateMeter />}
       <AboutUsSection isOpen={isAboutUsOpen} openScrollComp={openScrollComp} aboutUsProgress={aboutUsProgress} />
     </>
   )
