@@ -5,6 +5,8 @@ import { MathUtils } from 'three'
 import { AboutUsIntro } from './AboutUsIntro'
 import { GridPlane } from './BackgroundGrid'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, THROUGH_GLASS_STYLE } from './gridConstants'
+import GridAlignmentOverlay from './GridAlignmentOverlay'
+import { gridScreenMetrics } from './gridScreenMetrics'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
 import { GradientBlob } from './GradientBlob'
@@ -55,8 +57,8 @@ import { useSeamlessGrid } from './useSeamlessGrid'
 // keep whatever pattern feature sits there fixed while everything else
 // scales around it, the mirror image of BackgroundGrid's own top-edge
 // version.
-function SeamlessGridBackdrop({ aboutUsProgress }) {
-  const { blobWidth, blobY, gridWidth, gridHeight, repeat, yPhaseShiftCells } = useSeamlessGrid(-1)
+function SeamlessGridBackdrop({ aboutUsProgress, gridMetricsRef }) {
+  const { size, blobWidth, blobY, gridWidth, gridHeight, repeat, yPhaseShiftCells } = useSeamlessGrid(-1)
   // Only the grid planes, not the blob — leaving the blob's own much
   // larger, softer shape untouched keeps it reading as the stable backdrop
   // the grid zooms in front of, the same split BackgroundGlowSection uses.
@@ -71,6 +73,21 @@ function SeamlessGridBackdrop({ aboutUsProgress }) {
     const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, aboutUsProgress.get())
     group.scale.set(scale, scale, 1)
     group.position.y = (gridHeight / 2) * (scale - 1)
+    // Publish where the cells land, for AboutUsIntro's photo window — see
+    // gridScreenMetrics. Written into a plain ref rather than state because
+    // it changes on every frame of the zoom and nothing about it should cost
+    // a re-render; read the same frame it is written, one element away, the
+    // same handoff shape badgeAnchorRef already uses in the other direction.
+    if (gridMetricsRef) {
+      gridMetricsRef.current = gridScreenMetrics({
+        width: size.width,
+        height: size.height,
+        scale,
+        // -1 — this canvas continues the hero's pattern one screen above it,
+        // the same offset useSeamlessGrid was given above.
+        screenOffset: -1,
+      })
+    }
   })
 
   return (
@@ -118,26 +135,31 @@ function SceneRenderGate({ isVisibleRef }) {
   return null
 }
 
-// Tracks a plain DOM element's own real screen rect (CSS px, viewport-
-// relative) — used to position GoogleCloudGlassBadge's WebGL plaque exactly
-// under AboutUsIntro's photo, from a single source of truth (the DOM
-// layout) rather than two independently-maintained copies of the same
-// numbers that would drift the moment either side's layout changed.
+// Tracks a plain DOM element's own real rect (CSS px), measured relative to
+// containerRef rather than the viewport — used to position
+// GoogleCloudGlassBadge's WebGL plaque exactly under AboutUsIntro's photo,
+// from a single source of truth (the DOM layout) rather than two
+// independently-maintained copies of the same numbers that would drift the
+// moment either side's layout changed.
+//
+// Relative to the container because the badge is drawn *in* that container's
+// own canvas and converts this rect using that canvas's size — see measure()
+// below for the whole of it, and for why a viewport rect meant the plaque
+// spent every reveal parked a screen above the screen.
 //
 // Returns [rect, remeasure] — remeasure is exposed, not just called
 // internally, because none of this hook's own triggers (ResizeObserver, a
-// plain window resize listener) fire for the one thing that actually moves
-// this anchor: the whole section's own CSS transform sliding it in from
-// y:-100%. A transform changes where an element paints, not its layout size,
-// so neither trigger sees it — confirmed directly, the very first measurement
-// (taken the instant this section mounts, while it's still sitting off-
-// screen above the viewport) was the *only* one ever taken, leaving the
-// badge positioned using a rect from before the slide-in ever happened
-// (top around -410px on a 1000px-tall screen) and never updated again,
-// which is why it rendered somewhere off in the dark rather than under the
-// photo. AboutUsSection calls remeasure off the shared reveal progress
-// landing exactly on 0 or 1, once the slide genuinely finishes.
-function useDomAnchorRect(ref) {
+// plain window resize listener) fire for a change of *position* alone, which
+// is a real gap: a transform changes where an element paints, not its layout
+// size, and neither trigger sees that. It used to be load-bearing, back when
+// the section's own slide moved this anchor through every offset between one
+// screen up and none — confirmed directly at the time, the first measurement
+// (taken while the section was still parked off-screen) was the only one ever
+// taken, and the badge rendered off in the dark rather than under the photo.
+// Measuring against the container removes that motion from the number
+// entirely, so what remains is a safety net for ordinary layout shifts;
+// AboutUsSection still calls it when the reveal's progress lands on 0 or 1.
+function useDomAnchorRect(ref, containerRef) {
   const [rect, setRect] = useState(null)
   const measureRef = useRef(() => {})
 
@@ -146,7 +168,30 @@ function useDomAnchorRect(ref) {
     if (!el) return
     function measure() {
       const box = el.getBoundingClientRect()
-      setRect({ left: box.left, top: box.top, width: box.width, height: box.height })
+      // Relative to the container, not the viewport, because
+      // getBoundingClientRect reports where a thing *paints* — ancestor
+      // transforms included — and this section spends nearly all its life
+      // translated a whole screen up, then slides through every offset in
+      // between. GoogleCloudGlassBadge converts this rect using its canvas's
+      // own size, and that canvas is this very section, so a viewport rect
+      // hands it the section's transform a second time and puts the plaque
+      // one screen out.
+      //
+      // That is the whole of why the badge used to "arrive late": it was
+      // being drawn a screen above the viewport for the entire reveal, and
+      // only the remeasure at the very end of the slide brought it back.
+      // Subtracting the container cancels the transform (both rects carry
+      // it), which leaves a number that is right at every point of the slide
+      // and does not change during it at all.
+      const container = containerRef?.current?.getBoundingClientRect()
+      const originLeft = container?.left ?? 0
+      const originTop = container?.top ?? 0
+      setRect({
+        left: box.left - originLeft,
+        top: box.top - originTop,
+        width: box.width,
+        height: box.height,
+      })
     }
     measureRef.current = measure
     measure()
@@ -157,7 +202,7 @@ function useDomAnchorRect(ref) {
       observer.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [ref])
+  }, [ref, containerRef])
 
   return [rect, () => measureRef.current()]
 }
@@ -174,11 +219,18 @@ function useDomAnchorRect(ref) {
 // wrapper below, which is what actually does the positioning): above the
 // hero (default stacking) so it visibly covers it once revealed, below the
 // navbar's own z-20 so that stays on top throughout.
+// Read once at module scope — see GridAlignmentOverlay, ?gridlines to show it.
+const SHOW_GRID_LINES = new URLSearchParams(window.location.search).has('gridlines')
+
 export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   const tier = usePerformanceTier()
   const sectionRef = useRef(null)
   const badgeAnchorRef = useRef(null)
-  const [badgeRect, remeasureBadgeRect] = useDomAnchorRect(badgeAnchorRef)
+  // Cell size and boundary phase in CSS pixels, written every frame by
+  // SeamlessGridBackdrop inside the canvas and read by AboutUsIntro outside
+  // it, so the photo can sit on whole grid squares rather than near them.
+  const gridMetricsRef = useRef(null)
+  const [badgeRect, remeasureBadgeRect] = useDomAnchorRect(badgeAnchorRef, sectionRef)
   // Down from just above the viewport as About Us opens — the exact opposite
   // of GlassLogoHero's own offset, derived from the same shared number so the
   // pair is one screen apart at every value it can take (see aboutUsProgress
@@ -269,7 +321,7 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
       }`}
     >
       <Canvas dpr={tier === 'high' ? [1, 2] : 1} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
-        <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} />
+        <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} gridMetricsRef={gridMetricsRef} />
         {/* Same modest white light the hero gives its own glass (see
             Backdrop) — the blue reflection environment below is meant to be
             the dominant source, this is just enough for the badge's edges
@@ -301,6 +353,7 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
       </Canvas>
 
       <AboutUsIntro isOpen={isOpen} badgeAnchorRef={badgeAnchorRef} />
+      {SHOW_GRID_LINES && <GridAlignmentOverlay gridMetricsRef={gridMetricsRef} />}
     </motion.section>
     </motion.div>
   )

@@ -52,8 +52,10 @@ const MAX_TILT = MathUtils.degToRad(5)
 const BASE_TILT = { x: -0.12, y: 0.1 }
 const TILT_LAMBDA = 4
 
-// domRect is the badge anchor's own real screen rect (CSS px, viewport-
-// relative — see AboutUsSection's useDomAnchorRect), converted here to a
+// domRect is the badge anchor's own real rect (CSS px, relative to this
+// canvas rather than the viewport — see AboutUsSection's useDomAnchorRect,
+// which subtracts the section so the section's own slide transform is not
+// counted twice), converted here to a
 // world position/scale at this badge's own Z — the same px-to-world
 // approach used throughout this piece for syncing a DOM layout to WebGL
 // content.

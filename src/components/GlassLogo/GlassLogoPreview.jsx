@@ -30,7 +30,8 @@ export default function GlassLogoPreview() {
   // scroll position. AboutUsSection is a `position: fixed` overlay (see
   // there), not a real section in document flow, so opening/closing it
   // never *moves* real scroll: the top of the site stays GlassLogoHero at
-  // real scrollY 0, always, exactly as before this feature existed. Both
+  // real scrollY 0, always, exactly as before this feature existed.
+  //
   // This flag is only the *request*; what actually moves is aboutUsProgress
   // below, which both GlassLogoHero's slide-away and AboutUsSection's
   // slide-in are derived from directly, so they cannot be anywhere but one
@@ -86,12 +87,8 @@ export default function GlassLogoPreview() {
   //
   // That the seam holds is arithmetic here, not coordination. It used to be
   // four separate animations started from one shared spring *config*, which
-  // is not the same thing and does not survive being interrupted.
-  //
-  // One value animated once here, rather than each canvas animating its own
-  // copy from the same shared spring *config*, which is what this used to be
-  // — and which is not the same thing at all. Two springs agree only for as
-  // long as neither is interrupted: they live in separate react-three-fiber
+  // is not the same thing at all: two springs agree only for as long as
+  // neither is interrupted. They live in separate react-three-fiber
   // roots, so they don't even start on the same tick, and an interrupted
   // spring restarts from wherever *it* had got to, at its own velocity. Toggle
   // About Us slowly and both always land on a clean 0 or 1, so nothing shows;
@@ -214,6 +211,12 @@ export default function GlassLogoPreview() {
     // released when that gesture's momentum actually dies, not on a timer —
     // or the instant a genuinely new push arrives, whichever comes first.
     let unlockWhenGestureEnds = false
+    // The two halves of "the reveal has finished with the page": the close
+    // animation having played out, and the gesture that started it having
+    // actually stopped. See dismiss() for why waiting on either alone was
+    // wrong, in opposite directions.
+    let closeAnimationDone = false
+    let gestureActive = false
     // A deliberate upward request that arrived before the page had finished
     // coasting to a top it was already committed to — see the open decision
     // in onWheel, and honoured in onScroll below the moment it arrives.
@@ -277,6 +280,14 @@ export default function GlassLogoPreview() {
     function endGesture() {
       gestureScrolled = false
       gestureUsed = false
+      gestureActive = false
+      // The dismissing gesture has finally run out. If the close animation
+      // already finished while it was still going, this is the moment the
+      // page is genuinely free — see dismiss().
+      if (unlockWhenGestureEnds && closeAnimationDone) {
+        unlockWhenGestureEnds = false
+        unlock()
+      }
       // Used to also release a dismiss's scroll lock right here, the
       // instant the dismissing gesture's own momentum died down (often
       // under a second) — see dismiss()'s fallbackTimer for why that's no
@@ -331,6 +342,7 @@ export default function GlassLogoPreview() {
       // preempting unlock this replaces cleared the same flag on the way
       // past (see dismiss).
       unlockWhenGestureEnds = false
+      closeAnimationDone = false
       stopCloseDrive()
       clearTimeout(fallbackTimer)
       lock()
@@ -382,13 +394,33 @@ export default function GlassLogoPreview() {
       setIsAboutUsOpen(false)
       lock()
       unlockWhenGestureEnds = true
+      closeAnimationDone = false
       clearTimeout(fallbackTimer)
       // unlockWhenGestureEnds is re-checked when this fires, not just here:
       // open() clears it, so a visitor who reopens About Us mid-close never
       // has this land afterwards and quietly unlock the page under an open
       // overlay.
+      //
+      // And the animation finishing is only half of what has to be true. The
+      // other half is that the gesture which dismissed About Us is actually
+      // over. A hard flick's momentum runs a second or two on its own, so
+      // releasing purely on this timer handed whatever was left of it
+      // straight to Lenis, which carried the page down past the hero — the
+      // first scroll down from About Us overshooting into the section below,
+      // reported directly. Rule 1 says a dismissing flick, however hard, only
+      // ever lands on the hero; that rule only holds for as long as the lock
+      // does.
+      //
+      // This file has been round this loop once already in the other
+      // direction: releasing on the gesture ending alone (which is what it
+      // did originally) let go while the hero was still visibly sliding back.
+      // Neither event is reliably the later one, so the answer is not to pick
+      // one — it is to wait for both, whichever order they arrive in. See
+      // endGesture for the other side of it.
       fallbackTimer = setTimeout(() => {
         if (!unlockWhenGestureEnds) return
+        closeAnimationDone = true
+        if (gestureActive) return
         unlockWhenGestureEnds = false
         unlock()
       }, ABOUT_US_CLOSE_TRANSITION.duration * 1000)
@@ -557,6 +589,7 @@ export default function GlassLogoPreview() {
 
     function releaseAfterClose() {
       stopCloseDrive()
+      closeAnimationDone = false
       clearTimeout(fallbackTimer)
       if (!unlockWhenGestureEnds) return
       unlockWhenGestureEnds = false
@@ -577,6 +610,7 @@ export default function GlassLogoPreview() {
         gestureScrolled = false
         gestureUsed = false
       }
+      gestureActive = true
       clearTimeout(gestureTimer)
       gestureTimer = setTimeout(endGesture, GESTURE_END_MS)
 
@@ -657,7 +691,31 @@ export default function GlassLogoPreview() {
       // moment anything contradicts it (see below).
       const committedToTop = getTargetScroll() <= TOP_EPSILON_PX
       const pageStillSettling = now - lastScrollMoveAt < SCROLL_SETTLE_MS
-      if (delta < 0 && !gestureScrolled && !gestureUsed && committedToTop && (!pageStillSettling || deliberate)) {
+      // ...and near enough that the hero is what's on screen. Being committed
+      // to the top is not on its own a statement about where the visitor
+      // *is*: one firm push from the section below sets Lenis's target to 0
+      // on its very first event, so the page counts as committed while still
+      // a whole screen away. gestureScrolled is meant to catch exactly that
+      // and cannot, because it reads the target after Lenis has already
+      // clamped it — the event that asks to travel a screen looks identical
+      // to one that asks for nothing.
+      //
+      // So a second test that does not depend on reading intent out of a
+      // single event: an upward gesture from below the hero means "take me to
+      // the hero", and only one made *on* the hero can mean "and then past
+      // it". Without this, one swipe up from the section below opened About
+      // Us the moment its coast landed, skipping the hero entirely — which
+      // is the rule this whole file exists to enforce, broken by the fix that
+      // stopped early requests being discarded. Reported directly.
+      const onHeroScreen = window.scrollY <= window.innerHeight
+      if (
+        delta < 0 &&
+        !gestureScrolled &&
+        !gestureUsed &&
+        committedToTop &&
+        onHeroScreen &&
+        (!pageStillSettling || deliberate)
+      ) {
         gestureUsed = true
         classifier.lastActionAt = now
         if (window.scrollY <= ARRIVING_EPSILON_PX) open()
