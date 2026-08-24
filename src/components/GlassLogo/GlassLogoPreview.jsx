@@ -181,6 +181,12 @@ export default function GlassLogoPreview() {
     // — and it can't anyway, since a scroll that still has somewhere to go
     // leaves a target above 0.
     const ARRIVING_EPSILON_PX = 120
+    // How long after a dismiss the scroll lock may be held at the very most,
+    // whatever the event stream is doing. Comfortably past both the close
+    // animation and any real momentum tail, so it never fires in normal use
+    // — it exists so that the release has one trigger a visitor cannot
+    // influence at all. See gestureEndedSinceDismiss.
+    const CLOSE_HOLD_CEILING_MS = 2600
 
     let isLocked = false
     // Whether About Us is currently showing. Tracked here as a plain local
@@ -203,6 +209,9 @@ export default function GlassLogoPreview() {
     // very next gesture — a genuinely separate, deliberate one — opens
     // About Us on its own first event, with nothing to wait out.
     let gestureScrolled = false
+    // Whether this gesture started below the hero — see where it is set. A
+    // per-gesture fact, deliberately, not a per-event one.
+    let gestureStartedAtTop = false
     // Set once this gesture has already opened or dismissed, so the rest of
     // its own momentum can't immediately undo what it just did (or sail on
     // through into the section beyond).
@@ -216,11 +225,49 @@ export default function GlassLogoPreview() {
     // actually stopped. See dismiss() for why waiting on either alone was
     // wrong, in opposite directions.
     let closeAnimationDone = false
-    let gestureActive = false
-    // A deliberate upward request that arrived before the page had finished
-    // coasting to a top it was already committed to — see the open decision
-    // in onWheel, and honoured in onScroll below the moment it arrives.
-    let pendingOpen = false
+    // Whether any gesture has genuinely ended since About Us was dismissed.
+    // The scroll drive releases the lock, so it must only ever be reachable
+    // by a gesture that is not the dismissing one — and `fresh` is not proof
+    // of that: it is the classifier's best reading of a stream, and a spike
+    // deep in a hard flick's own tail can still read as a new push. That is
+    // enough to release the lock mid-flick and let the rest of that same
+    // flick carry the page past the hero. Requiring the momentum to have
+    // actually stopped once cannot be faked by anything inside a single
+    // gesture. The cost is that a second swipe landing *during* the first
+    // one's tail no longer drives the close — it waits for the ordinary
+    // release instead, which is the right way round: a missed acceleration
+    // is a smaller wrong than a broken rule.
+    //
+    // It is set from two places, and the pair of them is the whole point.
+    //
+    // This one condition has now been got wrong three times running, each
+    // time by reaching for something that is only *usually* true, so it is
+    // worth writing down what it actually has to satisfy. It must be
+    // impossible to postpone by scrolling — or someone scrolling because
+    // nothing is happening becomes the reason nothing happens, which is a
+    // deadlock, twice reported. And it must be impossible to produce from
+    // inside the dismissing gesture itself — or that gesture's own leftover
+    // momentum unlocks the page and carries it past the hero, which is the
+    // overshoot, three times reported.
+    //
+    // Almost nothing satisfies both. `endGesture` fails the first (it is a
+    // timer re-armed by every wheel event). The classifier's `fresh` fails
+    // the second (it includes a magnitude spike, and a hard flick's own tail
+    // throws those). What survives is:
+    //
+    //  - a real gap in *event* time. A gesture that has genuinely stopped
+    //    delivering for GESTURE_END_MS is over, and no spike inside a live
+    //    stream can manufacture one. Set below in onWheel, so scrolling again
+    //    is what resolves a pending release rather than deferring it.
+    //  - the wall clock. Momentum is bounded; past CLOSE_HOLD_CEILING_MS
+    //    there is nothing left to leak whatever the event stream says. A
+    //    timer nothing can re-arm, so the release cannot starve.
+    //
+    // endGesture keeps setting it too, since when it does fire it is right —
+    // it is simply not something to rely on alone.
+    let gestureEndedSinceDismiss = false
+    // The ceiling timer itself — see the second bullet above.
+    let closeHoldCeiling = null
     // Rolling shape of the event stream — see scrollGestureClassifier.js.
     const classifier = createGestureClassifier()
     // When the page's real scroll position last actually changed. Wheel
@@ -233,12 +280,6 @@ export default function GlassLogoPreview() {
     let lastScrollMoveAt = 0
     function onScroll() {
       lastScrollMoveAt = performance.now()
-      // The page has finished coasting into range of a request that was made
-      // while it was still on its way. See pendingOpen.
-      if (pendingOpen && window.scrollY <= ARRIVING_EPSILON_PX) {
-        pendingOpen = false
-        open()
-      }
     }
     const SCROLL_SETTLE_MS = 150
 
@@ -278,20 +319,51 @@ export default function GlassLogoPreview() {
     // page was still easing to a stop — the exact "I scrolled and had to
     // wait" this is meant to eliminate.
     function endGesture() {
+      // This is a wall-clock timer, and a wall-clock timer cannot tell "the
+      // visitor stopped scrolling" from "this page stopped running". Both
+      // look like 150ms in which nothing was processed.
+      //
+      // It matters because everything downstream treats this as proof the
+      // gesture is over: it clears the per-gesture guards and, after a
+      // dismiss, is one of the things that releases the scroll lock. Firing
+      // it in the middle of a live flick therefore hands the rest of that
+      // flick's momentum to the page — which is the swipe down from About Us
+      // sailing past the hero into the section below, reported repeatedly and
+      // always worse in a real browser, where slow frames are ordinary.
+      //
+      // The events themselves know better. Browsers deliver input ahead of
+      // timers, so by the time this runs after a stall the wheel events from
+      // that stall have already been processed and lastEventAt is current. If
+      // it says the stream is still live, the gesture is still live: re-arm
+      // for whatever is actually left rather than declaring it finished.
+      //
+      // Same correction as eventTime() below, applied to the other half of
+      // the file's sense of time. Fixing the classifier's timestamps while
+      // leaving this reading the clock was fixing one of two.
+      const sinceLastEvent = performance.now() - classifier.lastEventAt
+      if (sinceLastEvent < GESTURE_END_MS) {
+        gestureTimer = setTimeout(endGesture, GESTURE_END_MS - sinceLastEvent)
+        return
+      }
       gestureScrolled = false
       gestureUsed = false
-      gestureActive = false
-      // The dismissing gesture has finally run out. If the close animation
-      // already finished while it was still going, this is the moment the
-      // page is genuinely free — see dismiss().
-      if (unlockWhenGestureEnds && closeAnimationDone) {
-        unlockWhenGestureEnds = false
-        unlock()
-      }
-      // Used to also release a dismiss's scroll lock right here, the
-      // instant the dismissing gesture's own momentum died down (often
-      // under a second) — see dismiss()'s fallbackTimer for why that's no
-      // longer this function's job.
+      gestureEndedSinceDismiss = true
+      // The dismissing gesture has finally run out — one of the three things
+      // that can complete a pending release. See releaseIfCloseFinished.
+      releaseIfCloseFinished()
+    }
+
+    // The page goes back to the document when the close has both played out
+    // and stopped being able to leak the dismissing gesture's momentum into
+    // it. Deliberately callable from every event that can make either of
+    // those true — the animation's timer, the gesture ending, and a new
+    // gesture starting — rather than owned by whichever one is usually last.
+    // Assuming an order is what produced two deadlocks in a row.
+    function releaseIfCloseFinished() {
+      if (!unlockWhenGestureEnds || !closeAnimationDone) return
+      if (!gestureEndedSinceDismiss) return
+      unlockWhenGestureEnds = false
+      unlock()
     }
 
     // Called on every path that opens About Us: the nav link, and scrolling
@@ -333,7 +405,6 @@ export default function GlassLogoPreview() {
           compAnimation = animate(openScrollComp, 0, ABOUT_US_OPEN_TRANSITION)
         }
       }
-      pendingOpen = false
       isOpenNow = true
       setIsAboutUsOpen(true)
       // Reopening while a close is still playing: drop that close's pending
@@ -345,6 +416,7 @@ export default function GlassLogoPreview() {
       closeAnimationDone = false
       stopCloseDrive()
       clearTimeout(fallbackTimer)
+      clearTimeout(closeHoldCeiling)
       lock()
     }
     // Called on every path that closes About Us (re-clicking it, the logo,
@@ -389,12 +461,19 @@ export default function GlassLogoPreview() {
     // driveCloseWithScroll.
     function dismiss() {
       window.scrollTo(0, 0)
-      pendingOpen = false
       isOpenNow = false
       setIsAboutUsOpen(false)
       lock()
       unlockWhenGestureEnds = true
       closeAnimationDone = false
+      gestureEndedSinceDismiss = false
+      clearTimeout(closeHoldCeiling)
+      // The backstop that makes this release impossible to starve. Nothing a
+      // visitor does can re-arm it. See gestureEndedSinceDismiss.
+      closeHoldCeiling = setTimeout(() => {
+        gestureEndedSinceDismiss = true
+        releaseIfCloseFinished()
+      }, CLOSE_HOLD_CEILING_MS)
       clearTimeout(fallbackTimer)
       // unlockWhenGestureEnds is re-checked when this fires, not just here:
       // open() clears it, so a visitor who reopens About Us mid-close never
@@ -419,10 +498,12 @@ export default function GlassLogoPreview() {
       // endGesture for the other side of it.
       fallbackTimer = setTimeout(() => {
         if (!unlockWhenGestureEnds) return
+        // This timer's only job is to record that the animation is done. It
+        // is one-shot, so it must not also be the only place the release can
+        // happen — being mid-scroll at the instant it fired used to mean the
+        // release simply never occurred.
         closeAnimationDone = true
-        if (gestureActive) return
-        unlockWhenGestureEnds = false
-        unlock()
+        releaseIfCloseFinished()
       }, ABOUT_US_CLOSE_TRANSITION.duration * 1000)
     }
 
@@ -596,10 +677,54 @@ export default function GlassLogoPreview() {
       unlock()
     }
 
+    // When the event actually happened, not when this handler got round to
+    // running — and on a page this heavy those are not the same thing.
+    //
+    // Everything the classifier decides is read out of the *spacing* between
+    // events: a gap ends a gesture, and the envelope it measures a push
+    // against decays over elapsed time. Stamping them with performance.now()
+    // inside the handler measures the main thread instead of the hand. A
+    // frame that takes 150ms leaves the wheel events of that frame queued and
+    // then delivers them in one burst, so the first of them appears to arrive
+    // a whole gesture-boundary after the last one — and the burst that
+    // follows appears to arrive with no spacing at all.
+    //
+    // Which is not a subtle inaccuracy: it is the classifier being told a
+    // gesture ended and a new one began, once per stalled frame. Downstream,
+    // that let a *new* downward gesture appear mid-flick while About Us was
+    // closing, which releases the scroll lock (see driveCloseWithScroll), and
+    // the rest of the dismissing flick's momentum then carried the page
+    // straight past the hero into the section below. Reported three times,
+    // always worse in a real browser window than in a small preview, and
+    // always intermittent — because it needs a slow frame to land in the
+    // wrong place. Harder flicks made it likelier for the plainest possible
+    // reason: more momentum left over to leak.
+    //
+    // The classifier's own comments have flagged exactly this hazard from the
+    // start ("a plain gap can't [be trusted]: that's the signal a stalled
+    // frame can imitate") and the open path guards against it by refusing to
+    // act on a gap alone. The guard was never the real answer: the timestamp
+    // was simply wrong, and the browser has had the right one all along.
+    //
+    // The fallback is for the legacy epoch-based timeStamp; anything past the
+    // year 2001 in milliseconds cannot be a page-relative time.
+    function eventTime(event) {
+      return event.timeStamp > 0 && event.timeStamp < 1e12 ? event.timeStamp : performance.now()
+    }
+
     function onWheel(event) {
       const delta = event.deltaY
       const absDelta = Math.abs(delta)
-      const now = performance.now()
+      const now = eventTime(event)
+      // Real silence in the event stream, read before the classifier folds
+      // this event in. A gesture that stopped delivering for this long is
+      // over — proof a spike inside a live tail cannot fabricate, and proof
+      // that scrolling again supplies rather than defers. See
+      // gestureEndedSinceDismiss.
+      if (now - classifier.lastEventAt > GESTURE_END_MS) {
+        gestureEndedSinceDismiss = true
+        releaseIfCloseFinished()
+      }
       const { fresh, deliberate } = classifier.classify(delta, absDelta, now)
 
       classifier.lastEventAt = now
@@ -609,8 +734,41 @@ export default function GlassLogoPreview() {
       if (fresh) {
         gestureScrolled = false
         gestureUsed = false
+        // Where this gesture *began*, settled once and then left alone for
+        // its whole life, momentum tail included.
+        //
+        // Asked per event instead (which is what it was), it answers a
+        // different question every frame, and a single harsh swipe up from
+        // the section below gets a different answer partway through: it
+        // starts below the hero, where it must not be able to open About Us,
+        // and its own momentum then carries the page up through the hero,
+        // at which point its remaining events are sitting on the hero and
+        // free to. One gesture, both boundaries crossed, which is the exact
+        // thing the rule exists to prevent — and it is not caught by
+        // gestureScrolled either, because a harsh enough first event drives
+        // Lenis's target straight to 0 and that flag is read from the target
+        // *after* Lenis has already clamped it, so the gesture never looks
+        // like it scrolled anywhere at all.
+        // The whole rule, in one line, asked once when the gesture begins
+        // and then fixed for its entire life.
+        //
+        // It replaces "did this gesture start below the hero", which sounds
+        // equivalent and is not: this site's entire document is barely two
+        // viewports tall, so "below the hero" covers only the bottom tenth of
+        // the scrollable range. From the other ninety per cent — which is
+        // most of the section it was supposed to be guarding — it was simply
+        // never true, and an upward gesture could carry the page to the top
+        // and straight on into About Us without ever stopping. That is the
+        // failure reported over and over: swipe up from below, land in About
+        // Us, never see the hero.
+        //
+        // Asking whether the gesture *started at the top* has no such hole.
+        // It cannot be satisfied by momentum, because where a gesture starts
+        // is not something its own momentum can change. Reaching the hero and
+        // opening About Us are now necessarily two separate gestures, which
+        // is what "must stop at the hero" means.
+        gestureStartedAtTop = window.scrollY <= ARRIVING_EPSILON_PX
       }
-      gestureActive = true
       clearTimeout(gestureTimer)
       gestureTimer = setTimeout(endGesture, GESTURE_END_MS)
 
@@ -619,10 +777,6 @@ export default function GlassLogoPreview() {
       // page merely coasts the last pixels, or the coast itself keeps
       // blocking the visitor's next request. See ARRIVING_EPSILON_PX.
       if (getTargetScroll() > TOP_EPSILON_PX) gestureScrolled = true
-      // Anything asking to go down, or a target that is no longer the top,
-      // means a held-open request has been changed its mind about — drop it
-      // rather than have it land later out of nowhere. See pendingOpen.
-      if (delta > 0 || getTargetScroll() > TOP_EPSILON_PX) pendingOpen = false
       if (absDelta < MIN_DELTA) return
 
       // A downward push while the close is still playing moves the panel
@@ -631,7 +785,12 @@ export default function GlassLogoPreview() {
       // it open for the rest of that same gesture, momentum tail included,
       // so a flick carries the panel exactly as far as it would have carried
       // the page.
-      if (delta > 0 && unlockWhenGestureEnds && (fresh || closeDrivenByScroll)) {
+      if (
+        delta > 0 &&
+        unlockWhenGestureEnds &&
+        gestureEndedSinceDismiss &&
+        (fresh || closeDrivenByScroll)
+      ) {
         driveCloseWithScroll(deltaToPixels(event))
         return
       }
@@ -707,19 +866,17 @@ export default function GlassLogoPreview() {
       // Us the moment its coast landed, skipping the hero entirely — which
       // is the rule this whole file exists to enforce, broken by the fix that
       // stopped early requests being discarded. Reported directly.
-      const onHeroScreen = window.scrollY <= window.innerHeight
       if (
         delta < 0 &&
         !gestureScrolled &&
         !gestureUsed &&
         committedToTop &&
-        onHeroScreen &&
+        gestureStartedAtTop &&
         (!pageStillSettling || deliberate)
       ) {
         gestureUsed = true
         classifier.lastActionAt = now
-        if (window.scrollY <= ARRIVING_EPSILON_PX) open()
-        else pendingOpen = true
+        open()
       }
     }
     // Keyboard scrolling has no momentum tail, so each keypress is its own
@@ -743,6 +900,7 @@ export default function GlassLogoPreview() {
       window.removeEventListener('scroll', onScroll)
       clearTimeout(gestureTimer)
       clearTimeout(fallbackTimer)
+      clearTimeout(closeHoldCeiling)
       cancelAnimationFrame(closeDriveFrame)
       compAnimation?.stop()
     }

@@ -33,6 +33,13 @@ const BUTTON_ACTIVE_COLOR = [107 / 255, 185 / 255, 255 / 255] // #6BB9FF
 // each button's intensity toward its target (1 = hovered, 0 otherwise) —
 // just enough to keep the color shift from hard-cutting on a quick hover
 // flicker, not a visible animation in its own right.
+// How recently the pointer must have actually moved for a hover to count as
+// the visitor's doing rather than the page's — see onHover in BackgroundGrid.
+// Two frames' worth: a real hover follows its pointermove immediately, so
+// this only has to be long enough not to trip over a slow frame between the
+// two events.
+const POINTER_IDLE_MS = 120
+
 const BUTTON_ACTIVE_TAU = 0.15
 // First-load entrance (see uEntranceOpacity in GridPatternMaterial, and
 // entranceStartRef in GridPlane's useFrame) — how long the whole pattern
@@ -584,6 +591,17 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
   const buttonTopUV = buttonTopY.map((y) => (y + (height * OVERSCALE) / 2) / (height * OVERSCALE))
 
   const [hoveredIndex, setHoveredIndex] = useState(null)
+  // When the pointer itself last actually moved. Hover is only honoured just
+  // after one of these — see onHover below for what that protects against,
+  // and why a guard tied to one particular moment was not enough.
+  const pointerMovedAtRef = useRef(0)
+  useEffect(() => {
+    const onPointerMove = () => {
+      pointerMovedAtRef.current = performance.now()
+    }
+    window.addEventListener('pointermove', onPointerMove, { passive: true })
+    return () => window.removeEventListener('pointermove', onPointerMove)
+  }, [])
   // Starts on "AI for Academia" (index 0) rather than nothing selected, so
   // that label — and the hero title's matching "Learning" — show by
   // default instead of only on interaction.
@@ -746,6 +764,35 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
           // have settled, hover works normally.
           onHover={() => {
             if (isForceScrollingRef?.current) return
+            // ...and the general form of that same guard, which the case
+            // above turns out to be only one instance of.
+            //
+            // A hover means the pointer arrived at this button. It does not
+            // mean this button arrived at the pointer — and the second
+            // happens constantly here, because the hero is a screen of
+            // content that slides, scrolls and zooms underneath a cursor
+            // that is very often sitting still on it. Browsers re-evaluate
+            // what is under the pointer when things move beneath it, so
+            // every one of those is delivered as a perfectly genuine-looking
+            // hover.
+            //
+            // Which would be harmless if hovering only highlighted
+            // something. It is not, because hovering selects, and selecting
+            // the coming-soon button engages the scroll lock — which
+            // force-scrolls the page to the top and stops Lenis (see
+            // onScrollLockChange below, and useLenis). Mid-scroll that reads
+            // as the page tearing itself out of the visitor's hands:
+            // jittery, because a forced scroll is fighting live wheel input,
+            // and apparently random, because whether it happens depends on
+            // where the cursor happened to be resting. Reported exactly that
+            // way, and worst right after About Us, whose reveal drags every
+            // hit-zone in the hero a whole screen across the pointer.
+            //
+            // Requiring the pointer to have genuinely moved just beforehand
+            // separates the two cases at the source: a real hover always
+            // follows a pointermove within a frame or two, and content
+            // arriving under a still cursor never does.
+            if (performance.now() - pointerMovedAtRef.current > POINTER_IDLE_MS) return
             setHoveredIndex(i)
             setSelectedIndex(i)
           }}

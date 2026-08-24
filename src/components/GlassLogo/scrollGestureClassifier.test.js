@@ -140,6 +140,41 @@ describe('createGestureClassifier', () => {
     }
   })
 
+  it('is only as good as the timestamps it is given', () => {
+    // Not a test of this module so much as of the one thing its caller owes
+    // it, pinned here because getting it wrong is invisible in the code and
+    // very loud on screen.
+    //
+    // Everything below reads the *spacing* between events. Stamping them with
+    // performance.now() inside the wheel handler measures when the main
+    // thread got round to them, not when they happened — so a frame that
+    // takes longer than GESTURE_END_MS delivers its queued events in one
+    // burst, and this sees a gesture boundary that never occurred, once per
+    // stalled frame. In production that released the About Us scroll lock
+    // mid-flick and let the dismissing gesture's own momentum carry the page
+    // past the hero. GlassLogoPreview passes event.timeStamp for this reason.
+    //
+    // Same captured flick as above, re-timed as a stalling page would have
+    // reported it: every event that arrived within a frame collapsed onto
+    // that frame's own handler time.
+    const FRAME_MS = 200
+    const firstTick = CAPTURED_HARD_FLICK_UP[0].t
+    const asHandlerSawIt = CAPTURED_HARD_FLICK_UP.map((event) => ({
+      delta: event.delta,
+      t: firstTick + Math.ceil((event.t - firstTick) / FRAME_MS) * FRAME_MS,
+    }))
+
+    const trueBoundaries = replay(CAPTURED_HARD_FLICK_UP).filter((r) => r.fresh).length
+    const stalledBoundaries = replay(asHandlerSawIt).filter((r) => r.fresh).length
+
+    // One real gesture, one boundary — the reversal that starts it.
+    expect(trueBoundaries).toBe(1)
+    // ...and the very same gesture, re-timed by a janking main thread, breaks
+    // into several. Nothing in this file can tell the difference, which is
+    // exactly why the caller has to hand over the real times.
+    expect(stalledBoundaries).toBeGreaterThan(trueBoundaries)
+  })
+
   it('recognizes a gentle swipe after a pause, however long the pause was', () => {
     // A flick that ends abruptly while still at a decent magnitude — which
     // is what happens every time one is spent against the top of the page
