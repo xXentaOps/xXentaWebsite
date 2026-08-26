@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { CornerBrackets } from './CornerBrackets'
 import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
 import { gridScreenMetrics } from './gridScreenMetrics'
@@ -10,6 +10,36 @@ import { PAGE_MARGIN_VH, pageMarginPx } from './pageMargin'
 // photo's path, so it's a plain local constant rather than resurrecting
 // that file for one string.
 export const TEAM_PHOTO_SRC = '/team-photo-web.jpg'
+
+// The photo block is now a small slideshow rather than one fixed image —
+// the group photo (with its own "Meet the Team" CTA) always sits last, and
+// whatever comes before it exists to be browsed through, not landed on.
+// photo is null for the two slides ahead of it — left as plain gray filler
+// (see the placeholder block below) rather than borrowing real photos for
+// content that isn't decided yet, so nothing here could be mistaken for
+// finished. Headline/body follow the same obvious-placeholder bracket
+// convention as the rest of this page's still-unwritten copy.
+const SLIDES = [
+  {
+    photo: '/noordhuys-photo.jpg',
+    alt: 'Noordhuys',
+    headline: '[Our impact working with Noordhuys, to be added. ]',
+    body: "[ A paragraph on our team's expertise — to be added. ]",
+  },
+  {
+    photo: '/drp-photo.jpg',
+    alt: 'DRP',
+    headline: '[Our impact at De Rooi Pannen, to be added. ]',
+    body: '[ A paragraph on how we work together — to be added. ]',
+  },
+  {
+    photo: TEAM_PHOTO_SRC,
+    alt: 'The xXenta team',
+    headline: '[ A short, catchy line about xXenta — to be added. ]',
+    body: '[ A paragraph on our work as a small team, and on being a Google Cloud partner — to be added. ]',
+    showButton: true,
+  },
+]
 
 // The photo's window, in grid cells. Four across, up from three, by three
 // down, up from the original two (that one asked for directly, as "the row
@@ -119,11 +149,30 @@ function photoCellIndices(width, height) {
   return { column, row }
 }
 
-// Same placeholder-bracket convention the rest of this piece's still-
-// unwritten copy uses (see teamData.js, OurMission.jsx's own retired
-// version) — three generic slots, not real certification names, so none of
-// this could be mistaken for finished content.
-const CERTIFICATION_PLACEHOLDERS = ['[ Certification ]', '[ Certification ]', '[ Certification ]']
+// Same no-fill blue as CornerBrackets/EDGE_STYLE, but circled — a bare
+// chevron (tried first, alongside the photo) read as too easy to miss;
+// the same "Meet the Team" pill's rounded-full/border-only treatment,
+// applied to a circle instead of a pill, gives the mark a real footprint to
+// notice and to click without abandoning the "outline only" language this
+// piece uses everywhere else. disabled (at either end of SLIDES) fades and
+// stops taking clicks rather than wrapping around — the group photo's own
+// CTA is a real last slide to arrive at, not one stop on an endless loop.
+function SlideArrow({ direction, onClick, disabled }) {
+  const d = direction === 'left' ? 'M14 5l-7 7 7 7' : 'M10 5l7 7-7 7'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={direction === 'left' ? 'Previous slide' : 'Next slide'}
+      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-[#3B82F6] text-[#3B82F6] transition-colors duration-200 hover:border-white/40 hover:text-white/40 disabled:pointer-events-none disabled:opacity-25 disabled:hover:border-[#3B82F6] disabled:hover:text-[#3B82F6]"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d={d} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  )
+}
 
 // The literal "About Us" page — replaces the old Our Mission/Meet the Team
 // tabs entirely (see AboutUsSection). The team photo sits in a twelve-square
@@ -132,14 +181,29 @@ const CERTIFICATION_PLACEHOLDERS = ['[ Certification ]', '[ Certification ]', '[
 // GoogleCloudGlassBadge — positioned against badgeAnchorRef, a plain empty
 // div reserving its footprint in the DOM layout so the two stay in sync
 // without either side hardcoding the other's size), and the headline/body/
-// certifications block to the left of it.
+// partner-badge block to the left of it. The Google Cloud Partner plaque
+// (see GoogleCloudPartnerBadge) sits in that left column the same way —
+// its own anchor, partnerBadgeAnchorRef, reserves its footprint here while
+// the actual glass mesh is drawn by the main canvas in AboutUsSection.
 //
 // The photo block is placed against the grid rather than by flow, since
 // which squares it covers is the whole point of it; the copy is placed
 // against the viewport, and given the room the photo leaves.
-export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
+export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, windowRef, onPhotoChange }) {
   const blockRef = useRef(null)
   const imageRef = useRef(null)
+  // The headline/body/partner-badge column's own outer wrapper — its
+  // width is computed and written imperatively (see applyLayout below)
+  // rather than a fixed Tailwind class on the heading itself, the same
+  // "measured, not guessed" treatment blockRef/windowEl already get. The
+  // wrapper, not the <h1> directly: the heading remounts on every slide
+  // change (it's inside the AnimatePresence/key={slideIndex} block below,
+  // by design, so its text can crossfade), so anything set imperatively on
+  // the heading node itself would be lost the instant a fresh one mounted —
+  // the same class of bug the photo's own imageRef sizing hit. This wrapper
+  // is never keyed and never remounts, so what it's given at mount/resize
+  // stays applied to every slide's own heading without re-measuring.
+  const textColumnRef = useRef(null)
   // Where the pointer is asking the photo to sit, -1 (top of the overflow)
   // to 1, and where it has eased to so far.
   const pointerRef = useRef(0)
@@ -148,6 +212,44 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
   // by the parallax loop, so the loop never has to recompute the layout just
   // to know how far it may move things.
   const overflowRef = useRef(0)
+
+  // Which of SLIDES is showing. Clamped rather than wrapped by goPrev/
+  // goNext below — see SlideArrow's own comment for why an end genuinely
+  // means an end here.
+  const [slideIndex, setSlideIndex] = useState(0)
+  const slide = SLIDES[slideIndex]
+  const goPrev = () => setSlideIndex((i) => Math.max(0, i - 1))
+  const goNext = () => setSlideIndex((i) => Math.min(SLIDES.length - 1, i + 1))
+  // Bubbles the current slide's photo up — same "report state, don't lift
+  // it" shape as BackgroundGrid's own onActiveIndexChange — so AboutUsSection
+  // can hand the Google Cloud badge's glass the *actual* photo sitting
+  // behind it (see PhotoBackdropCapture there) instead of a hardcoded one.
+  useEffect(() => {
+    onPhotoChange?.(slide.photo)
+  }, [slide.photo, onPhotoChange])
+  // Whether the *current* slide's content has finished loading, so a slide
+  // change can dip to transparent and back rather than popping straight to
+  // the next photo — set false the instant the index changes, true again on
+  // the new <img>'s own load event (or immediately, for a photo-less slide —
+  // a flat gray fill has nothing to wait on). The element itself never
+  // remounts (see imageRef below, which the parallax/layout logic above
+  // depends on staying the same node across slides, photo or not), so this
+  // can't be a mount-driven fade — only the loaded flag actually changes.
+  const [imgLoaded, setImgLoaded] = useState(true)
+  // Skips the very first run — slideIndex's initial value is already the
+  // dependency array's first value, so this effect fires once on mount
+  // whether or not a slide change actually happened, and the first photo is
+  // typically already cache-warm from painting once before the slideshow
+  // existed at all. Without this guard every fresh open dipped to
+  // transparent and back for no reason before anything had changed.
+  const isFirstSlideRef = useRef(true)
+  useEffect(() => {
+    if (isFirstSlideRef.current) {
+      isFirstSlideRef.current = false
+      return
+    }
+    setImgLoaded(!slide.photo)
+  }, [slideIndex, slide.photo])
 
   useEffect(() => {
     if (!isOpen) return
@@ -162,6 +264,24 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
     return () => window.removeEventListener('pointermove', onPointerMove)
   }, [isOpen])
 
+  // Breathing room kept between the heading's own right edge and the
+  // photo's left edge (see textColumnRef below). The heading is sized to
+  // use the real gap between the page's own left margin and wherever the
+  // photo actually lands, not a guessed constant — a guessed width ("a
+  // little bigger", tried twice) kept needing another bump because the true
+  // available room depends on the viewport, moving with the photo's own left
+  // edge (see photoCellIndices) while the page's left margin barely does.
+  // This margin is the one remaining hand-tuned number in that: 24px, then
+  // 40px (both tried, both confirmed live — not a stale-HMR read, an actual
+  // reload — and still read as ending right on the photo's edge) undersold
+  // how much bigger this gap needs to feel on an actual wide desktop
+  // display: the computed column itself is hundreds of pixels wider there
+  // than the 1440px case this was first tuned against, so the same fixed
+  // margin that looked fine at that width reads as barely any space at all
+  // once everything else on screen has grown with it. 90 is a deliberately
+  // bigger jump for that reason, not another small step.
+  const HEADING_RIGHT_GAP_PX = 90
+
   // Everything about where the block sits and how big it is, from one set of
   // metrics. Its own function because it is called before the first paint and
   // again on every resize, and because keeping the whole layout in one place
@@ -173,7 +293,8 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
     if (!block || !windowEl || !image || !metrics) return null
     const { cell, phaseX, phaseY } = metrics
     const { column, row } = photoCellIndices(window.innerWidth, window.innerHeight)
-    block.style.left = `${phaseX + column * cell}px`
+    const photoLeftPx = phaseX + column * cell
+    block.style.left = `${photoLeftPx}px`
     block.style.top = `${phaseY + row * cell}px`
     const windowHeight = cell * PHOTO_CELLS_Y
     windowEl.style.width = `${cell * PHOTO_CELLS_X}px`
@@ -183,6 +304,17 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
     // always filled edge to edge whatever shape the photo is.
     const imageHeight = windowHeight + PHOTO_OVERFLOW_CELLS * cell
     image.style.height = `${imageHeight}px`
+    // The text column's own left edge sits at the page's shared margin (see
+    // PAGE_MARGIN_VH below, in the JSX) — same measurement pageMarginPx
+    // gives back here, just already known in px rather than vh. Whatever's
+    // left between there and the photo's own left edge, minus the gap above,
+    // is exactly how wide the heading (unconstrained by its own width now —
+    // see the JSX) can get without ever touching it. The body copy keeps its
+    // own, tighter width (see the JSX) regardless of how wide this column
+    // itself is allowed to grow.
+    if (textColumnRef.current) {
+      textColumnRef.current.style.maxWidth = `${photoLeftPx - pageMarginPx(window.innerHeight) - HEADING_RIGHT_GAP_PX}px`
+    }
     return imageHeight - windowHeight
   }, [])
 
@@ -282,35 +414,49 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
       transition={{ duration: 0.5, ease: 'easeOut', delay: isOpen ? 0.5 : 0 }}
       className="pointer-events-none absolute inset-0 z-50"
     >
-      {/* Left: headline, body copy, certifications.
-          420px (tried first) collided with the photo's own left edge at
-          1440x900 — the single most common laptop width — once the window
-          grew a column wider on the left (see PHOTO_CELLS_X). 280px clears
-          it at every realistic browser size checked (1280x800 through
-          1920x1200), with the tightest real margin — still ~27px — at that
-          same 1440x900. Revisit once real copy replaces the placeholder
-          text: a narrower column reads fine short, but real paragraphs may
-          want more room, which would mean giving the photo back a column
-          instead, not just this number. */}
-      <div className="absolute top-1/2 max-w-[280px] -translate-y-1/2"
+      {/* Left: headline, body copy, Google Cloud partner badge. A fixed 280px
+          (tried first, for the whole column, then 300px for just the
+          heading) needed bumping every time it was asked to grow, because
+          the real available room isn't fixed at all — the photo's own left
+          edge moves with the viewport width (see photoCellIndices) while
+          this column's own left margin barely does, so a guessed constant
+          was either leaving real space unused on a wide window or already
+          too tight on a narrower one. textColumnRef's own max-width (set in
+          applyLayout, from the actual measured gap) replaces that guessing:
+          the heading below has no width of its own now and simply fills
+          whatever this column is genuinely allowed. Body copy keeps its own
+          tighter 280px regardless — sized for an actual paragraph, not a
+          single display line, so it shouldn't grow just because the heading
+          can. */}
+      <div ref={textColumnRef} className="absolute top-1/2 -translate-y-1/2"
         style={{ left: `${PAGE_MARGIN_VH}vh` }}>
-        <h1 className="text-[28px] leading-[1.25] font-extralight text-white/90 md:text-[34px]">
-          [ A short, catchy line about xXenta — to be added. ]
-        </h1>
-        <p className="mt-6 text-[13px] leading-[1.9] font-extralight text-white/60">
-          [ A paragraph on our work as a small team, and on being a Google
-          Cloud partner — to be added. ]
-        </p>
-        <div className="mt-10 flex items-center gap-6">
-          {CERTIFICATION_PLACEHOLDERS.map((label, i) => (
-            <div
-              key={i}
-              className="flex h-14 w-24 items-center justify-center border border-white/10 px-2 text-center text-[8px] leading-tight tracking-[0.15em] text-white/30 uppercase"
-            >
-              {label}
-            </div>
-          ))}
-        </div>
+        {/* Keyed on slideIndex so each slide's copy is its own mount —
+            unlike imageRef, nothing outside this fade depends on the
+            heading/paragraph nodes staying the same element across slides,
+            so AnimatePresence can swap them outright rather than needing the
+            load-driven opacity dance the photo itself uses. */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={slideIndex}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          >
+            <h1 className="text-[38px] leading-[1.25] font-light text-white/90 md:text-[46px]">
+              {slide.headline}
+            </h1>
+            <p className="mt-6 max-w-[280px] text-[13px] leading-[1.9] font-extralight text-white/60">
+              {slide.body}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+        {/* Reserves the plaque's footprint in the DOM layout — the actual
+            glass mesh is drawn by GoogleCloudPartnerBadge in AboutUsSection's
+            main canvas, positioned against this rect (see useDomAnchorRect
+            there), the same handoff badgeAnchorRef already uses for the
+            team-photo badge. */}
+        <div ref={partnerBadgeAnchorRef} className="pointer-events-none mt-10 h-32 w-32" />
       </div>
 
       {/* Right: the team photo behind its twelve-square window, badge below.
@@ -336,17 +482,39 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
               each frame, so nothing about the sizing logic above had to
               change, only which element the image sits inside. */}
           <div className="absolute inset-0 overflow-hidden">
-            <img
-              ref={imageRef}
-              src={TEAM_PHOTO_SRC}
-              alt="The xXenta team"
-              draggable={false}
-              // Full window width, natural height — taller than the window,
-              // which is what leaves something to reveal. Positioned from
-              // the top and moved by transform only, so the overflow maths
-              // above has a single, predictable origin to work from.
-              className="w-full max-w-none object-cover"
-            />
+            {/* opacity is inline, not a Tailwind class, so a slide change can
+                animate it between 0 (mid-swap) and the resting 0.8 — see
+                imgLoaded above for why the element can't just remount to get
+                a fade for free. Same ref/className/style/height/transform
+                contract on both branches (only the tag and src/onLoad
+                differ) — the layout and parallax logic above sets
+                imageRef.current.style.height/.transform imperatively and
+                doesn't know or care which element currently holds the ref. */}
+            {slide.photo ? (
+              <img
+                ref={imageRef}
+                src={slide.photo}
+                alt={slide.alt}
+                draggable={false}
+                onLoad={() => setImgLoaded(true)}
+                // Full window width, natural height — taller than the
+                // window, which is what leaves something to reveal.
+                // Positioned from the top and moved by transform only, so
+                // the overflow maths above has a single, predictable origin
+                // to work from.
+                className="w-full max-w-none object-cover transition-opacity duration-300"
+                style={{ opacity: imgLoaded ? 0.8 : 0 }}
+              />
+            ) : (
+              // No photo decided yet for this slide — flat gray rather than
+              // reusing a real photo for content that isn't real yet (see
+              // SLIDES above).
+              <div
+                ref={imageRef}
+                className="h-full w-full bg-gray-500 transition-opacity duration-300"
+                style={{ opacity: imgLoaded ? 1 : 0 }}
+              />
+            )}
           </div>
           {/* Bigger than CornerBrackets' own default (22px/2px, sized for
               TeamCarousel's ~460px square tiles) — this window is a settled
@@ -364,13 +532,30 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
               underneath it. Absolutely positioned against windowRef (not a
               normal-flow sibling inside blockRef) so it can't grow blockRef's
               own box: badgeAnchorRef's bottom/right offsets are measured from
-              that box, and this can't be the thing that moves them. */}
-          <button
-            type="button"
-            className="pointer-events-auto absolute top-full left-0 mt-6 rounded-full border border-[#3B82F6] px-6 py-2.5 text-xs font-extralight tracking-[0.2em] text-[#3B82F6] uppercase transition-colors duration-200 hover:border-white/40 hover:text-white/40"
-          >
-            Meet the Team
-          </button>
+              that box, and this can't be the thing that moves them.
+              showButton-gated — see SLIDES — so it's only ever on screen
+              alongside the group photo it actually belongs to. */}
+          {slide.showButton && (
+            <button
+              type="button"
+              className="pointer-events-auto absolute top-full left-0 mt-6 rounded-full border border-[#3B82F6] px-6 py-2.5 text-xs font-extralight tracking-[0.2em] text-[#3B82F6] uppercase transition-colors duration-200 hover:border-white/40 hover:text-white/40"
+            >
+              Meet the Team
+            </button>
+          )}
+          {/* Below the window, centered under it — mt-24 rather than the
+              button's own mt-6 so this sits at the same fixed spot on every
+              slide, clear of the button's row (~44px tall) on the one slide
+              that has it, instead of the two changing height depending on
+              whether the button happens to be mounted. Also anchored to
+              windowRef, not blockRef — the photo is the taller of the two
+              columns and (like the button) roughly centered the same way the
+              headline/body column is, so clearing its own bottom edge clears
+              both. */}
+          <div className="pointer-events-none absolute top-full left-1/2 mt-24 flex -translate-x-1/2 gap-8">
+            <SlideArrow direction="left" onClick={goPrev} disabled={slideIndex === 0} />
+            <SlideArrow direction="right" onClick={goNext} disabled={slideIndex === SLIDES.length - 1} />
+          </div>
         </div>
         {/* Bottom-right, hanging off the image — see GoogleCloudGlassBadge,
             which renders into this exact footprint from the WebGL canvas. */}

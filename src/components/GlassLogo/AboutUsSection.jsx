@@ -2,7 +2,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { motion, useTransform } from 'framer-motion'
 import { MathUtils } from 'three'
-import { AboutUsIntro, TEAM_PHOTO_SRC } from './AboutUsIntro'
+import { AboutUsIntro } from './AboutUsIntro'
 import { GridPlane } from './BackgroundGrid'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, THROUGH_GLASS_STYLE } from './gridConstants'
 import GridAlignmentOverlay from './GridAlignmentOverlay'
@@ -10,6 +10,7 @@ import { gridScreenMetrics } from './gridScreenMetrics'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
 import { GlassCircle } from './GlassCircle'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
+import { GoogleCloudPartnerBadge } from './GoogleCloudPartnerBadge'
 import { GradientBlob } from './GradientBlob'
 import { CAPTURE_LAYER, CaptureLayerGate, CornerBracketCapture, PhotoBackdropCapture } from './PhotoBackdropCapture'
 import { ReflectionEnvironment } from './ReflectionEnvironment'
@@ -324,6 +325,11 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   const tier = usePerformanceTier()
   const sectionRef = useRef(null)
   const badgeAnchorRef = useRef(null)
+  // The Google Cloud Partner plaque's own anchor — same handoff shape as
+  // badgeAnchorRef, but for GoogleCloudPartnerBadge, which lives in this
+  // section's main canvas (not the team-photo badge's own overlay one) since
+  // it sits over the grid in the copy column, not over the photo.
+  const partnerBadgeAnchorRef = useRef(null)
   // The photo window's own DOM node — owned here (not inside AboutUsIntro)
   // for the same reason badgeAnchorRef is: something outside the DOM needs
   // its real rect. This one feeds PhotoBackdropCapture, so the badge's
@@ -334,7 +340,14 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   // it, so the photo can sit on whole grid squares rather than near them.
   const gridMetricsRef = useRef(null)
   const [badgeRect, remeasureBadgeRect] = useDomAnchorRect(badgeAnchorRef, sectionRef)
+  const [partnerBadgeRect, remeasurePartnerBadgeRect] = useDomAnchorRect(partnerBadgeAnchorRef, sectionRef)
   const [photoRect, remeasurePhotoRect] = useDomAnchorRect(photoWindowRef, sectionRef)
+  // Which photo (if any) AboutUsIntro's own slideshow is currently showing —
+  // reported up via onPhotoChange (see its own comment there) so
+  // PhotoBackdropCapture refracts whatever's actually behind the badge
+  // instead of a hardcoded one. null on the two photo-less slides, which
+  // PhotoBackdropCapture itself falls back to a plain white rectangle for.
+  const [currentPhoto, setCurrentPhoto] = useState(null)
   // GlassCircle's own anchor — centered near the photo window's top-left
   // corner (the same point the top-left CornerBrackets mark sits at, offset
   // right by CIRCLE_X_OFFSET), so most of it hides behind the photo and the
@@ -364,10 +377,12 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   // reported twice.
   const remeasureRef = useRef(() => {
     remeasureBadgeRect()
+    remeasurePartnerBadgeRect()
     remeasurePhotoRect()
   })
   remeasureRef.current = () => {
     remeasureBadgeRect()
+    remeasurePartnerBadgeRect()
     remeasurePhotoRect()
   }
   useEffect(
@@ -468,12 +483,23 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
         <directionalLight position={[4, 5, 6]} intensity={0.5} />
         <Suspense fallback={null}>
           {sceneReady && <GlassCircle domRect={circleRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+          {/* Static plaque, same canvas as GlassCircle for the same reason
+              (see its own comment above) — sits over this canvas's own
+              grid/blob, so a plain unprioritized backdrop capture picks them
+              up with no extra capture rig needed. */}
+          {sceneReady && <GoogleCloudPartnerBadge domRect={partnerBadgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
           {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
         <SceneRenderGate isVisibleRef={isVisibleRef} />
       </Canvas>
 
-      <AboutUsIntro isOpen={isOpen} badgeAnchorRef={badgeAnchorRef} windowRef={photoWindowRef} />
+      <AboutUsIntro
+        isOpen={isOpen}
+        badgeAnchorRef={badgeAnchorRef}
+        partnerBadgeAnchorRef={partnerBadgeAnchorRef}
+        windowRef={photoWindowRef}
+        onPhotoChange={setCurrentPhoto}
+      />
       {SHOW_GRID_LINES && <GridAlignmentOverlay gridMetricsRef={gridMetricsRef} />}
 
       {/* The badge's own canvas, stacked (via className z-index) above
@@ -563,7 +589,7 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
                 sceneReady alone: it's meaningless without the real
                 TransmissionMaterial the low-quality meshPhysicalMaterial
                 branch skips entirely (see GoogleCloudGlassBadge). */}
-            {sceneReady && tier === 'high' && <PhotoBackdropCapture domRect={photoRect} src={TEAM_PHOTO_SRC} />}
+            {sceneReady && tier === 'high' && <PhotoBackdropCapture domRect={photoRect} src={currentPhoto} />}
             {/* See CornerBracketCapture's own top comment — the bottom-right
                 bracket mark sits under the badge just like the photo does,
                 and needs the same treatment to stay visible through it. */}

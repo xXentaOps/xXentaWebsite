@@ -69,11 +69,22 @@ function useDomRectWorld(domRect) {
   }
 }
 
+// A single white pixel, stretched — AboutUsIntro's first two slides have no
+// photo at all (see SLIDES there), and src is null for those. useTexture
+// can't be called conditionally (this component's own hook order has to
+// stay identical across a src that changes between renders on the *same*
+// mounted instance, not just between mounts), so this gives it something to
+// always load instead of skipping the call — a plain white rectangle in the
+// badge's own reflection everywhere the real photo isn't, rather than the
+// glass refracting nothing at all.
+const WHITE_PLACEHOLDER_SRC =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+
 // A plain textured plane holding the team photo, sized and placed to land
 // exactly where the real DOM photo paints — so refracting it reads as the
 // badge sitting on the actual photo, not on a placeholder.
 export function PhotoBackdropCapture({ domRect, src }) {
-  const texture = useTexture(src)
+  const texture = useTexture(src || WHITE_PLACEHOLDER_SRC)
   const meshRef = useRef(null)
 
   useEffect(() => {

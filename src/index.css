@@ -1,5 +1,12 @@
 @import "tailwindcss";
 @import "@fontsource/plus-jakarta-sans/200.css";
+/* 300 — only added because AboutUsIntro's headline asked to read bolder
+   than 200 (extralight). Without the actual weight file loaded, the browser
+   has nothing to render font-light/font-normal *as* and silently falls back
+   to whichever weight it does have (200) — so the class was a no-op, not a
+   subtle change, confirmed directly: no visible difference at any weight
+   between extralight and black without this. */
+@import "@fontsource/plus-jakarta-sans/300.css";
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', sans-serif;
