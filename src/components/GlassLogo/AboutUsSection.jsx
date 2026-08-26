@@ -2,14 +2,16 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { motion, useTransform } from 'framer-motion'
 import { MathUtils } from 'three'
-import { AboutUsIntro } from './AboutUsIntro'
+import { AboutUsIntro, TEAM_PHOTO_SRC } from './AboutUsIntro'
 import { GridPlane } from './BackgroundGrid'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, THROUGH_GLASS_STYLE } from './gridConstants'
 import GridAlignmentOverlay from './GridAlignmentOverlay'
 import { gridScreenMetrics } from './gridScreenMetrics'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
+import { GlassCircle } from './GlassCircle'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
 import { GradientBlob } from './GradientBlob'
+import { CAPTURE_LAYER, CaptureLayerGate, CornerBracketCapture, PhotoBackdropCapture } from './PhotoBackdropCapture'
 import { ReflectionEnvironment } from './ReflectionEnvironment'
 import { BLOB_WIDTH_OVERSCALE, GRID_Z, PLANE_SIZE, PLANE_Z } from './sceneConstants'
 import { usePerformanceTier } from './usePerformanceTier'
@@ -57,7 +59,55 @@ import { useSeamlessGrid } from './useSeamlessGrid'
 // keep whatever pattern feature sits there fixed while everything else
 // scales around it, the mirror image of BackgroundGrid's own top-edge
 // version.
-function SeamlessGridBackdrop({ aboutUsProgress, gridMetricsRef }) {
+// GridPlane converts every pixel dimension in a style (line widths, blurs)
+// to a UV-space fraction via a *fixed* px/TARGET_CELL_PX ratio (see
+// pxToFraction in BackgroundGrid.jsx) — it has no way to know that whatever
+// renders it will later be scaled. gridGroupRef below scales this whole
+// group up by ABOUT_US_GRID_ZOOM_SCALE once About Us is open (to 1.25x, the
+// zoomed-in read this section wants), which magnifies those already-fixed
+// UV fractions right along with the geometry: a blur baked in for a crisp
+// 11px on screen renders at 13.75px once the 1.25x transform lands, 25%
+// softer than the *same style constant* produces in the hero's own grid,
+// which is never scaled at all. Confirmed directly by comparing the two
+// side by side — this is what read as "the About Us grid is blurrier than
+// the hero's, and I never asked for that." Pre-dividing every pixel value
+// by the settled zoom scale here cancels the transform's own magnification,
+// so the *rendered* blur/line-width lands back at the same absolute size
+// the hero's unscaled grid shows, matching it exactly once the zoom has
+// settled at 1.25x (the state actually being compared) — not exactly
+// mid-transition, when the live scale is still short of that target, but
+// that's a brief ~1.6s window, not the resting state anyone is judging this
+// against.
+function scaleStyleForZoom(style, scale, opacityScale = 1) {
+  const scaled = { ...style }
+  for (const key of Object.keys(scaled)) {
+    if (key.endsWith('Px')) scaled[key] /= scale
+    else if (key.endsWith('Opacity')) scaled[key] *= opacityScale
+  }
+  return scaled
+}
+
+function SeamlessGridBackdrop({
+  aboutUsProgress,
+  gridMetricsRef,
+  includeBackground = true,
+  includeCrispLines = true,
+  // Only the soft THROUGH_GLASS_STYLE plane — not DIRECT_STYLE, and not the
+  // badge's own capture-only copy (see CaptureGridBackdrop, which keeps this
+  // at the default 1: the whole point there is for it to read clearly once
+  // seen through the glass). Tried toning this down for this canvas's own
+  // direct render (un-refracted, it read as more present than the hero's own
+  // grid once the zoom-scale blur bug above stopped washing it out) — reverted:
+  // this plane is the *only* thing that reliably supplies the soft glow during
+  // the reveal itself. GlassCircle's own refraction of it reads as noticeably
+  // blurrier, but GlassCircle is gated behind sceneReady and (on first open,
+  // before the idle-callback prewarm has finished) a multi-second synchronous
+  // ReflectionEnvironment bake — so a visitor who scrolls up before that
+  // prewarm lands sees only crisp DIRECT_STYLE lines with no glow at all for
+  // as long as the bake takes. This plane can't depend on that finishing to
+  // be legible.
+  throughGlassOpacityScale = 1,
+}) {
   const { size, blobWidth, blobY, gridWidth, gridHeight, repeat, yPhaseShiftCells } = useSeamlessGrid(-1)
   // Only the grid planes, not the blob — leaving the blob's own much
   // larger, softer shape untouched keeps it reading as the stable backdrop
@@ -92,7 +142,12 @@ function SeamlessGridBackdrop({ aboutUsProgress, gridMetricsRef }) {
 
   return (
     <>
-      <color attach="background" args={['#0F172B']} />
+      {/* Skipped for the badge's own capture-only copy below (see
+          CaptureGridBackdrop) — a scene.background attach applies to the
+          canvas's real, visible render too, not just TransmissionMaterial's
+          internal capture, and would paint over that canvas's alpha:true
+          transparency with solid navy. */}
+      {includeBackground && <color attach="background" args={['#0F172B']} />}
       <GradientBlob position={[0, blobY, PLANE_Z]} scale={[blobWidth * BLOB_WIDTH_OVERSCALE, PLANE_SIZE, 1]} />
       {/* Same layer-0-only, THROUGH_GLASS_STYLE-then-DIRECT_STYLE pairing
           BackgroundGlowSection uses for the same reason — there's no glass
@@ -100,10 +155,53 @@ function SeamlessGridBackdrop({ aboutUsProgress, gridMetricsRef }) {
           actually seen directly, and the soft plane alone is what gives the
           crisp lines their glow. */}
       <group ref={gridGroupRef}>
-        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={THROUGH_GLASS_STYLE} layer={0} yPhaseShiftCells={yPhaseShiftCells} />
-        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={DIRECT_STYLE} layer={0} yPhaseShiftCells={yPhaseShiftCells} />
+        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(THROUGH_GLASS_STYLE, ABOUT_US_GRID_ZOOM_SCALE, throughGlassOpacityScale)} layer={0} yPhaseShiftCells={yPhaseShiftCells} />
+        {/* Skipped for the badge's own capture-only copy (see
+            CaptureGridBackdrop) — the hero's own glass logo never refracts
+            this crisp plane either (see BackgroundGrid.jsx, where it sits on
+            OVERLAY_LAYER specifically to stay out of the glass's backdrop
+            capture); only THROUGH_GLASS_STYLE, the soft one above, is meant
+            to be seen *through* glass. Left on layer 0 here regardless of
+            includeCrispLines, same as always, since only this prop (not the
+            layer) decides whether it renders at all in a given copy. */}
+        {includeCrispLines && (
+          <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(DIRECT_STYLE, ABOUT_US_GRID_ZOOM_SCALE)} layer={0} yPhaseShiftCells={yPhaseShiftCells} />
+        )}
       </group>
     </>
+  )
+}
+
+// A second copy of the grid+blob, mounted in the badge's own overlay canvas
+// (see PhotoBackdropCapture for why that canvas exists at all) so the
+// badge's glass has it to refract wherever the badge hangs off the photo's
+// edge — the "blurred grid" look this piece had before the badge moved to
+// its own canvas, lost when that canvas's only backdrop content became the
+// photo. On CAPTURE_LAYER only (see PhotoBackdropCapture's own top
+// comment): invisible in this canvas's real render, present only for
+// TransmissionMaterial's internal capture pass. A group-traverse rather
+// than per-mesh layer props because GradientBlob doesn't expose one the way
+// GridPlane does, and traversing once covers both uniformly regardless.
+//
+// includeCrispLines={false} — confirmed directly against BackgroundGrid.jsx
+// (the hero's own grid): its crisp DIRECT_STYLE plane sits on OVERLAY_LAYER
+// specifically to stay out of the hero glass logo's own backdrop capture,
+// so what that glass refracts is only ever the soft THROUGH_GLASS_STYLE
+// plane. The first version of this component included both — reusing the
+// *other* SeamlessGridBackdrop usage's "both on layer 0" pairing, which is
+// only correct there because that copy has no glass reading it — so the
+// badge's own glass was refracting crisp lines the hero's never does,
+// reading as noticeably less blurred by comparison. Dropping the crisp
+// plane entirely (not just re-layering it) matches the hero exactly.
+function CaptureGridBackdrop({ aboutUsProgress }) {
+  const groupRef = useRef(null)
+  useEffect(() => {
+    groupRef.current?.traverse((obj) => obj.layers.set(CAPTURE_LAYER))
+  }, [])
+  return (
+    <group ref={groupRef}>
+      <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} includeBackground={false} includeCrispLines={false} />
+    </group>
   )
 }
 
@@ -226,11 +324,32 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   const tier = usePerformanceTier()
   const sectionRef = useRef(null)
   const badgeAnchorRef = useRef(null)
+  // The photo window's own DOM node — owned here (not inside AboutUsIntro)
+  // for the same reason badgeAnchorRef is: something outside the DOM needs
+  // its real rect. This one feeds PhotoBackdropCapture, so the badge's
+  // glass has the actual photo to refract instead of empty canvas.
+  const photoWindowRef = useRef(null)
   // Cell size and boundary phase in CSS pixels, written every frame by
   // SeamlessGridBackdrop inside the canvas and read by AboutUsIntro outside
   // it, so the photo can sit on whole grid squares rather than near them.
   const gridMetricsRef = useRef(null)
   const [badgeRect, remeasureBadgeRect] = useDomAnchorRect(badgeAnchorRef, sectionRef)
+  const [photoRect, remeasurePhotoRect] = useDomAnchorRect(photoWindowRef, sectionRef)
+  // GlassCircle's own anchor — centered near the photo window's top-left
+  // corner (the same point the top-left CornerBrackets mark sits at, offset
+  // right by CIRCLE_X_OFFSET), so most of it hides behind the photo and the
+  // rest peeks out into the grid/blob behind it. Derived from photoRect
+  // rather than its own DOM measurement since there's no real element to
+  // measure — this circle is purely a computed offset, the same way
+  // CornerBracketCapture's own bars are.
+  const CIRCLE_SIZE = 220
+  const CIRCLE_X_OFFSET = 35
+  const circleRect = photoRect && {
+    left: photoRect.left - CIRCLE_SIZE / 2 + CIRCLE_X_OFFSET,
+    top: photoRect.top - CIRCLE_SIZE / 2,
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+  }
   // Down from just above the viewport as About Us opens — the exact opposite
   // of GlassLogoHero's own offset, derived from the same shared number so the
   // pair is one screen apart at every value it can take (see aboutUsProgress
@@ -243,8 +362,14 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   // and never mid-flight — including when a hurried close retargets it (see
   // ABOUT_US_HURRY_CLOSE_TRANSITION), which onAnimationComplete would have
   // reported twice.
-  const remeasureRef = useRef(remeasureBadgeRect)
-  remeasureRef.current = remeasureBadgeRect
+  const remeasureRef = useRef(() => {
+    remeasureBadgeRect()
+    remeasurePhotoRect()
+  })
+  remeasureRef.current = () => {
+    remeasureBadgeRect()
+    remeasurePhotoRect()
+  }
   useEffect(
     () => aboutUsProgress.on('change', (p) => {
       if (p === 0 || p === 1) remeasureRef.current()
@@ -322,38 +447,157 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
     >
       <Canvas dpr={tier === 'high' ? [1, 2] : 1} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
         <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} gridMetricsRef={gridMetricsRef} />
-        {/* Same modest white light the hero gives its own glass (see
-            Backdrop) — the blue reflection environment below is meant to be
-            the dominant source, this is just enough for the badge's edges
-            to catch a highlight. */}
+        {/* Same modest white light the badge's own canvas gives its glass
+            (see GoogleCloudGlassBadge) — enough for GlassCircle's edges to
+            catch a highlight, with the reflection environment below meant
+            to be the dominant source.
+            GlassCircle stays in this shared canvas deliberately, not split
+            into its own the way the badge's was — tried that once (its own
+            canvas + a second CaptureGridBackdrop, faded via the same
+            motion.div technique as the badge below) and the persistent grid
+            above started visibly brightening and dimming in step with that
+            fade, on a page the user had already confirmed as correct and
+            explicitly asked to never touch again. Never fully root-caused
+            given how urgently it needed reverting, but sharing this canvas
+            removes the second grid copy entirely rather than trying to get
+            its exclusion right a second time — the safer fix. The real
+            cost: GlassCircle can only pop in (domRect existing), not
+            cross-fade, the same constraint the badge has via
+            TransmissionMaterial but without that other canvas's own DOM
+            element to paper over it with a CSS fade. */}
         <directionalLight position={[4, 5, 6]} intensity={0.5} />
         <Suspense fallback={null}>
-          {/* Mounted once sceneReady (not remounted per isOpen toggle) — see
-              GoogleCloudGlassBadge's own top comment for why its one-time
-              setup and its ongoing per-frame cost need two different gates,
-              not one. */}
-          {sceneReady && <GoogleCloudGlassBadge domRect={badgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
-          {/* Gated on sceneReady (see above), not isOpen, unlike the badge —
-              this is a one-time bake (see its own bakedRef guard), not an
-              ongoing per-frame cost, so conditionally mounting/unmounting it
-              on isOpen (tried first) bought no savings while open and cost a
-              full re-bake — six 1024px cube-face renders plus a PMREM
-              convolution pass, roughly 80 meshes — every single time About
-              Us opened. Confirmed directly: that bake blocking the main
-              thread is exactly what read as "scrolling takes a couple of
-              seconds to respond" right around opening/closing About Us. The
-              badge's material carries envMapIntensity (it's the hero's own
-              glassMaterialProps, imported wholesale), so without an
-              environment to reflect it would render as a flat, nearly
-              featureless slab — the same abstract blue glow bake the hero
-              itself uses, holding no scene-specific content, just light. */}
+          {sceneReady && <GlassCircle domRect={circleRect} isOpen={isOpen} highQuality={tier === 'high'} />}
           {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
         <SceneRenderGate isVisibleRef={isVisibleRef} />
       </Canvas>
 
-      <AboutUsIntro isOpen={isOpen} badgeAnchorRef={badgeAnchorRef} />
+      <AboutUsIntro isOpen={isOpen} badgeAnchorRef={badgeAnchorRef} windowRef={photoWindowRef} />
       {SHOW_GRID_LINES && <GridAlignmentOverlay gridMetricsRef={gridMetricsRef} />}
+
+      {/* The badge's own canvas, stacked (via className z-index) above
+          AboutUsIntro's DOM instead of sharing the backdrop canvas above.
+          The two used to be one canvas, with the badge drawn first in DOM
+          order — which meant the badge, however it was positioned, could
+          never paint over the team photo: a <canvas> composites as one flat
+          layer in the page's stacking order, so nothing about *where inside
+          it* a mesh is drawn changes which DOM elements it paints above or
+          below. Splitting the badge into its own transparent canvas, placed
+          after AboutUsIntro, is what lets it actually sit on top of the
+          photo rather than merely being told to via z-index on an empty
+          anchor div (which only ever controlled the anchor's own measured
+          rect, not paint order). alpha:true plus no `<color background>`
+          keeps everything but the badge itself invisible, so the grid/blob
+          backdrop still reads as sitting behind the photo, same as before. */}
+      {/* R3F's Canvas forwards `style` but not `className` to its own
+          wrapper div (confirmed directly — the wrapper's class came back
+          empty, `position: static`, with a className prop set this same
+          way), so the z-index this canvas exists for never landed. Wrapping
+          it in a plain positioned div instead, and letting Canvas fill that
+          div the way it fills any parent by default, sidesteps the prop
+          entirely. */}
+      {/* motion.div, not a plain one — a real DOM element wrapping this
+          canvas can fade normally via ordinary CSS opacity, even though the
+          TransmissionMaterial mesh painted inside it can't (its patched
+          shader hardcodes output alpha to 1.0 regardless of the material's
+          own opacity prop — see GlassLogoGroup's matching comment, "even
+          opacity={0} rendered fully solid"). The browser composites the
+          canvas's already-rendered pixels at reduced alpha regardless of
+          what the shader did internally, so this fades the badge exactly
+          the way AboutUsIntro's own motion.div fades the photo/copy in —
+          same opacity curve, same 0.5s delay, same 0.5s duration — because
+          it's the identical technique, not an approximation of it. */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isOpen ? 1 : 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut', delay: isOpen ? 0.5 : 0 }}
+        className="pointer-events-none absolute inset-0 z-[60]"
+      >
+        <Canvas
+          dpr={tier === 'high' ? [1, 2] : 1}
+          camera={{ position: [0, 0, 8], fov: 35 }}
+          gl={{ antialias: true, alpha: true }}
+          // pointer-events-none above is load-bearing (this canvas must not
+          // steal clicks meant for the photo/copy underneath it) but it has
+          // a side effect: the browser never dispatches pointer/mouse events
+          // to an element with pointer-events:none, so R3F's own listeners
+          // — attached to this canvas's own dom node by default — never
+          // fire, and this canvas's `pointer` state (what drives the
+          // badge's cursor-follow tilt in GoogleCloudGlassBadge, same
+          // formula as the hero's own logo) sits frozen at its initial
+          // value forever. Confirmed directly: five different real cursor
+          // positions produced pixel-identical screenshots of the badge —
+          // it never actually left its resting pose. eventSource redirects
+          // R3F's listeners to document.body (still receives every mousemove
+          // regardless of what's pointer-events:none), while this canvas's
+          // own full-viewport rect is still what the resulting coordinates
+          // get measured against, so the math comes out the same as if this
+          // canvas were listening directly. eventSource alone isn't enough,
+          // though: the default coordinate math divides event.offsetX/Y by
+          // this canvas's own size, and offsetX/Y are relative to whatever
+          // element the browser actually hit-tested (event.target) — not
+          // document.body, the mere listener target — so once the event has
+          // bubbled, those numbers are relative to a different element every
+          // time, essentially noise. eventPrefix="client" swaps in
+          // viewport-relative clientX/clientY instead, which lines up
+          // correctly with this canvas's own size since it's a plain
+          // absolute inset-0 covering the full viewport with no offset.
+          eventSource={document.body}
+          eventPrefix="client"
+        >
+          {/* Same modest white light the hero gives its own glass (see
+              Backdrop) — the blue reflection environment below is meant to be
+              the dominant source, this is just enough for the badge's edges
+              to catch a highlight. */}
+          <directionalLight position={[4, 5, 6]} intensity={0.5} />
+          <Suspense fallback={null}>
+            {/* Mounted once sceneReady (not remounted per isOpen toggle) —
+                see GoogleCloudGlassBadge's own top comment for why its
+                one-time setup and its ongoing per-frame cost need two
+                different gates, not one. */}
+            {sceneReady && <GoogleCloudGlassBadge domRect={badgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+            {/* Gives the badge's glass an actual backdrop to refract — see
+                PhotoBackdropCapture's own top comment. Gated on tier==='high'
+                alongside ReflectionEnvironment below, not on isOpen or
+                sceneReady alone: it's meaningless without the real
+                TransmissionMaterial the low-quality meshPhysicalMaterial
+                branch skips entirely (see GoogleCloudGlassBadge). */}
+            {sceneReady && tier === 'high' && <PhotoBackdropCapture domRect={photoRect} src={TEAM_PHOTO_SRC} />}
+            {/* See CornerBracketCapture's own top comment — the bottom-right
+                bracket mark sits under the badge just like the photo does,
+                and needs the same treatment to stay visible through it. */}
+            {sceneReady && tier === 'high' && <CornerBracketCapture windowRect={photoRect} />}
+            {/* See CaptureGridBackdrop's own top comment — the other half
+                of what the badge's glass refracts, alongside the photo
+                above. */}
+            {sceneReady && tier === 'high' && <CaptureGridBackdrop aboutUsProgress={aboutUsProgress} />}
+            {/* Gated on sceneReady (see above), not isOpen, unlike the badge
+                — this is a one-time bake (see its own bakedRef guard), not
+                an ongoing per-frame cost, so conditionally
+                mounting/unmounting it on isOpen (tried first) bought no
+                savings while open and cost a full re-bake — six 1024px
+                cube-face renders plus a PMREM convolution pass, roughly 80
+                meshes — every single time About Us opened. Confirmed
+                directly: that bake blocking the main thread is exactly what
+                read as "scrolling takes a couple of seconds to respond"
+                right around opening/closing About Us. The badge's material
+                carries envMapIntensity (it's the hero's own
+                glassMaterialProps, imported wholesale), so without an
+                environment to reflect it would render as a flat, nearly
+                featureless slab — the same abstract blue glow bake the hero
+                itself uses, holding no scene-specific content, just light.
+                Baked separately from the backdrop canvas's own copy now that
+                the badge lives in its own WebGL context — a second context
+                can't read the first one's cubemap, so this is a second
+                one-time bake, not a shared one; still gated the same way, so
+                it costs nothing per frame either. */}
+            {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
+          </Suspense>
+          <CaptureLayerGate />
+          <SceneRenderGate isVisibleRef={isVisibleRef} />
+        </Canvas>
+      </motion.div>
     </motion.section>
     </motion.div>
   )

@@ -3,6 +3,7 @@ import { Text } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { MathUtils, ShaderMaterial, Vector2 } from 'three'
 import { GlassLogoGroup, OVERLAY_LAYER, TEXT_SOURCE_LAYER } from './GlassLogoGroup'
+import { MARGIN_EM as LEFT_MARGIN_EM, MARGIN_REFERENCE_FONT_FRACTION } from './pageMargin'
 import fontUrl from '@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-400-normal.woff?url'
 
 // Behind the glass logo's own depth (the logo's extrusion spans roughly
@@ -23,19 +24,15 @@ const Z = -1.2
 // ~0.4x lands close to a typical confident display-type edge crop (tight
 // enough to feel intentional, not so tight it collides with the glyphs'
 // own side-bearing).
-const LEFT_MARGIN_EM = 0.4
+// LEFT_MARGIN_EM and MARGIN_REFERENCE_FONT_FRACTION are imported from
+// pageMargin.js — this margin is the reference every left-glued element on
+// the page lines up against, so it lives in one place rather than being
+// restated wherever something needs to agree with it.
+//
 // Slightly smaller than LEFT_MARGIN_EM so the block sits a touch lower,
-// closer to the bottom edge, than an even inset would put it.
+// closer to the bottom edge, than an even inset would put it. Stays local:
+// nothing outside the hero has a bottom margin to match.
 const BOTTOM_MARGIN_EM = 0.34
-// Margins scale *with* type size (see above) but are pinned to this fixed
-// reference size rather than "Learning"'s own current size — otherwise
-// every time LEARNING_FONT_FRACTION changes (a purely visual/hierarchy
-// choice), the margins would silently grow or shrink right along with it.
-// This was "Learning"'s own size before it was enlarged; kept as its own
-// constant so the margins stay put independent of however big the word
-// itself gets from here.
-const MARGIN_REFERENCE_FONT_FRACTION = 0.19
-
 function useViewportAt(z) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)

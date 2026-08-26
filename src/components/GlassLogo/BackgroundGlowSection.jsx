@@ -4,6 +4,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { MathUtils } from 'three'
 import { GridPlane } from './BackgroundGrid'
 import { DIRECT_STYLE, EDGE_STYLE, OVERSCALE, THROUGH_GLASS_STYLE } from './gridConstants'
+import { pageMarginPx } from './pageMargin'
 import { GradientBlob } from './GradientBlob'
 import { BLOB_WIDTH_OVERSCALE, GRID_Z, PLANE_SIZE, PLANE_Z } from './sceneConstants'
 import { useSeamlessGrid } from './useSeamlessGrid'
@@ -13,8 +14,8 @@ import { useSeamlessGrid } from './useSeamlessGrid'
 // highlighted edge (see EDGE_COLUMN_FROM_LEFT) exactly finalZoomScale's own
 // target distance from the left edge of the screen the instant the
 // carousel is fully gone — see finalZoomScale itself, computed below from
-// HERO_LEFT_MARGIN_EM/HERO_MARGIN_REFERENCE_FONT_FRACTION rather than a
-// fixed multiplier, so that landing spot is derived, not guessed. Scaling
+// the page's shared left margin (pageMargin.js) rather than a fixed
+// multiplier, so that landing spot is derived, not guessed. Scaling
 // the *plane* (not the camera, not the shader's own repeat/cellSize
 // uniforms) is what makes this a true zoom rather than a resize: repeat is
 // still computed off the viewport's real, unzoomed width/height (see
@@ -26,19 +27,22 @@ import { useSeamlessGrid } from './useSeamlessGrid'
 // the resting 1x, and growing the plane only ever adds more overscan, never
 // less, so there's no risk of the pattern's own edges becoming visible.
 
-// Mirrors HeroTitle.jsx's own LEFT_MARGIN_EM/MARGIN_REFERENCE_FONT_FRACTION
-// exactly (not imported — HeroTitle's version drives troika text layout in
-// a completely different canvas, these just need the same two numbers). The
-// zoom below solves for whatever scale puts the highlighted edge this same
-// distance from the left edge of the screen, so "New Way of"'s own left
-// margin becomes the shared reference every other left-glued element in
-// this piece lines up against, including this one. Left un-corrected for
-// HeroTitle's own per-word useLeftBearingCorrection (the few-px gap between
-// "New Way of"'s pen position and its actual ink) — that correction needs
-// the same canvas-based font-metrics measurement HeroTitle sets up for
-// itself, not worth reproducing here for a difference this small.
-const HERO_LEFT_MARGIN_EM = 0.4
-const HERO_MARGIN_REFERENCE_FONT_FRACTION = 0.19
+// The page's shared left margin now comes from pageMargin.js rather than
+// being restated here. It used to be a deliberate copy, on the reasoning
+// that HeroTitle's version drives troika text layout in a completely
+// different canvas and these just needed the same two numbers — true, and
+// beside the point: needing the same numbers is exactly the case for not
+// having two of them. About Us needed them as well, which would have made
+// three.
+//
+// The zoom below solves for whatever scale puts the highlighted edge that
+// same distance from the left edge of the screen, so "New Way of"'s own left
+// margin is the reference every other left-glued element in this piece lines
+// up against, including this one. Left un-corrected for HeroTitle's own
+// per-word useLeftBearingCorrection (the few-px gap between "New Way of"'s
+// pen position and its actual ink) — that correction needs the same
+// canvas-based font-metrics measurement HeroTitle sets up for itself, not
+// worth reproducing here for a difference this small.
 
 // Which cell gets the highlighted left edge (see edgeX/edgeBottomY/edgeTopY
 // below) — counted in from the left edge of the *overscaled* plane, the
@@ -98,17 +102,16 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef }) {
   const edgeX = -(gridWidth * OVERSCALE) / 2 + EDGE_COLUMN_FROM_LEFT * cellSize
   const edgeXUV = (edgeX + (gridWidth * OVERSCALE) / 2) / (gridWidth * OVERSCALE)
 
-  // HeroTitle's own left margin, converted from its screen-pixel meaning
-  // (HERO_LEFT_MARGIN_EM × HERO_MARGIN_REFERENCE_FONT_FRACTION × the
-  // canvas's real pixel height — see HeroTitle's identical marginFontSize)
-  // into this plane's own world units at GRID_Z, the same pixel-to-world
+  // The page's own left margin (see pageMargin.js), converted from its
+  // screen-pixel meaning into this plane's own world units at GRID_Z, the
+  // same pixel-to-world
   // ratio cellSize itself already uses. targetEdgeLeftX is that many world
   // units in from the *true* left edge of the screen (gridWidth/2, not the
   // overscaled plane's own wider edge) — where the highlighted edge's own
   // *visible left side* needs to land once fully zoomed, matching how
   // "New Way of"'s margin is itself measured from its leftmost ink, not its
   // horizontal center.
-  const heroMarginPx = HERO_LEFT_MARGIN_EM * HERO_MARGIN_REFERENCE_FONT_FRACTION * size.height
+  const heroMarginPx = pageMarginPx(size.height)
   const heroMarginWorld = heroMarginPx * (gridWidth / size.width)
   const targetEdgeLeftX = -gridWidth / 2 + heroMarginWorld
   // edgeX above is the *center* of the drawn line (see uEdgeX in

@@ -1,36 +1,63 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { CornerBrackets } from './CornerBrackets'
 import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
 import { gridScreenMetrics } from './gridScreenMetrics'
+import { PAGE_MARGIN_VH, pageMarginPx } from './pageMargin'
 
 // teamLayout.js (which used to export this) was deleted along with the old
 // hover-based team scene — this is the only place that still needs the
 // photo's path, so it's a plain local constant rather than resurrecting
 // that file for one string.
-const TEAM_PHOTO_SRC = '/team-photo-web.jpg'
+export const TEAM_PHOTO_SRC = '/team-photo-web.jpg'
 
-// The photo's window, in grid cells. Three across by two down — six squares,
-// and deliberately wider than it is tall, because the photo is neither: it
-// is taller than two cells at three cells wide, and what is left over is the
-// whole point (see PARALLAX_TRAVEL).
-const PHOTO_CELLS_X = 3
-const PHOTO_CELLS_Y = 2
+// The photo's window, in grid cells. Four across, up from three, by three
+// down, up from the original two (that one asked for directly, as "the row
+// above").
+//
+// A column was also asked for on the *right*, and isn't here: at some
+// realistic window widths, adding one there pushes the photo up to 142px
+// past the true right edge of the browser — not crowding it, past it, the
+// window clipped off entirely — because the right edge is already anchored
+// to the last cell that fits inside the page's own margin (see
+// photoCellIndices), and there's rarely a full further cell of slack beyond
+// that before the true edge of the screen. The left side had slack to give
+// (the copy column's own width, see its comment below) that a browser's
+// screen bounds do not.
+//
+// Centred fresh on the new height, not anchored to where the old 2-row
+// block's bottom edge used to be. Anchoring to the old bottom (tried first)
+// kept the badge below it pinned exactly in place, which sounds like the
+// safer choice and isn't: adding a full cell on top of an already
+// off-centre block pushed the *top* edge past the top of the viewport on
+// several common window heights, 900px included — the window is only 900px
+// tall there to begin with, and the old block already sat with just 162px
+// of headroom above it. Re-centring the taller block trades a fixed badge
+// position (it moves down by roughly a cell) for the window reliably
+// staying on screen, which is the one property that cannot be given up.
+const PHOTO_CELLS_X = 4
+const PHOTO_CELLS_Y = 3
+// Empty grid columns kept between the photo's right edge and the page's own
+// right-hand boundary (see photoCellIndices). The grid only offers this in
+// whole-cell steps — the window's own edges have to land on grid lines, so
+// there's no in-between position to try — and one full cell (200px) turned
+// out to be too coarse a lever: flush (0) read as crowding the true screen
+// edge, one cell in read as too far the other way. Back at 0 for now; the
+// real fix is a finer adjustment than this constant can express on its own.
+const PHOTO_COLUMN_INSET = 0
 // How far the photo runs past the window, in cells — how much there is to
 // reveal, in other words, and the reason the parallax is worth having.
 //
 // Set here rather than left to the photo's own proportions, which is what
 // this did first and is why nothing appeared to move: the file is 2600x1985,
-// so at three cells wide it stands 458px against a 400px window. Fifty-eight
+// so at three cells wide it stands 458px — against a 400px window, back when
+// the window was two rows tall rather than three. Fifty-eight
 // pixels of overflow, most of which PARALLAX_TRAVEL holds back, came out as
 // about twenty pixels of travel — real, and far too small to read as
 // anything. Sizing the image to a whole cell past the window instead makes
 // the amount hidden a property of the design rather than of whichever
 // photograph happens to be in the slot.
-const PHOTO_OVERFLOW_CELLS = 1
-// Whole cells of breathing room between the window and the right edge of the
-// screen. In cells rather than pixels so the margin belongs to the same
-// rhythm everything else here is placed on.
-const PHOTO_MARGIN_CELLS_X = 0
+const PHOTO_OVERFLOW_CELLS = 0
 // How much of the hidden overflow the pointer can actually reach, as a
 // fraction of it. Not 1: at the extremes the photo's own top and bottom edge
 // would come into the window, which breaks the illusion that it continues
@@ -44,7 +71,7 @@ const PARALLAX_TRAVEL = 0.7
 // of an object being pushed.
 const PARALLAX_LAMBDA = 6
 
-// Which six squares the photo occupies, as whole cell indices off the grid's
+// Which squares the photo occupies, as whole cell indices off the grid's
 // own phase. Worked out from the *settled* geometry — the cell size the grid
 // rests at once About Us is open, which depends on nothing but the viewport
 // — rather than from the live one, and never from measuring the element.
@@ -67,11 +94,27 @@ function photoCellIndices(width, height) {
     screenOffset: -1,
   })
   const { cell, phaseX, phaseY } = settled
-  // Right-aligned: the last boundary that still fits on screen, less the
-  // margin, is the window's right edge.
-  const lastBoundary = Math.floor((width - phaseX) / cell)
-  const column = lastBoundary - PHOTO_MARGIN_CELLS_X - PHOTO_CELLS_X
-  // ...and vertically centred, to the nearest whole cell.
+  // Anchored to the page's own right-hand boundary (see pageMargin.js,
+  // mirrored from the left edge where the hero's title and the placeholder
+  // copy's blue cell edge both sit), then held PHOTO_COLUMN_INSET columns
+  // in from it rather than flush against it — flush read as crowding the
+  // true edge of the screen, reported directly. See PHOTO_COLUMN_INSET's own
+  // comment for why the inset is smaller than first asked for.
+  //
+  // The boundary itself is the last cell edge that still lands inside the
+  // margin, so the gap it and the inset together leave is somewhere between
+  // PHOTO_COLUMN_INSET cells plus the margin and PHOTO_COLUMN_INSET+1 cells
+  // plus the margin — never exactly one number, because the grid's phase
+  // falls where it falls and a window that sits on whole squares cannot also
+  // end on an arbitrary pixel. Staying on the grid is the thing worth
+  // keeping; the margin and the inset both just draw a line the photo may
+  // not cross.
+  const lastBoundary = Math.floor((width - pageMarginPx(height) - phaseX) / cell)
+  const column = lastBoundary - PHOTO_CELLS_X - PHOTO_COLUMN_INSET
+  // ...and vertically centred, to the nearest whole cell — see
+  // PHOTO_CELLS_Y's own comment for why this centres the current height
+  // directly rather than anchoring to where a shorter version of the window
+  // used to sit.
   const row = Math.round((height / 2 - (PHOTO_CELLS_Y * cell) / 2 - phaseY) / cell)
   return { column, row }
 }
@@ -83,7 +126,7 @@ function photoCellIndices(width, height) {
 const CERTIFICATION_PLACEHOLDERS = ['[ Certification ]', '[ Certification ]', '[ Certification ]']
 
 // The literal "About Us" page — replaces the old Our Mission/Meet the Team
-// tabs entirely (see AboutUsSection). The team photo sits in a six-square
+// tabs entirely (see AboutUsSection). The team photo sits in a twelve-square
 // window cut out of the grid on the right, with the Google Cloud glass badge
 // underneath it (the badge itself is a separate WebGL element — see
 // GoogleCloudGlassBadge — positioned against badgeAnchorRef, a plain empty
@@ -94,9 +137,8 @@ const CERTIFICATION_PLACEHOLDERS = ['[ Certification ]', '[ Certification ]', '[
 // The photo block is placed against the grid rather than by flow, since
 // which squares it covers is the whole point of it; the copy is placed
 // against the viewport, and given the room the photo leaves.
-export function AboutUsIntro({ isOpen, badgeAnchorRef }) {
+export function AboutUsIntro({ isOpen, badgeAnchorRef, windowRef }) {
   const blockRef = useRef(null)
-  const windowRef = useRef(null)
   const imageRef = useRef(null)
   // Where the pointer is asking the photo to sit, -1 (top of the overflow)
   // to 1, and where it has eased to so far.
@@ -160,7 +202,7 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef }) {
   //
   // Holding it at the settled position instead means it fades in exactly
   // where it belongs. The cost is that for the second or so it takes the
-  // grid to arrive underneath it, the six squares are still growing into
+  // grid to arrive underneath it, the squares are still growing into
   // alignment behind the photo — during a fade, while everything is moving,
   // which is a far quieter thing to be slightly wrong about.
   //
@@ -238,10 +280,20 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: isOpen ? 1 : 0 }}
       transition={{ duration: 0.5, ease: 'easeOut', delay: isOpen ? 0.5 : 0 }}
-      className="pointer-events-none absolute inset-0"
+      className="pointer-events-none absolute inset-0 z-50"
     >
-      {/* Left: headline, body copy, certifications. */}
-      <div className="absolute top-1/2 left-[6vw] max-w-[420px] -translate-y-1/2 md:left-[8vw]">
+      {/* Left: headline, body copy, certifications.
+          420px (tried first) collided with the photo's own left edge at
+          1440x900 — the single most common laptop width — once the window
+          grew a column wider on the left (see PHOTO_CELLS_X). 280px clears
+          it at every realistic browser size checked (1280x800 through
+          1920x1200), with the tightest real margin — still ~27px — at that
+          same 1440x900. Revisit once real copy replaces the placeholder
+          text: a narrower column reads fine short, but real paragraphs may
+          want more room, which would mean giving the photo back a column
+          instead, not just this number. */}
+      <div className="absolute top-1/2 max-w-[280px] -translate-y-1/2"
+        style={{ left: `${PAGE_MARGIN_VH}vh` }}>
         <h1 className="text-[28px] leading-[1.25] font-extralight text-white/90 md:text-[34px]">
           [ A short, catchy line about xXenta — to be added. ]
         </h1>
@@ -261,26 +313,68 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef }) {
         </div>
       </div>
 
-      {/* Right: the team photo behind its six-square window, badge below.
+      {/* Right: the team photo behind its twelve-square window, badge below.
           left/top are written every frame by the loop above — see
           photoCellIndices for why nothing here is measured. */}
-      <div ref={blockRef} className="absolute">
-        <div ref={windowRef} className="overflow-hidden">
-          <img
-            ref={imageRef}
-            src={TEAM_PHOTO_SRC}
-            alt="The xXenta team"
-            draggable={false}
-            // Full window width, natural height — taller than the window,
-            // which is what leaves something to reveal. Positioned from the
-            // top and moved by transform only, so the overflow maths above
-            // has a single, predictable origin to work from.
-            className="w-full max-w-none object-cover"
-          />
+      <div ref={blockRef} className="absolute z-50">
+        {/* relative — CornerBrackets positions itself absolutely against its
+            nearest positioned ancestor, and without this that ancestor would
+            be blockRef instead (the next one up), pinning the marks to the
+            whole draggable block's own corners rather than the window's. No
+            overflow-hidden here any more, deliberately — see the note on
+            CornerBrackets below for why that clipping had to move down onto
+            just the image. */}
+        <div ref={windowRef} className="relative">
+          {/* overflow-hidden lives on this inner wrapper now, not windowRef
+              itself. It only ever existed to clip the *image* (which is
+              deliberately taller than the window — see PHOTO_OVERFLOW_CELLS
+              — and would otherwise spill out the bottom); once the corner
+              marks below were asked to overhang past the window's own edges,
+              that same clip would have cut the overhang off too, being an
+              ancestor of everything including them. inset-0 keeps this
+              exactly the size windowRef's own imperative width/height sets
+              each frame, so nothing about the sizing logic above had to
+              change, only which element the image sits inside. */}
+          <div className="absolute inset-0 overflow-hidden">
+            <img
+              ref={imageRef}
+              src={TEAM_PHOTO_SRC}
+              alt="The xXenta team"
+              draggable={false}
+              // Full window width, natural height — taller than the window,
+              // which is what leaves something to reveal. Positioned from
+              // the top and moved by transform only, so the overflow maths
+              // above has a single, predictable origin to work from.
+              className="w-full max-w-none object-cover"
+            />
+          </div>
+          {/* Bigger than CornerBrackets' own default (22px/2px, sized for
+              TeamCarousel's ~460px square tiles) — this window is a settled
+              4x3 grid block, always exactly 800x600px regardless of viewport
+              (cell size here is TARGET_CELL_PX * ABOUT_US_GRID_ZOOM_SCALE, a
+              fixed 200px, not something that scales with the window). Asked
+              for thicker and overhanging past the photo's own edges — a
+              "crop mark" look, rather than a border traced flush along it —
+              which is why this now sits alongside the image instead of
+              inside its own overflow-hidden box (see above).  */}
+          <CornerBrackets size={40} thickness={5} overhang={10} />
+          {/* Below the window, left-aligned — the badge hangs off the
+              *opposite* (bottom-right) corner (see badgeAnchorRef below), so
+              staying left keeps this clear of its glass rather than sitting
+              underneath it. Absolutely positioned against windowRef (not a
+              normal-flow sibling inside blockRef) so it can't grow blockRef's
+              own box: badgeAnchorRef's bottom/right offsets are measured from
+              that box, and this can't be the thing that moves them. */}
+          <button
+            type="button"
+            className="pointer-events-auto absolute top-full left-0 mt-6 rounded-full border border-[#3B82F6] px-6 py-2.5 text-xs font-extralight tracking-[0.2em] text-[#3B82F6] uppercase transition-colors duration-200 hover:border-white/40 hover:text-white/40"
+          >
+            Meet the Team
+          </button>
         </div>
-        {/* Empty on purpose — see GoogleCloudGlassBadge, which renders into
-            this exact footprint from the WebGL canvas underneath. */}
-        <div ref={badgeAnchorRef} className="mx-auto mt-8 aspect-square w-[150px]" />
+        {/* Bottom-right, hanging off the image — see GoogleCloudGlassBadge,
+            which renders into this exact footprint from the WebGL canvas. */}
+        <div ref={badgeAnchorRef} className="absolute aspect-square w-[380px] pointer-events-none" style={{ bottom: '-95px', right: '-95px' }} />
       </div>
     </motion.div>
   )
