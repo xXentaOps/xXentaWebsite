@@ -96,6 +96,15 @@ const GridPatternMaterial = shaderMaterial(
     // copy of this same pattern starting exactly where the hero's grid
     // leaves off, instead of restarting its own phase from its own center.
     uYPhaseShiftCells: 0,
+    // The X-axis twin of uYPhaseShiftCells above, added to the X-phase in the
+    // fragment shader. 0 for every grid on the page at rest. Exists so the
+    // About Us grid can slide horizontally with the rest of that page as it
+    // hands over to Meet the Team (see teamTransition.js): shifting the
+    // *phase* rather than moving the plane keeps the pattern infinite, where
+    // translating the mesh would drag its own edge into frame after barely
+    // more than a screen's travel (the plane is only OVERSCALE=1.05 wider
+    // than the viewport, and that slide covers well over a full screen).
+    uXPhaseShiftCells: 0,
     uLineHalfWidth: 0.002,
     uLineBlur: 0.006,
     uPlusHalfWidth: 0.002,
@@ -155,6 +164,7 @@ const GridPatternMaterial = shaderMaterial(
     varying vec2 vUv;
     uniform vec2 uRepeat;
     uniform float uYPhaseShiftCells;
+    uniform float uXPhaseShiftCells;
     uniform float uLineHalfWidth;
     uniform float uLineBlur;
     uniform float uPlusHalfWidth;
@@ -227,7 +237,7 @@ const GridPatternMaterial = shaderMaterial(
       // (offsets of a whole cellSize from y=0) put each button square's own
       // corners, so the two now can't drift apart.
       vec2 cell = vec2(
-        fract(vUv.x * uRepeat.x),
+        fract(vUv.x * uRepeat.x + uXPhaseShiftCells),
         fract((vUv.y - 0.5) * uRepeat.y + 0.5 + uYPhaseShiftCells)
       );
       vec2 dLine = min(cell, 1.0 - cell);
@@ -335,6 +345,13 @@ export function GridPlane({
   style,
   layer,
   yPhaseShiftCells = 0,
+  // A *ref* holding the current horizontal phase shift in cells, not a plain
+  // value — this is driven every frame by the About Us -> Meet the Team
+  // slide (see teamTransition.js), and a prop would mean re-rendering this
+  // plane, and everything around it, on every one of those frames. The frame
+  // loop below copies it straight into the uniform instead, the same
+  // write-a-ref/read-it-next-frame handoff gridMetricsRef already uses.
+  xPhaseShiftCellsRef,
   buttonColumnLeftUV,
   buttonColumnRightUV,
   buttonBottomUV,
@@ -366,6 +383,10 @@ export function GridPlane({
     if (entranceStartRef.current === null) entranceStartRef.current = state.clock.elapsedTime
     const entranceT = Math.min((state.clock.elapsedTime - entranceStartRef.current) / ENTRANCE_DURATION, 1)
     material.uniforms.uEntranceOpacity.value = smoothstepEase(entranceT)
+
+    if (xPhaseShiftCellsRef) {
+      material.uniforms.uXPhaseShiftCells.value = xPhaseShiftCellsRef.current
+    }
 
     if (!buttonsEnabled) return
     const intensity = intensityRef.current

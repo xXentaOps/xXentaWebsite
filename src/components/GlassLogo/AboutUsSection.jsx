@@ -1,8 +1,15 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { motion, useTransform } from 'framer-motion'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
 import { MathUtils } from 'three'
-import { AboutUsIntro } from './AboutUsIntro'
+import {
+  ACCENT_SPEED,
+  gridPhaseShiftCells,
+  mainSlidePx,
+  TEAM_SLIDE_TRANSITION,
+  TEAM_SLIDE_Z,
+} from './teamTransition'
+import { AboutUsIntro, SLIDE_PHOTOS } from './AboutUsIntro'
 import { GridPlane } from './BackgroundGrid'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, THROUGH_GLASS_STYLE } from './gridConstants'
 import GridAlignmentOverlay from './GridAlignmentOverlay'
@@ -12,7 +19,13 @@ import { GlassCircle } from './GlassCircle'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
 import { GoogleCloudPartnerBadge } from './GoogleCloudPartnerBadge'
 import { GradientBlob } from './GradientBlob'
-import { CAPTURE_LAYER, CaptureLayerGate, CornerBracketCapture, PhotoBackdropCapture } from './PhotoBackdropCapture'
+import {
+  CAPTURE_LAYER,
+  CaptureLayerGate,
+  CornerBracketCapture,
+  PhotoBackdropCapture,
+  preloadPhotoTextures,
+} from './PhotoBackdropCapture'
 import { ReflectionEnvironment } from './ReflectionEnvironment'
 import { BLOB_WIDTH_OVERSCALE, GRID_Z, PLANE_SIZE, PLANE_Z } from './sceneConstants'
 import { usePerformanceTier } from './usePerformanceTier'
@@ -88,8 +101,39 @@ function scaleStyleForZoom(style, scale, opacityScale = 1) {
   return scaled
 }
 
+// Carries its children through the About Us -> Meet the Team slide, in world
+// space, so none of the glass components themselves need to know the
+// transition exists. They all position from a measured DOM rect, and a rect
+// is exactly the wrong thing to animate this with: useDomAnchorRect's own
+// triggers don't fire for a change of position alone (see its comment), so a
+// DOM transform would move the photo while leaving every glass object behind
+// until something happened to force a remeasure.
+//
+// `speed` is a plain multiplier on the shared travel — 1 for everything
+// locked to the photo (the capture planes, the partner plaque), ACCENT_SPEED
+// for the glass objects that lead the rest. Reading progress inside useFrame
+// rather than taking it as a prop keeps the whole slide off React's render
+// path: one motion value is mutated per frame and this writes one number.
+function SlideGroup({ progress, speed = 1, children }) {
+  const groupRef = useRef(null)
+  const camera = useThree((state) => state.camera)
+  const viewport = useThree((state) => state.viewport)
+  const size = useThree((state) => state.size)
+  const { width: viewWidth } = viewport.getCurrentViewport(camera, [0, 0, TEAM_SLIDE_Z])
+  const perPx = viewWidth / size.width
+
+  useFrame(() => {
+    const group = groupRef.current
+    if (!group) return
+    group.position.x = mainSlidePx(progress.get(), size.width) * speed * perPx
+  })
+
+  return <group ref={groupRef}>{children}</group>
+}
+
 function SeamlessGridBackdrop({
   aboutUsProgress,
+  teamProgress,
   gridMetricsRef,
   includeBackground = true,
   includeCrispLines = true,
@@ -117,10 +161,21 @@ function SeamlessGridBackdrop({
   // both canvases — see there for why this is one shared value rather than a
   // spring started independently on each side.
   const gridGroupRef = useRef(null)
+  // Handed down to both GridPlanes below and copied into their shader's own
+  // uXPhaseShiftCells every frame — see that uniform's comment for why the
+  // grid's share of the Meet the Team slide is a phase shift rather than a
+  // move. teamProgress is optional: CaptureGridBackdrop renders this same
+  // component for the badge's refraction and has no slide of its own to
+  // track (the badge canvas's own copy is only ever seen *through* glass
+  // that is itself sliding, so shifting it again would double the motion).
+  const gridXPhaseRef = useRef(0)
 
   useFrame(() => {
     const group = gridGroupRef.current
     if (!group) return
+    gridXPhaseRef.current = teamProgress
+      ? gridPhaseShiftCells(teamProgress.get(), size.width)
+      : 0
     const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, aboutUsProgress.get())
     group.scale.set(scale, scale, 1)
     group.position.y = (gridHeight / 2) * (scale - 1)
@@ -156,7 +211,7 @@ function SeamlessGridBackdrop({
           actually seen directly, and the soft plane alone is what gives the
           crisp lines their glow. */}
       <group ref={gridGroupRef}>
-        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(THROUGH_GLASS_STYLE, ABOUT_US_GRID_ZOOM_SCALE, throughGlassOpacityScale)} layer={0} yPhaseShiftCells={yPhaseShiftCells} />
+        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(THROUGH_GLASS_STYLE, ABOUT_US_GRID_ZOOM_SCALE, throughGlassOpacityScale)} layer={0} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
         {/* Skipped for the badge's own capture-only copy (see
             CaptureGridBackdrop) — the hero's own glass logo never refracts
             this crisp plane either (see BackgroundGrid.jsx, where it sits on
@@ -166,7 +221,7 @@ function SeamlessGridBackdrop({
             includeCrispLines, same as always, since only this prop (not the
             layer) decides whether it renders at all in a given copy. */}
         {includeCrispLines && (
-          <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(DIRECT_STYLE, ABOUT_US_GRID_ZOOM_SCALE)} layer={0} yPhaseShiftCells={yPhaseShiftCells} />
+          <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(DIRECT_STYLE, ABOUT_US_GRID_ZOOM_SCALE)} layer={0} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
         )}
       </group>
     </>
@@ -194,14 +249,31 @@ function SeamlessGridBackdrop({
 // badge's own glass was refracting crisp lines the hero's never does,
 // reading as noticeably less blurred by comparison. Dropping the crisp
 // plane entirely (not just re-layering it) matches the hero exactly.
-function CaptureGridBackdrop({ aboutUsProgress }) {
+//
+// teamProgress is forwarded straight through, not adjusted for the badge's
+// own faster ACCENT_SPEED travel (see the SlideGroup wrapping the badge
+// mesh itself in this same canvas). Those are two different questions: this
+// copy stands in for "what does the grid look like right now," which is the
+// same everywhere on the page regardless of who's looking at it, while the
+// badge's own SlideGroup answers "where does the badge itself sit." Omitting
+// this prop entirely (tried first) left this copy frozen at its rest phase
+// while the two real, on-screen grid layers kept sliding — reported directly
+// as a third, blurrier grid that looked like it "stopped earlier in the
+// slide animation," which is exactly what a phase stuck at 0 while
+// everything else advances looks like.
+function CaptureGridBackdrop({ aboutUsProgress, teamProgress }) {
   const groupRef = useRef(null)
   useEffect(() => {
     groupRef.current?.traverse((obj) => obj.layers.set(CAPTURE_LAYER))
   }, [])
   return (
     <group ref={groupRef}>
-      <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} includeBackground={false} includeCrispLines={false} />
+      <SeamlessGridBackdrop
+        aboutUsProgress={aboutUsProgress}
+        teamProgress={teamProgress}
+        includeBackground={false}
+        includeCrispLines={false}
+      />
     </group>
   )
 }
@@ -438,6 +510,41 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
     const timer = setTimeout(() => setSceneReady(true), 2500)
     return () => clearTimeout(timer)
   }, [sceneReady])
+  // Warms PhotoBackdropCapture's texture cache for every slide up front —
+  // see preloadPhotoTextures' own comment for why. Gated the same as
+  // PhotoBackdropCapture itself (sceneReady && tier==='high'): preloading on
+  // a tier that never mounts the badge at all would just be wasted GPU
+  // uploads nothing ever reads.
+  useEffect(() => {
+    if (sceneReady && tier === 'high') preloadPhotoTextures(SLIDE_PHOTOS)
+  }, [sceneReady, tier])
+
+  // Meet the Team: not a route or a separate section, but the same stage with
+  // About Us slid off it. 0 = About Us in place, 1 = fully handed over. Kept
+  // as a motion value rather than component state so the slide itself never
+  // re-renders anything — the DOM side reads it through useTransform, and
+  // every WebGL side reads it inside its own frame loop (see SlideGroup and
+  // the grid's x phase above). isTeamOpen exists alongside it only for the
+  // things that genuinely are discrete: which way the next animation runs,
+  // and what the arrows do when clicked.
+  const [isTeamOpen, setIsTeamOpen] = useState(false)
+  const teamProgress = useMotionValue(0)
+  useEffect(() => {
+    const controls = animate(teamProgress, isTeamOpen ? 1 : 0, TEAM_SLIDE_TRANSITION)
+    return () => controls.stop()
+  }, [isTeamOpen, teamProgress])
+  // Closing About Us entirely (scrolling back down to the hero) leaves the
+  // team stage open behind it otherwise, so re-opening About Us later would
+  // land on a screen with everything already slid away and no way back to it
+  // but the arrow. Reset rather than animate — this happens while the whole
+  // section is off-screen, where a visible transition would be wasted work
+  // no one sees.
+  useEffect(() => {
+    if (!isOpen && isTeamOpen) {
+      setIsTeamOpen(false)
+      teamProgress.set(0)
+    }
+  }, [isOpen, isTeamOpen, teamProgress])
 
   return (
     // Carries openScrollComp — the pixel offset that hides open()'s snap to
@@ -461,7 +568,7 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
       }`}
     >
       <Canvas dpr={tier === 'high' ? [1, 2] : 1} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
-        <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} gridMetricsRef={gridMetricsRef} />
+        <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} teamProgress={teamProgress} gridMetricsRef={gridMetricsRef} />
         {/* Same modest white light the badge's own canvas gives its glass
             (see GoogleCloudGlassBadge) — enough for GlassCircle's edges to
             catch a highlight, with the reflection environment below meant
@@ -482,12 +589,21 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
             element to paper over it with a CSS fade. */}
         <directionalLight position={[4, 5, 6]} intensity={0.5} />
         <Suspense fallback={null}>
-          {sceneReady && <GlassCircle domRect={circleRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+          {/* ACCENT_SPEED, not the main travel — GlassCircle is one of the
+              two glass objects asked to leave at their own pace (see
+              teamTransition). */}
+          <SlideGroup progress={teamProgress} speed={ACCENT_SPEED}>
+            {sceneReady && <GlassCircle domRect={circleRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+          </SlideGroup>
           {/* Static plaque, same canvas as GlassCircle for the same reason
               (see its own comment above) — sits over this canvas's own
               grid/blob, so a plain unprioritized backdrop capture picks them
               up with no extra capture rig needed. */}
-          {sceneReady && <GoogleCloudPartnerBadge domRect={partnerBadgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+          {/* Main speed — this plaque belongs to the copy column it sits in,
+              not to the two glass objects that lead the slide. */}
+          <SlideGroup progress={teamProgress}>
+            {sceneReady && <GoogleCloudPartnerBadge domRect={partnerBadgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+          </SlideGroup>
           {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
         <SceneRenderGate isVisibleRef={isVisibleRef} />
@@ -499,6 +615,10 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
         partnerBadgeAnchorRef={partnerBadgeAnchorRef}
         windowRef={photoWindowRef}
         onPhotoChange={setCurrentPhoto}
+        teamProgress={teamProgress}
+        isTeamOpen={isTeamOpen}
+        onOpenTeam={() => setIsTeamOpen(true)}
+        onCloseTeam={() => setIsTeamOpen(false)}
       />
       {SHOW_GRID_LINES && <GridAlignmentOverlay gridMetricsRef={gridMetricsRef} />}
 
@@ -582,22 +702,40 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
                 see GoogleCloudGlassBadge's own top comment for why its
                 one-time setup and its ongoing per-frame cost need two
                 different gates, not one. */}
-            {sceneReady && <GoogleCloudGlassBadge domRect={badgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+            {/* ACCENT_SPEED — the Google Cloud logo is the other glass object
+                that leads the slide (see teamTransition). It drifts away from
+                the photo it normally hangs off as it goes, which is the whole
+                point of giving the two different speeds. */}
+            <SlideGroup progress={teamProgress} speed={ACCENT_SPEED}>
+              {sceneReady && <GoogleCloudGlassBadge domRect={badgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+            </SlideGroup>
             {/* Gives the badge's glass an actual backdrop to refract — see
                 PhotoBackdropCapture's own top comment. Gated on tier==='high'
                 alongside ReflectionEnvironment below, not on isOpen or
                 sceneReady alone: it's meaningless without the real
                 TransmissionMaterial the low-quality meshPhysicalMaterial
-                branch skips entirely (see GoogleCloudGlassBadge). */}
-            {sceneReady && tier === 'high' && <PhotoBackdropCapture domRect={photoRect} src={currentPhoto} />}
-            {/* See CornerBracketCapture's own top comment — the bottom-right
-                bracket mark sits under the badge just like the photo does,
-                and needs the same treatment to stay visible through it. */}
-            {sceneReady && tier === 'high' && <CornerBracketCapture windowRect={photoRect} />}
+                branch skips entirely (see GoogleCloudGlassBadge). Loads its
+                own texture by hand rather than via useTexture now (see its
+                own top comment) specifically so it no longer suspends on
+                every slideshow swap — back on the shared boundary below
+                rather than one of its own, since there's nothing left here
+                that would trigger it. */}
+            {/* Both capture planes ride the *main* speed, not the badge's:
+                they exist to stand in for the DOM photo and its corner mark
+                inside the glass's refraction, so they have to stay locked to
+                where that photo actually is on screen. Wrapped together in
+                one group for exactly that reason. */}
+            <SlideGroup progress={teamProgress}>
+              {sceneReady && tier === 'high' && <PhotoBackdropCapture domRect={photoRect} src={currentPhoto} />}
+              {/* See CornerBracketCapture's own top comment — the bottom-right
+                  bracket mark sits under the badge just like the photo does,
+                  and needs the same treatment to stay visible through it. */}
+              {sceneReady && tier === 'high' && <CornerBracketCapture windowRect={photoRect} />}
+            </SlideGroup>
             {/* See CaptureGridBackdrop's own top comment — the other half
                 of what the badge's glass refracts, alongside the photo
                 above. */}
-            {sceneReady && tier === 'high' && <CaptureGridBackdrop aboutUsProgress={aboutUsProgress} />}
+            {sceneReady && tier === 'high' && <CaptureGridBackdrop aboutUsProgress={aboutUsProgress} teamProgress={teamProgress} />}
             {/* Gated on sceneReady (see above), not isOpen, unlike the badge
                 — this is a one-time bake (see its own bakedRef guard), not
                 an ongoing per-frame cost, so conditionally

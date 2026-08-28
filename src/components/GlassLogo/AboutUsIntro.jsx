@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useTransform } from 'framer-motion'
+import { MAIN_SLIDE_VW, mainSlidePx } from './teamTransition'
 import { CornerBrackets } from './CornerBrackets'
 import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
 import { gridScreenMetrics } from './gridScreenMetrics'
@@ -40,6 +41,15 @@ const SLIDES = [
     showButton: true,
   },
 ]
+
+// Every distinct photo a slide can show, for AboutUsSection to preload into
+// PhotoBackdropCapture's texture cache up front (see preloadPhotoTextures
+// there) — the badge's own crossfade can't start until its texture has
+// loaded, a separate GPU upload from the DOM photo's own load, and that gap
+// was the one thing tuning the fade's speed/duration alone could never
+// close. Warming the cache before it's needed closes it at the source
+// instead. filter(Boolean) drops the null placeholder slides above.
+export const SLIDE_PHOTOS = SLIDES.map((slide) => slide.photo).filter(Boolean)
 
 // The photo's window, in grid cells. Four across, up from three, by three
 // down, up from the original two (that one asked for directly, as "the row
@@ -189,7 +199,17 @@ function SlideArrow({ direction, onClick, disabled }) {
 // The photo block is placed against the grid rather than by flow, since
 // which squares it covers is the whole point of it; the copy is placed
 // against the viewport, and given the room the photo leaves.
-export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, windowRef, onPhotoChange }) {
+export function AboutUsIntro({
+  isOpen,
+  badgeAnchorRef,
+  partnerBadgeAnchorRef,
+  windowRef,
+  onPhotoChange,
+  teamProgress,
+  isTeamOpen,
+  onOpenTeam,
+  onCloseTeam,
+}) {
   const blockRef = useRef(null)
   const imageRef = useRef(null)
   // The headline/body/partner-badge column's own outer wrapper — its
@@ -212,14 +232,218 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, wi
   // by the parallax loop, so the loop never has to recompute the layout just
   // to know how far it may move things.
   const overflowRef = useRef(0)
+  // Where the arrow row sits horizontally when nothing has slid — the photo
+  // window's own centre, since that's what the row is centred on (see its
+  // left-1/2 -translate-x-1/2 below). Written by the layout pass, read by
+  // arrowsX below to work out how far the arrows have to travel to land on
+  // the middle of the screen. A ref rather than state because the transform
+  // reading it re-evaluates on every frame of the slide anyway, and this
+  // changing should never itself cost a render.
+  const arrowRestCenterRef = useRef(null)
+
+  // The About Us -> Meet the Team slide, DOM side. teamProgress is already
+  // eased (see teamTransition), so both of these are plain linear functions
+  // of it — the curve lives in one place for the DOM and WebGL halves alike.
+  //
+  // mainX moves everything in this subtree off to the left together.
+  const mainX = useTransform(teamProgress, (p) => mainSlidePx(p, window.innerWidth))
+  // The arrows are the exception: they stop at the middle of the screen
+  // rather than leaving with everything else. They live *inside* the sliding
+  // subtree (nested under the photo block, so they stay put relative to the
+  // window at rest), which means this has to be the offset that *cancels*
+  // mainX and lands them on centre instead — hence subtracting mainX rather
+  // than just animating to the target. Written out algebraically:
+  //   net wanted = p * (screenCentre - restCentre)
+  //   net actual = mainX + arrowsX
+  // so arrowsX = p * (screenCentre - restCentre) - mainX, and mainX is
+  // -p * width * MAIN_SLIDE_VW, giving the + term below.
+  const arrowsX = useTransform(teamProgress, (p) => {
+    const restCentre = arrowRestCenterRef.current
+    if (restCentre == null) return 0
+    const toCentre = window.innerWidth / 2 - restCentre
+    return p * (toCentre + window.innerWidth * MAIN_SLIDE_VW)
+  })
 
   // Which of SLIDES is showing. Clamped rather than wrapped by goPrev/
   // goNext below — see SlideArrow's own comment for why an end genuinely
   // means an end here.
   const [slideIndex, setSlideIndex] = useState(0)
   const slide = SLIDES[slideIndex]
-  const goPrev = () => setSlideIndex((i) => Math.max(0, i - 1))
-  const goNext = () => setSlideIndex((i) => Math.min(SLIDES.length - 1, i + 1))
+  // A frozen snapshot of whatever the window was showing right before the
+  // current transition started — src/alt plus the exact height/transform
+  // imageRef had at that instant, so it can be painted back in the same spot
+  // it was already sitting in rather than reflowing, plus an `id` used as
+  // its React key (see the window JSX below). Rendered as a second,
+  // absolutely-positioned layer on top of the (always-opaque) incoming image
+  // — so a slide change reads as the old photo dissolving to reveal the new
+  // one already there beneath it, never as a dip to the bare grid. null once
+  // there's nothing left to dissolve.
+  //
+  // The `id`/key matters more than it looks. Without one, React reconciled
+  // each new snapshot onto the *same* <img> DOM node as the previous
+  // transition's — a node already sitting at opacity 0 from having just
+  // faded out. Re-using it meant the next transition's "from" state (opacity
+  // 0.8) was a style *change* on a live node rather than a fresh mount, and
+  // if the incoming photo's load event landed before the browser painted
+  // that 0.8 frame, the style went 0 -> 0.8 -> 0 within a single frame:
+  // no visible change, therefore no CSS transition, therefore no
+  // transitionend. Keying it guarantees every dissolve starts from a
+  // genuinely freshly-mounted node in its own "from" state.
+  const [outgoing, setOutgoing] = useState(null)
+  // Whether the current outgoing snapshot should be animating away yet.
+  // Split out from the old imgLoaded flag it replaces: that one conflated
+  // "the incoming image is ready" with "the outgoing layer's target style",
+  // which is what let a fast load collapse a transition into no-op (see the
+  // key note above). This is only ever flipped a frame *after* the snapshot
+  // has mounted and painted, so the browser always has two distinct states
+  // to interpolate between.
+  const [fadeOut, setFadeOut] = useState(false)
+  // Mirrors outgoing for the parallax loop below, which reads it every
+  // frame off a ref rather than depending on the state directly — adding
+  // outgoing to that effect's own deps would tear down and restart the
+  // whole rAF loop (and its dt/last timing) on every slide change instead
+  // of just skipping a frame's write.
+  const outgoingRef = useRef(null)
+  outgoingRef.current = outgoing
+  // The authoritative current index for *scheduling* purposes. slideIndex
+  // the state variable lags by a render, and worse, lags an entire queued
+  // chain — goPrev/goNext computing off it meant a second rapid click could
+  // derive a target equal to the one already in flight, hit the no-op guard
+  // in startTransition, and be silently dropped. Every decision below reads
+  // this instead, and it is updated synchronously the moment a transition
+  // is committed to.
+  const slideIndexRef = useRef(0)
+  slideIndexRef.current = slideIndex
+  // A requested slide index that arrived while a transition was already
+  // playing — held here instead of starting a second one on top of the
+  // first. The arrows are never disabled during a transition (people should
+  // always be able to keep skipping ahead/back), but two overlapping
+  // transitions can't share one outgoing snapshot: a click landing mid-fade
+  // used to replace that snapshot outright, and since that swaps the <img>'s
+  // src rather than animating an existing one, the browser had nothing to
+  // transition from — it popped straight to the new photo at whatever
+  // opacity/blur the interrupted one happened to be at (reported as the
+  // previous picture "flashing" mid-transition). Queuing means a fast run of
+  // clicks plays out as a clean chain of full dissolves, landing wherever
+  // the *last* click asked for.
+  const pendingIndexRef = useRef(null)
+  // Monotonic id for the in-flight transition. Every deferred callback below
+  // (rAF, timers, load events) captures the id it was scheduled for and
+  // no-ops if a newer transition has since superseded it, so a late callback
+  // from an abandoned transition can never drive the current one.
+  const transitionIdRef = useRef(0)
+  const timersRef = useRef({ safety: 0, finish: 0, raf: 0 })
+
+  // Must match the outgoing layer's own transition-duration class below.
+  const CROSSFADE_MS = 500
+  // How long to wait on the incoming photo's load event before dissolving
+  // anyway. The dissolve waits for the incoming image so the reveal never
+  // exposes a half-loaded photo, but it must never wait *forever*: a load
+  // event that doesn't arrive (cache quirk, decode failure, an <img> whose
+  // src didn't actually change) previously meant the transition simply never
+  // ran and the slideshow wedged. This is the ceiling on that wait.
+  const LOAD_SAFETY_MS = 1200
+
+  const clearTimers = () => {
+    const t = timersRef.current
+    if (t.safety) clearTimeout(t.safety)
+    if (t.finish) clearTimeout(t.finish)
+    if (t.raf) cancelAnimationFrame(t.raf)
+    t.safety = 0
+    t.finish = 0
+    t.raf = 0
+  }
+
+  // Ends the current transition and immediately starts whatever was queued
+  // during it. Driven by a plain timer rather than the outgoing layer's own
+  // transitionend event, deliberately: transitionend is not guaranteed to
+  // fire (a transition that never starts never ends, and that single missed
+  // event was exactly what left `outgoing` set forever, every later click
+  // queuing behind a dissolve that was never going to complete — the arrows
+  // looking live while doing nothing). A timer always fires, so the state
+  // machine can no longer deadlock on a missing event, at the cost of
+  // completing a few ms after the visual fade rather than exactly on it.
+  const finishTransition = (id) => {
+    if (id !== transitionIdRef.current) return
+    clearTimers()
+    const pending = pendingIndexRef.current
+    pendingIndexRef.current = null
+    if (pending != null && pending !== slideIndexRef.current) {
+      beginTransition(pending)
+    } else {
+      setOutgoing(null)
+      setFadeOut(false)
+    }
+  }
+
+  // Kicks the snapshot into fading, one *painted* frame after it mounted —
+  // two nested rAFs, since a single one can still land inside the same frame
+  // the mount is committed in, which would collapse the whole dissolve into
+  // one style recalculation with nothing to interpolate.
+  const startFadeOut = (id) => {
+    const t = timersRef.current
+    if (id !== transitionIdRef.current || t.finish || t.raf) return
+    if (t.safety) {
+      clearTimeout(t.safety)
+      t.safety = 0
+    }
+    t.raf = requestAnimationFrame(() => {
+      t.raf = requestAnimationFrame(() => {
+        t.raf = 0
+        if (id !== transitionIdRef.current) return
+        setFadeOut(true)
+        t.finish = setTimeout(() => finishTransition(id), CROSSFADE_MS + 80)
+      })
+    })
+  }
+
+  // Snapshots the *current* slide and switches to the target. Unconditional
+  // — callers (startTransition, and finishTransition draining the queue) are
+  // what decide whether a transition should start at all. Reads the outgoing
+  // photo off slideIndexRef rather than the render's own `slide`, so a
+  // chained transition started from a timer callback snapshots what is
+  // actually on screen rather than whatever the closure happened to capture.
+  const beginTransition = (targetIndex) => {
+    clearTimers()
+    const id = ++transitionIdRef.current
+    const from = SLIDES[slideIndexRef.current]
+    const image = imageRef.current
+    setOutgoing({
+      photo: from.photo,
+      alt: from.alt,
+      height: image?.style.height,
+      transform: image?.style.transform,
+      id,
+    })
+    setFadeOut(false)
+    setSlideIndex(targetIndex)
+    slideIndexRef.current = targetIndex
+    if (SLIDES[targetIndex].photo) {
+      // Wait for the incoming <img>'s load (see its onLoad below), but only
+      // up to LOAD_SAFETY_MS.
+      timersRef.current.safety = setTimeout(() => startFadeOut(id), LOAD_SAFETY_MS)
+    } else {
+      // Photo-less slide — a flat gray fill has nothing to wait on.
+      startFadeOut(id)
+    }
+  }
+
+  const startTransition = (targetIndex) => {
+    if (targetIndex === slideIndexRef.current) return
+    if (outgoingRef.current) {
+      pendingIndexRef.current = targetIndex
+      return
+    }
+    beginTransition(targetIndex)
+  }
+  // Steps from wherever the *last* click asked to go, not from what is
+  // currently painted — so three fast Next clicks advance three slides
+  // instead of collapsing into one (see slideIndexRef/pendingIndexRef).
+  const nextTargetFrom = () => pendingIndexRef.current ?? slideIndexRef.current
+  const goPrev = () => startTransition(Math.max(0, nextTargetFrom() - 1))
+  const goNext = () => startTransition(Math.min(SLIDES.length - 1, nextTargetFrom() + 1))
+
+  useEffect(() => clearTimers, [])
   // Bubbles the current slide's photo up — same "report state, don't lift
   // it" shape as BackgroundGrid's own onActiveIndexChange — so AboutUsSection
   // can hand the Google Cloud badge's glass the *actual* photo sitting
@@ -227,29 +451,6 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, wi
   useEffect(() => {
     onPhotoChange?.(slide.photo)
   }, [slide.photo, onPhotoChange])
-  // Whether the *current* slide's content has finished loading, so a slide
-  // change can dip to transparent and back rather than popping straight to
-  // the next photo — set false the instant the index changes, true again on
-  // the new <img>'s own load event (or immediately, for a photo-less slide —
-  // a flat gray fill has nothing to wait on). The element itself never
-  // remounts (see imageRef below, which the parallax/layout logic above
-  // depends on staying the same node across slides, photo or not), so this
-  // can't be a mount-driven fade — only the loaded flag actually changes.
-  const [imgLoaded, setImgLoaded] = useState(true)
-  // Skips the very first run — slideIndex's initial value is already the
-  // dependency array's first value, so this effect fires once on mount
-  // whether or not a slide change actually happened, and the first photo is
-  // typically already cache-warm from painting once before the slideshow
-  // existed at all. Without this guard every fresh open dipped to
-  // transparent and back for no reason before anything had changed.
-  const isFirstSlideRef = useRef(true)
-  useEffect(() => {
-    if (isFirstSlideRef.current) {
-      isFirstSlideRef.current = false
-      return
-    }
-    setImgLoaded(!slide.photo)
-  }, [slideIndex, slide.photo])
 
   useEffect(() => {
     if (!isOpen) return
@@ -295,6 +496,9 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, wi
     const { column, row } = photoCellIndices(window.innerWidth, window.innerHeight)
     const photoLeftPx = phaseX + column * cell
     block.style.left = `${photoLeftPx}px`
+    // The arrow row is centred on the window, so the window's own centre is
+    // where the arrows rest — see arrowRestCenterRef.
+    arrowRestCenterRef.current = photoLeftPx + (cell * PHOTO_CELLS_X) / 2
     block.style.top = `${phaseY + row * cell}px`
     const windowHeight = cell * PHOTO_CELLS_Y
     windowEl.style.width = `${cell * PHOTO_CELLS_X}px`
@@ -378,7 +582,18 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, wi
       last = now
       const image = imageRef.current
       const overflow = overflowRef.current
-      if (image && overflow > 0) {
+      // Paused for the duration of a crossfade (outgoingRef non-null) —
+      // the incoming image sits directly beneath the frozen outgoing
+      // snapshot (see startTransition/outgoing above), and letting parallax
+      // keep nudging it every frame while it's hidden meant it had drifted
+      // to a different offset than the snapshot by the time the dissolve
+      // revealed it, reading as a jump/jitter right as the swap landed —
+      // worse the more the pointer had moved during that half-second. Also
+      // skips the easing math itself, not just the write: catching easedRef
+      // up to the live pointer position while frozen would have made
+      // parallax resume with a snap the instant the transition ended,
+      // instead of continuing smoothly from wherever it left off.
+      if (image && overflow > 0 && !outgoingRef.current) {
         easedRef.current +=
           (pointerRef.current - easedRef.current) * (1 - Math.exp(-PARALLAX_LAMBDA * dt))
         // Positive pointer (lower on screen) pulls the photo up, revealing
@@ -408,10 +623,14 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, wi
     // full screen down as this plays, so twelve pixels of extra travel inside
     // it was never doing visible work, and what it cost was the one thing on
     // this page that has to keep DOM and WebGL in agreement.
+    // style.x carries the Meet the Team slide (see mainX above) while
+    // animate keeps owning the reveal's own opacity — two separate
+    // properties, so neither fights the other for control of this element.
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: isOpen ? 1 : 0 }}
       transition={{ duration: 0.5, ease: 'easeOut', delay: isOpen ? 0.5 : 0 }}
+      style={{ x: mainX }}
       className="pointer-events-none absolute inset-0 z-50"
     >
       {/* Left: headline, body copy, Google Cloud partner badge. A fixed 280px
@@ -482,38 +701,87 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, wi
               each frame, so nothing about the sizing logic above had to
               change, only which element the image sits inside. */}
           <div className="absolute inset-0 overflow-hidden">
-            {/* opacity is inline, not a Tailwind class, so a slide change can
-                animate it between 0 (mid-swap) and the resting 0.8 — see
-                imgLoaded above for why the element can't just remount to get
-                a fade for free. Same ref/className/style/height/transform
-                contract on both branches (only the tag and src/onLoad
-                differ) — the layout and parallax logic above sets
+            {/* The incoming layer — always at its resting opacity, never
+                dipped. Same ref/className/style/height/transform contract on
+                both branches (only the tag and src/onLoad differ) — the
+                layout and parallax logic above sets
                 imageRef.current.style.height/.transform imperatively and
-                doesn't know or care which element currently holds the ref. */}
+                doesn't know or care which element currently holds the ref.
+                It's fine for this to be genuinely underneath a still-loading
+                image for a beat: the outgoing layer below stays opaque over
+                it until this one's load fires, so there's nothing to see
+                through to yet. */}
             {slide.photo ? (
               <img
                 ref={imageRef}
                 src={slide.photo}
                 alt={slide.alt}
                 draggable={false}
-                onLoad={() => setImgLoaded(true)}
+                // Releases the outgoing snapshot to start dissolving, now
+                // that there's a fully-loaded photo underneath it to reveal.
+                // Only a *trigger* — it no longer feeds the outgoing layer's
+                // own style, so a load that arrives unusually early (a warm
+                // cache, most often) can't collapse the dissolve into a
+                // single no-op style recalculation the way it used to. If it
+                // never arrives at all, beginTransition's own safety timer
+                // starts the fade regardless.
+                onLoad={() => startFadeOut(transitionIdRef.current)}
                 // Full window width, natural height — taller than the
                 // window, which is what leaves something to reveal.
                 // Positioned from the top and moved by transform only, so
                 // the overflow maths above has a single, predictable origin
                 // to work from.
-                className="w-full max-w-none object-cover transition-opacity duration-300"
-                style={{ opacity: imgLoaded ? 0.8 : 0 }}
+                className="w-full max-w-none object-cover"
+                style={{ opacity: 0.8 }}
               />
             ) : (
               // No photo decided yet for this slide — flat gray rather than
               // reusing a real photo for content that isn't real yet (see
               // SLIDES above).
-              <div
-                ref={imageRef}
-                className="h-full w-full bg-gray-500 transition-opacity duration-300"
-                style={{ opacity: imgLoaded ? 1 : 0 }}
-              />
+              <div ref={imageRef} className="h-full w-full bg-gray-500" />
+            )}
+            {/* The outgoing layer — a frozen snapshot of the previous slide
+                (see outgoing/startTransition above), painted back at the
+                exact height/transform it had when the swap began so it
+                doesn't jump before it starts to dissolve. Sits on top of the
+                incoming layer in stacking order purely by coming later in
+                the DOM (both share the same non-positioned/positioned
+                stacking context), no z-index needed. Starts fully opaque and
+                sharp — matching how it already looked the instant before
+                this render — then blurs and fades once fadeOut flips true a
+                painted frame later, revealing the incoming layer that was
+                sitting ready underneath the whole time rather than the bare
+                grid behind it. Keyed on outgoing.id so each dissolve gets a
+                genuinely fresh node (see the outgoing state's own comment).
+                Removed by finishTransition's timer so it never lingers as a
+                fully transparent layer. */}
+            {outgoing && (
+              outgoing.photo ? (
+                <img
+                  key={outgoing.id}
+                  src={outgoing.photo}
+                  alt={outgoing.alt}
+                  draggable={false}
+                  className="pointer-events-none absolute top-0 left-0 w-full max-w-none object-cover transition-[opacity,filter] duration-500 ease-in-out"
+                  style={{
+                    height: outgoing.height,
+                    transform: outgoing.transform,
+                    opacity: fadeOut ? 0 : 0.8,
+                    filter: fadeOut ? 'blur(16px)' : 'blur(0px)',
+                  }}
+                />
+              ) : (
+                <div
+                  key={outgoing.id}
+                  className="pointer-events-none absolute top-0 left-0 h-full w-full bg-gray-500 transition-[opacity,filter] duration-500 ease-in-out"
+                  style={{
+                    height: outgoing.height,
+                    transform: outgoing.transform,
+                    opacity: fadeOut ? 0 : 1,
+                    filter: fadeOut ? 'blur(16px)' : 'blur(0px)',
+                  }}
+                />
+              )
             )}
           </div>
           {/* Bigger than CornerBrackets' own default (22px/2px, sized for
@@ -536,12 +804,29 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, wi
               showButton-gated — see SLIDES — so it's only ever on screen
               alongside the group photo it actually belongs to. */}
           {slide.showButton && (
-            <button
+            // Mounts fresh every time showButton flips true (there's no
+            // AnimatePresence/key needed for that — the && above already
+            // unmounts it on every other slide, so arriving back at this
+            // one is a genuine new mount each time), which is what lets a
+            // plain initial/animate pair replay on every arrival rather
+            // than only once. Descends the last little bit into its resting
+            // spot rather than travelling far — asked for subtle, and 16px
+            // reads as a settle, not a slide-in. blur pairs with that same
+            // arrival: starts soft like it's still resolving into focus,
+            // sharpens as it lands. The ease-out-expo-shaped curve (fast
+            // out of the gate, long soft landing) is the non-linear feel
+            // asked for — plain easeOut (tried first) still read as fairly
+            // even-paced next to how sharply this decelerates.
+            <motion.button
               type="button"
+              initial={{ opacity: 0, y: -16, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              onClick={onOpenTeam}
               className="pointer-events-auto absolute top-full left-0 mt-6 rounded-full border border-[#3B82F6] px-6 py-2.5 text-xs font-extralight tracking-[0.2em] text-[#3B82F6] uppercase transition-colors duration-200 hover:border-white/40 hover:text-white/40"
             >
               Meet the Team
-            </button>
+            </motion.button>
           )}
           {/* Below the window, centered under it — mt-24 rather than the
               button's own mt-6 so this sits at the same fixed spot on every
@@ -552,10 +837,46 @@ export function AboutUsIntro({ isOpen, badgeAnchorRef, partnerBadgeAnchorRef, wi
               columns and (like the button) roughly centered the same way the
               headline/body column is, so clearing its own bottom edge clears
               both. */}
-          <div className="pointer-events-none absolute top-full left-1/2 mt-24 flex -translate-x-1/2 gap-8">
-            <SlideArrow direction="left" onClick={goPrev} disabled={slideIndex === 0} />
-            <SlideArrow direction="right" onClick={goNext} disabled={slideIndex === SLIDES.length - 1} />
+          {/* The one part of this subtree that doesn't leave with the rest:
+              style.x counter-cancels the parent's slide so these land on the
+              middle of the screen instead of following it off (see arrowsX
+              above). They're already sitting near the bottom of the viewport
+              — the window is 600px tall and vertically centred, and this row
+              hangs mt-24 below it — so the "bottom-middle" the Meet the Team
+              stage wants needs no vertical move at all, only this
+              horizontal one. */}
+          <motion.div
+            style={{ x: arrowsX }}
+            className="pointer-events-none absolute top-full left-1/2 mt-24"
+          >
+          {/* The half-width centring shift lives on its own element, not
+              alongside the motion x above: framer-motion writes an inline
+              `transform`, and an inline transform beats Tailwind's
+              -translate-x-1/2 outright rather than composing with it, so
+              sharing one element would silently drop the centring the moment
+              the slide started. */}
+          <div className="flex -translate-x-1/2 gap-8">
+            {/* Only ever disabled at a genuine end of SLIDES (see
+                SlideArrow's own comment) — never while a transition is
+                playing. A click mid-transition queues instead of being
+                ignored (see pendingIndexRef/startTransition above), so
+                there's no window where these should look unusable.
+                Once the team stage is open these stop being slide controls:
+                left is the way back to About Us (the only way back, so it
+                must never be disabled there), and right has nowhere to go
+                yet — the team page's own content isn't built. */}
+            <SlideArrow
+              direction="left"
+              onClick={isTeamOpen ? onCloseTeam : goPrev}
+              disabled={isTeamOpen ? false : slideIndex === 0}
+            />
+            <SlideArrow
+              direction="right"
+              onClick={goNext}
+              disabled={isTeamOpen || slideIndex === SLIDES.length - 1}
+            />
           </div>
+          </motion.div>
         </div>
         {/* Bottom-right, hanging off the image — see GoogleCloudGlassBadge,
             which renders into this exact footprint from the WebGL canvas. */}
