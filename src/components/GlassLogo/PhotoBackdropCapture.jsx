@@ -278,11 +278,14 @@ export function PhotoBackdropCapture({ domRect, src }) {
   const fadeStartRef = useRef(0)
   const currentMeshRef = useRef(null)
   const outgoingMeshRef = useRef(null)
-  // Mirrors outgoing for the load callback below, the same "read the latest
-  // value off a ref inside an async callback instead of a stale closure"
-  // shape AboutUsIntro's own outgoingRef uses for its parallax loop.
-  const isFadingRef = useRef(false)
-  isFadingRef.current = outgoing !== null
+  // The in-flight fade's completion timer, and the authority on whether a
+  // fade is currently playing. A timer handle rather than a mirror of the
+  // `outgoing` state, deliberately: state doesn't commit until React
+  // re-renders, so two loads resolving in the same tick would both see
+  // "not fading" and the second would stomp the first. This is set
+  // synchronously by startFade below, so the answer is right immediately.
+  const fadeTimerRef = useRef(0)
+  const isFading = () => fadeTimerRef.current !== 0
   // A texture that finished loading while a fade was already playing — held
   // here instead of starting its own crossfade immediately. The DOM photo's
   // own transition gates each click on the previous one finishing (see
@@ -306,12 +309,51 @@ export function PhotoBackdropCapture({ domRect, src }) {
   const currentRef = useRef(null)
   currentRef.current = current
 
+  // Ends the fade that just completed and starts whatever queued up behind
+  // it. Driven by a plain timer scheduled when the fade *starts* — see
+  // startFade — rather than by watching progress inside useFrame and
+  // calling setState the moment it reaches 1, which is what this used to
+  // do. That was the source of a real crash: useFrame runs inside
+  // react-three-fiber's own render loop, and a setState from there can land
+  // while React is already committing elsewhere in the tree (rapid arrow
+  // clicks driving AboutUsIntro's own state), producing "Cannot commit the
+  // same tree as before" — an uncaught error that didn't just break this
+  // canvas but left the whole app's state updates silently not applying
+  // afterward. Deferring it by a microtask (tried first) only narrowed the
+  // window rather than closing it: a microtask queued from inside the frame
+  // callback still drains within that same frame's task. A timer is a
+  // genuinely separate task, so this can no longer contend with a commit
+  // in progress at all — and it's the same shape AboutUsIntro's own
+  // finishTransition already uses for exactly this reason.
+  const finishFade = () => {
+    fadeTimerRef.current = 0
+    const pending = pendingRef.current
+    if (pending) {
+      pendingRef.current = null
+      startFade(currentRef.current, pending)
+    } else {
+      setOutgoing(null)
+    }
+  }
+
+  const startFade = (from, to) => {
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
+    setOutgoing(from)
+    setCurrent(to)
+    // Kept in step synchronously so a fade chained straight out of
+    // finishFade above snapshots what's actually on screen rather than the
+    // value from the last committed render.
+    currentRef.current = to
+    fadeStartRef.current = performance.now()
+    fadeTimerRef.current = setTimeout(finishFade, CROSSFADE_MS + 80)
+  }
+
   useEffect(() => {
     let cancelled = false
     loadCachedTexture(target, (texture) => {
       if (cancelled) return
       const loaded = { src: target, texture }
-      if (isFadingRef.current) {
+      if (isFading()) {
         pendingRef.current = loaded
         return
       }
@@ -320,15 +362,20 @@ export function PhotoBackdropCapture({ domRect, src }) {
       // finished after target had already moved on again (its own texture
       // will already be in flight to replace it).
       if (prevCurrent && prevCurrent.src !== target) {
-        setOutgoing(prevCurrent)
-        fadeStartRef.current = performance.now()
+        startFade(prevCurrent, loaded)
+      } else {
+        setCurrent(loaded)
+        currentRef.current = loaded
       }
-      setCurrent(loaded)
     })
     return () => {
       cancelled = true
     }
   }, [target])
+
+  useEffect(() => () => {
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
+  }, [])
 
   useEffect(() => {
     currentMeshRef.current?.layers.set(CAPTURE_LAYER)
@@ -337,48 +384,15 @@ export function PhotoBackdropCapture({ domRect, src }) {
     outgoingMeshRef.current?.layers.set(CAPTURE_LAYER)
   }, [outgoing])
 
-  // Guards the "this fade just finished" branch below against running more
-  // than once for the same completion — useFrame keeps calling this every
-  // frame while t stays clamped at 1 (waiting for the deferred setState
-  // below to actually commit), and without this it queued/cleared on every
-  // one of those frames instead of just the first.
-  const finishedRef = useRef(false)
-
+  // Pure animation — writes two material uniforms and nothing else. No
+  // React state is touched from inside the frame loop at all any more (see
+  // finishFade above for what used to be here, and why that mattered).
   useFrame(() => {
     if (!outgoing || !outgoingMeshRef.current) return
     const t = Math.min(1, (performance.now() - fadeStartRef.current) / CROSSFADE_MS)
     const eased = easeInOut(t)
     outgoingMeshRef.current.material.opacity = 1 - eased
     outgoingMeshRef.current.material.blurAmount = eased * MAX_BLUR_UV
-    if (t < 1 || finishedRef.current) return
-    finishedRef.current = true
-    // setOutgoing/setCurrent are deliberately not called synchronously from
-    // here. useFrame runs inside react-three-fiber's own render loop, and
-    // calling setState directly from it can race with a React commit
-    // already in flight elsewhere in the tree (here, specifically: rapid
-    // arrow clicks driving AboutUsIntro's own setState calls) — R3F and
-    // this component's own tree share one React root, so a collision isn't
-    // contained to this canvas. That raced into "Cannot commit the same
-    // tree as before", an uncaught error that didn't just crash this
-    // component — it left the *whole app's* state updates silently not
-    // taking effect afterward (reported as the slideshow arrows looking
-    // clickable but permanently doing nothing). Deferring with a
-    // microtask — still effectively immediate, just outside useFrame's own
-    // synchronous call stack — lets React schedule this update through its
-    // normal path instead of contending with the frame loop for the same
-    // commit.
-    queueMicrotask(() => {
-      const pending = pendingRef.current
-      finishedRef.current = false
-      if (pending) {
-        pendingRef.current = null
-        setOutgoing(current)
-        setCurrent(pending)
-        fadeStartRef.current = performance.now()
-      } else {
-        setOutgoing(null)
-      }
-    })
   })
 
   const world = useDomRectWorld(domRect)

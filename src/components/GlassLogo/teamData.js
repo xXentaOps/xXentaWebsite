@@ -1,10 +1,19 @@
-// Team data for the About Us "Meet the Team" carousel (TeamCarousel). Names
-// are real; `role`, `bio` and `email` are still stand-ins, marked with the
-// same obvious-placeholder bracket convention ClientLogoCarousel uses for
-// its own placeholder client names, so none of them could be mistaken for
-// real content if this shipped as-is. Replace the bracketed strings (and
-// the example.com addresses) as the real copy arrives; nothing else here
-// needs to change with them.
+// Team data for the About Us "Meet the Team" carousel (TeamCarousel) and
+// detail view (MeetTheTeamGrid). Names are real; `role` and `email` are
+// still stand-ins for most members, marked with the same obvious-placeholder
+// bracket convention ClientLogoCarousel uses for its own placeholder client
+// names, so none of them could be mistaken for real content if this shipped
+// as-is. Replace the remaining bracketed strings (and the example.com
+// addresses) as the real copy arrives; nothing else here needs to change
+// with them.
+//
+// `bio` is an array of paragraph strings, not one block of text — real bios
+// run several paragraphs, and the detail view renders each as its own <p>
+// so the paragraph breaks the copy was written with survive into the page
+// rather than collapsing into one run-on block (plain HTML/JSX ignores
+// blank lines inside a string). TeamCarousel's compact card just joins them
+// with a space before its own line-clamp-3 truncates the result — paragraph
+// breaks don't matter for a three-line preview.
 //
 // Order is left-to-right in the group photo (the seven people, then the two
 // dogs) and is what the carousel's own scroll order follows directly.
@@ -25,7 +34,12 @@ export const TEAM_MEMBERS = [
     id: 'member-1',
     name: 'Jeroen Schilders',
     role: '[ Role ]',
-    bio: '[ Paragraph — a few lines in their own words, to be added. ]',
+    bio: [
+      'As Senior Consultant at xXenta, Jeroen Schilders combines a strong background in the agri-food sector and vocational education with deep expertise in technology, software development, and AI. He believes that technology only creates real value when it empowers people in their daily work. Guided by this philosophy, he develops solutions that make knowledge not only accessible but immediately actionable at the moment it is needed most.',
+      'With years of experience in Learning & Development, software development, and digital learning solutions, Jeroen understands how technology, content, and business processes can reinforce one another. He translates complex challenges into intelligent, scalable solutions where AI, performance support, and knowledge management come together. His focus extends beyond content alone to the technical infrastructure required to ensure that knowledge remains accessible, searchable, and usable over time.',
+      'At xXenta, Jeroen serves as Senior Consultant, contributing to the development of the xXenta platform and its underlying AI infrastructure. He bridges the gap between technology, user experience, and the day-to-day reality of organizations. His strength lies in designing solutions that are technically robust while remaining intuitive and user-friendly. For Jeroen, technology is never an end in itself—it should enable people to learn faster, collaborate more effectively, and perform at their best.',
+      'Outside of work, Jeroen is a practical and grounded person. He enjoys recharging by walking in nature, tackling DIY projects, cooking, and spending time with his family. This combination of curiosity, craftsmanship, and a genuine focus on people is reflected in everything he does, creating technology that is not only smart, but truly meaningful.',
+    ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/jeroen-schilders-59282798/',
     x: 16.3,
@@ -37,7 +51,7 @@ export const TEAM_MEMBERS = [
     id: 'member-2',
     name: 'Juliana Venturi',
     role: '[ Role ]',
-    bio: '[ Paragraph — a few lines in their own words, to be added. ]',
+    bio: ['[ Paragraph — a few lines in their own words, to be added. ]'],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/juliana-muller-venturi/',
     x: 29.2,
@@ -49,7 +63,11 @@ export const TEAM_MEMBERS = [
     id: 'member-3',
     name: 'Renate van Dijken',
     role: '[ Role ]',
-    bio: '[ Paragraph — a few lines in their own words, to be added. ]',
+    bio: [
+      'Renate van Dijken is a strategic leader and expert in organizational change. As a partner, member of the board, and Lead Business Development & Strategy at xXenta, she bridges the gap between human potential and AI-driven performance.',
+      "Renate combines deep knowledge of organizational psychology, behavioral science, and change management. Her approach is rooted in the conviction that AI implementation only succeeds when the human factor remains at the core. By integrating change management expertise with xXenta's 4D model, she helps organizations in healthcare, education, and the corporate sector to structurally embed learning and performance into their daily work practices.",
+      'With over twenty years of experience in leadership development and transformation, Renate has garnered international recognition. Her work with leadership expert John C. Maxwell resulted in a globally adopted leadership methodology, utilized by thousands of trainers to fundamentally transform culture and communication. In her role at xXenta, she develops new concepts and alliances to further shape the harmony between human craftsmanship and intelligent technology.',
+    ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/renatevandijken/',
     x: 39,
@@ -61,7 +79,7 @@ export const TEAM_MEMBERS = [
     id: 'member-4',
     name: 'Ardie van Honk',
     role: '[ Role ]',
-    bio: '[ Paragraph — a few lines in their own words, to be added. ]',
+    bio: ['[ Paragraph — a few lines in their own words, to be added. ]'],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/ardie-van-honk-a1054230/',
     x: 51.0,
@@ -73,7 +91,12 @@ export const TEAM_MEMBERS = [
     id: 'member-5',
     name: 'Jeroen Krouwels',
     role: '[ Role ]',
-    bio: '[ Paragraph — a few lines in their own words, to be added. ]',
+    bio: [
+      'As Co-founder, Member of the Board, and Lead Sales & Education, Jeroen Krouwels is a passionate entrepreneur with a keen eye for the future of learning. His career began in education as an educational specialist with expertise in modern foreign languages before evolving into the successful founding and leadership of several software companies. This unique combination of educational expertise, entrepreneurship, and technological innovation forms the foundation of his work at xXenta.',
+      "With decades of experience in Learning & Development, Jeroen knows better than anyone that learning only creates value when it translates into everyday practice. That is precisely why xXenta's mission resonates so strongly with him: bridging the traditional gap between learning and working. Rather than relying on stand-alone training programs or one-time knowledge transfer, he believes in continuous learning embedded in the flow of work, supported by intelligent AI solutions that help people exactly when they need it. As a sought-after keynote speaker, Jeroen has a unique talent for making complex technological developments accessible and inspiring people to embrace the AI transformation with confidence.",
+      'At xXenta, Jeroen serves as Lead Sales & Education, building the bridge between our innovative AI technology and the day-to-day reality of education. He is dedicated to helping educational institutions leverage AI to create more meaningful, effective, and future-ready learning experiences.',
+      "Beyond his entrepreneurial career, Jeroen is, above all, a creative spirit. As a keyboard player, composer, and songwriter, he enjoys writing and performing his own music in his spare time. His passion for storytelling and creativity extends far beyond music: one of his lifelong dreams is to write an original theatre production. Whether through technology, learning, or the arts, Jeroen is driven by the same purpose—to touch people's lives, inspire them, and set meaningful change in motion.",
+    ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/jeroenkrouwels/',
     x: 62.5,
@@ -85,7 +108,12 @@ export const TEAM_MEMBERS = [
     id: 'member-6',
     name: 'Norma Wouters-Snell',
     role: '[ Role ]',
-    bio: '[ Paragraph — a few lines in their own words, to be added. ]',
+    bio: [
+      "As Chief Security Officer, Norma Wouters-Snell is the unwavering architect of xXenta's operational foundation. With over a decade of experience as the founder of Noble Achievers, she has dedicated her career to the art of organizational design, recognizing that robust policies, streamlined processes, and clear procedures are the essential prerequisites for any successful enterprise.",
+      "At xXenta, Norma translates this expertise into our core mission: providing the secure, AI-native infrastructure required for seamless performance. She manages our security frameworks, compliance standards, and ISO certifications with a sharp eye for the critical requirements of the EU AI Act. By integrating rigorous due diligence into the heart of our systems, she ensures that our clients can scale their AI adoption safely, turning compliance from a hurdle into a strategic competitive advantage.",
+      "Norma's work is driven by a deep-rooted commitment to professional excellence and ethical responsibility. Her long-standing role as an Amfori Network Representative for the Netherlands underscores her ability to govern complex sustainability and retail standards—insights that now form the bedrock of xXenta's 'Human Potential, AI Accelerated' approach.",
+      "Norma connects the 'hard' requirements of technical security to the 'soft' necessity of organizational trust. Her approach is precise, focused, and purposeful—qualities she also brings to her personal life as a dedicated sport shooter, where hitting the mark is the only acceptable outcome. Back at the office, she is supported by her two dogs, our unofficial 'Chief Happiness Officers,' who keep the team grounded. For Norma, security is not just about protection; it is about building the high-functioning, reliable systems that allow human potential to truly thrive.",
+    ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/norma-wouters-snell-6116153/',
     x: 75,
@@ -97,7 +125,10 @@ export const TEAM_MEMBERS = [
     id: 'member-7',
     name: 'Arno Wouters',
     role: '[ Role ]',
-    bio: '[ Paragraph — a few lines in their own words, to be added. ]',
+    bio: [
+      'Arno Wouters is an entrepreneur at heart with a sharp focus on business development and strategic growth. With decades of experience in identifying opportunities and building durable partnerships, he has successfully scaled multiple enterprises to the next level. Arno excels at steering complex, international projects, maintaining clear oversight of responsibilities and milestones while keeping clients shielded from the stress of day-to-day challenges.',
+      'As Founder and CEO of xXenta, he combines his expertise in market expansion and change management with the transformative power of AI. His modus operandi is straightforward yet powerful: critically evaluating organizational performance and relentlessly seeking paths for improvement. Arno guides organizations in their transition toward an AI-native work environment, leveraging technology as the invisible infrastructure that empowers teams to achieve their highest potential. His vision is clear: AI is the essential catalyst to accelerate human craftsmanship and anchor operational excellence at the very heart of the organization.',
+    ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/arno-wouters/',
     x: 84.5,
@@ -109,7 +140,7 @@ export const TEAM_MEMBERS = [
     id: 'dog-1',
     name: 'Charlie',
     role: '[ Role ]',
-    bio: '[ Paragraph — to be added. ]',
+    bio: ['[ Paragraph — to be added. ]'],
     x: 26.2,
     y: 81,
     headTop: 75.5,
@@ -119,7 +150,7 @@ export const TEAM_MEMBERS = [
     id: 'dog-2',
     name: 'Balloo',
     role: '[ Role ]',
-    bio: '[ Paragraph — to be added. ]',
+    bio: ['[ Paragraph — to be added. ]'],
     x: 52.5,
     y: 82.5,
     headTop: 76.5,

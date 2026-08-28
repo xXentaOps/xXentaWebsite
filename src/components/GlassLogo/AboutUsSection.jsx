@@ -19,6 +19,7 @@ import { GlassCircle } from './GlassCircle'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
 import { GoogleCloudPartnerBadge } from './GoogleCloudPartnerBadge'
 import { GradientBlob } from './GradientBlob'
+import { MeetTheTeamGrid, TEAM_MEMBER_COUNT } from './MeetTheTeamGrid'
 import {
   CAPTURE_LAYER,
   CaptureLayerGate,
@@ -546,6 +547,45 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
     }
   }, [isOpen, isTeamOpen, teamProgress])
 
+  // Which member's enlarged profile is showing, or null for the seven-photo
+  // grid. Lives here rather than inside MeetTheTeamGrid because the arrows
+  // that walk through it are AboutUsIntro's, so this is the nearest place
+  // that renders both.
+  const [selectedMember, setSelectedMember] = useState(null)
+  // Leaving the team stage drops any open profile with it — otherwise
+  // re-opening later would land straight back inside a detail view rather
+  // than on the grid it was reached from.
+  useEffect(() => {
+    if (!isTeamOpen) setSelectedMember(null)
+  }, [isTeamOpen])
+
+  // What the two arrows do while the team stage is up. Three different jobs
+  // share the same pair of controls, so the branching lives here (one place
+  // that knows all three states) rather than being spread across the arrows
+  // themselves:
+  //
+  // - grid showing: left goes back to About Us, right has nowhere to go.
+  // - a profile open: the arrows walk through the members in layout order.
+  // - either end of that order: stepping past it returns to the grid, which
+  //   is the only way out of detail mode.
+  const teamPrev = () => {
+    if (selectedMember == null) {
+      setIsTeamOpen(false)
+    } else if (selectedMember === 0) {
+      setSelectedMember(null)
+    } else {
+      setSelectedMember(selectedMember - 1)
+    }
+  }
+  const teamNext = () => {
+    if (selectedMember == null) return
+    if (selectedMember === TEAM_MEMBER_COUNT - 1) {
+      setSelectedMember(null)
+    } else {
+      setSelectedMember(selectedMember + 1)
+    }
+  }
+
   return (
     // Carries openScrollComp — the pixel offset that hides open()'s snap to
     // the top (see GlassLogoPreview) — for GlassLogoHero's own reason: the
@@ -618,7 +658,19 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
         teamProgress={teamProgress}
         isTeamOpen={isTeamOpen}
         onOpenTeam={() => setIsTeamOpen(true)}
-        onCloseTeam={() => setIsTeamOpen(false)}
+        onTeamPrev={teamPrev}
+        onTeamNext={teamNext}
+        teamNextDisabled={selectedMember == null}
+      />
+      {/* The stage About Us hands over to — parked one slide-distance to the
+          right until teamProgress moves. Sits here, before the badge's own
+          overlay canvas below, so the badge's glass still paints over these
+          photos on the way past rather than under them. */}
+      <MeetTheTeamGrid
+        teamProgress={teamProgress}
+        isTeamOpen={isTeamOpen}
+        selectedIndex={selectedMember}
+        onSelect={setSelectedMember}
       />
       {SHOW_GRID_LINES && <GridAlignmentOverlay gridMetricsRef={gridMetricsRef} />}
 

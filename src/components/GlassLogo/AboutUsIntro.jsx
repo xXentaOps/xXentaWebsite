@@ -208,7 +208,13 @@ export function AboutUsIntro({
   teamProgress,
   isTeamOpen,
   onOpenTeam,
-  onCloseTeam,
+  // What the arrows do once the team stage is up — decided by AboutUsSection,
+  // which is the only place that knows whether a member's profile is open
+  // (see its own comment on teamPrev/teamNext). These arrows just render
+  // whatever they're handed.
+  onTeamPrev,
+  onTeamNext,
+  teamNextDisabled,
 }) {
   const blockRef = useRef(null)
   const imageRef = useRef(null)
@@ -861,19 +867,21 @@ export function AboutUsIntro({
                 playing. A click mid-transition queues instead of being
                 ignored (see pendingIndexRef/startTransition above), so
                 there's no window where these should look unusable.
-                Once the team stage is open these stop being slide controls:
-                left is the way back to About Us (the only way back, so it
-                must never be disabled there), and right has nowhere to go
-                yet — the team page's own content isn't built. */}
+                Once the team stage is open these stop being slide controls
+                entirely and become its navigation instead — see
+                teamPrev/teamNext in AboutUsSection for what they do there.
+                Left is never disabled on that stage: it's the only way back,
+                whether that's out of a member's profile or off the stage
+                altogether. */}
             <SlideArrow
               direction="left"
-              onClick={isTeamOpen ? onCloseTeam : goPrev}
+              onClick={isTeamOpen ? onTeamPrev : goPrev}
               disabled={isTeamOpen ? false : slideIndex === 0}
             />
             <SlideArrow
               direction="right"
-              onClick={goNext}
-              disabled={isTeamOpen || slideIndex === SLIDES.length - 1}
+              onClick={isTeamOpen ? onTeamNext : goNext}
+              disabled={isTeamOpen ? teamNextDisabled : slideIndex === SLIDES.length - 1}
             />
           </div>
           </motion.div>

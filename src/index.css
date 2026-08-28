@@ -57,6 +57,35 @@ html::-webkit-scrollbar {
   display: none;
 }
 
+/* For MeetTheTeamGrid's bio block: a scrollbar meant to actually be seen
+   and used, not hidden like the two above — just reduced to literally a
+   grey line, no up/down step buttons, no visible track either side of it.
+   --scrollbar-thickness is set inline by the element using this (matching
+   RULE_THICKNESS_PX, the same accent line's own thickness above the bio)
+   rather than a second hardcoded number here drifting out of sync with it. */
+.bio-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.bio-scrollbar::-webkit-scrollbar {
+  width: var(--scrollbar-thickness);
+}
+
+.bio-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bio-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.bio-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   /* 200 (ExtraLight) is this family's actual floor — it has no true Thin

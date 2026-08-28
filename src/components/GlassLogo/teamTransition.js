@@ -79,6 +79,18 @@ export const mainSlidePx = (progress, viewportWidth) =>
 export const accentSlidePx = (progress, viewportWidth) =>
   mainSlidePx(progress, viewportWidth) * ACCENT_SPEED
 
+// Where the Meet the Team stage's own content sits at a given progress —
+// exactly one slide-distance to the right of the About Us content, at every
+// instant. Deriving it from mainSlidePx rather than animating it
+// independently from +width to 0 is what makes the hand-off read as one
+// camera panning across two adjacent stages rather than two separate
+// animations that happen to overlap: the constant gap between them means
+// the team content can never drift relative to About Us, and — since the
+// grid also travels at this same rate (GRID_SPEED) — the photos stay locked
+// to their grid squares throughout the slide, not just once it lands.
+export const teamContentSlidePx = (progress, viewportWidth) =>
+  mainSlidePx(progress, viewportWidth) + viewportWidth * MAIN_SLIDE_VW
+
 // The grid's own travel, expressed in cells rather than px because that's
 // what the shader's phase uniform wants. Negated because increasing the
 // phase moves the pattern toward -x: the boundary that satisfies

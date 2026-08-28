@@ -33,7 +33,10 @@ function TeamMemberCard({ member }) {
       <div className="mt-5">
         {!member.isDog && <p className="text-[9px] tracking-[0.3em] text-[#6BB9FF] uppercase">{member.role}</p>}
         <p className="mt-1.5 text-[17px] font-extralight text-white/90">{member.name}</p>
-        <p className="mt-2 line-clamp-3 text-[12px] leading-[1.8] font-extralight text-white/55">{member.bio}</p>
+        {/* bio is an array of paragraphs (see teamData.js) — joined into one
+            run for this compact preview, since line-clamp-3 truncates it
+            anyway and paragraph breaks don't survive a 3-line clip. */}
+        <p className="mt-2 line-clamp-3 text-[12px] leading-[1.8] font-extralight text-white/55">{member.bio.join(' ')}</p>
       </div>
     </div>
   )
