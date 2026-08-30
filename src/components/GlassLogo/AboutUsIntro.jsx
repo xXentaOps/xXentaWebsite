@@ -38,7 +38,6 @@ const SLIDES = [
     alt: 'The xXenta team',
     headline: '[ A short, catchy line about xXenta — to be added. ]',
     body: '[ A paragraph on our work as a small team, and on being a Google Cloud partner — to be added. ]',
-    showButton: true,
   },
 ]
 
@@ -159,6 +158,14 @@ function photoCellIndices(width, height) {
   return { column, row }
 }
 
+// The "Meet the Team" pill's own resting width, in px — a fixed target for
+// the right-arrow-slot morph's width animation (see its own comment), not
+// an auto/content-based width, since framer-motion can only tween real
+// numbers. A first guess sized to fit "Meet the Team" at that slot's own
+// text-xs/tracking-[0.2em]/uppercase plus its 20px side padding — tune
+// live if the label ever looks cramped or the pill overly roomy.
+const PILL_WIDTH = 172
+
 // Same no-fill blue as CornerBrackets/EDGE_STYLE, but circled — a bare
 // chevron (tried first, alongside the photo) read as too easy to miss;
 // the same "Meet the Team" pill's rounded-full/border-only treatment,
@@ -275,6 +282,10 @@ export function AboutUsIntro({
   // means an end here.
   const [slideIndex, setSlideIndex] = useState(0)
   const slide = SLIDES[slideIndex]
+  // Whether the right arrow slot is currently the "Meet the Team" pill
+  // instead of a real arrow — see that slot's own render for the morph
+  // between the two.
+  const showMeetButton = !isTeamOpen && slideIndex === SLIDES.length - 1
   // A frozen snapshot of whatever the window was showing right before the
   // current transition started — src/alt plus the exact height/transform
   // imageRef had at that instant, so it can be painted back in the same spot
@@ -730,40 +741,34 @@ export function AboutUsIntro({
               which is why this now sits alongside the image instead of
               inside its own overflow-hidden box (see above).  */}
           <CornerBrackets size={40} thickness={5} overhang={10} />
-          {/* Below the window, left-aligned — the badge hangs off the
-              *opposite* (bottom-right) corner (see badgeAnchorRef below), so
-              staying left keeps this clear of its glass rather than sitting
-              underneath it. Absolutely positioned against windowRef (not a
-              normal-flow sibling inside blockRef) so it can't grow blockRef's
-              own box: badgeAnchorRef's bottom/right offsets are measured from
-              that box, and this can't be the thing that moves them.
-              showButton-gated — see SLIDES — so it's only ever on screen
-              alongside the group photo it actually belongs to. */}
-          {slide.showButton && (
-            // Mounts fresh every time showButton flips true (there's no
-            // AnimatePresence/key needed for that — the && above already
-            // unmounts it on every other slide, so arriving back at this
-            // one is a genuine new mount each time), which is what lets a
-            // plain initial/animate pair replay on every arrival rather
-            // than only once. Descends the last little bit into its resting
-            // spot rather than travelling far — asked for subtle, and 16px
-            // reads as a settle, not a slide-in. blur pairs with that same
-            // arrival: starts soft like it's still resolving into focus,
-            // sharpens as it lands. The ease-out-expo-shaped curve (fast
-            // out of the gate, long soft landing) is the non-linear feel
-            // asked for — plain easeOut (tried first) still read as fairly
-            // even-paced next to how sharply this decelerates.
-            <motion.button
-              type="button"
-              initial={{ opacity: 0, y: -16, filter: 'blur(8px)' }}
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              onClick={onOpenTeam}
-              className="pointer-events-auto absolute top-full left-0 mt-6 rounded-full border border-[#3B82F6] px-6 py-2.5 text-xs font-extralight tracking-[0.2em] text-[#3B82F6] uppercase transition-colors duration-200 hover:border-white/40 hover:text-white/40"
-            >
-              Meet the Team
-            </motion.button>
-          )}
+          {/* Below the window, left-aligned. Absolutely positioned against
+              windowRef (not a normal-flow sibling inside blockRef) so it
+              can't grow blockRef's own box: badgeAnchorRef's bottom/right
+              offsets are measured from that box, and this can't be the
+              thing that moves them.
+              A small title about the image itself, on every slide now —
+              this used to be the "Meet the Team" button (showButton-gated,
+              only on the last/group-photo slide), moved to replace the
+              right arrow once the slideshow reaches its own last slide (see
+              that arrow's own comment below) since it's the more natural
+              "arrived at the end" cue there. key={slideIndex} is what
+              replays the entrance below on every slide — this is no longer
+              conditionally mounted (the old && unmount/remount did that job
+              before), so without it React would just update this element's
+              text in place rather than treating each slide's caption as a
+              fresh arrival. Same arriving motion the button used to have:
+              descends the last little bit into its resting spot (16px reads
+              as a settle, not a slide-in) while sharpening from a soft blur,
+              on the same ease-out-expo-shaped curve. */}
+          <motion.p
+            key={slideIndex}
+            initial={{ opacity: 0, y: -16, filter: 'blur(8px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="pointer-events-none absolute top-full left-0 mt-6 text-xs font-extralight tracking-[0.25em] text-white/50 uppercase"
+          >
+            {slide.alt}
+          </motion.p>
           {/* Below the window, centered under it — mt-24 rather than the
               button's own mt-6 so this sits at the same fixed spot on every
               slide, clear of the button's row (~44px tall) on the one slide
@@ -783,15 +788,22 @@ export function AboutUsIntro({
               horizontal one. */}
           <motion.div
             style={{ x: arrowsX }}
-            className="pointer-events-none absolute top-full left-1/2 mt-24"
+            className="pointer-events-none absolute top-full left-0 flex w-full justify-center mt-24"
           >
-          {/* The half-width centring shift lives on its own element, not
-              alongside the motion x above: framer-motion writes an inline
-              `transform`, and an inline transform beats Tailwind's
-              -translate-x-1/2 outright rather than composing with it, so
-              sharing one element would silently drop the centring the moment
-              the slide started. */}
-          <div className="flex -translate-x-1/2 gap-8">
+          {/* Centred via real flexbox (justify-center on the wrapper above),
+              not the left-1/2 + child's own -translate-x-1/2 trick this used
+              before — that combination doesn't animate at all. No `layout`
+              prop here any more either (a plain one, then layout="position",
+              were each tried and both still read as their own kind of
+              unwanted extra motion layered on top): now that the button's
+              own width animates via a real CSS property instead of a
+              `layout` scale-trick (see that button's own comment), this
+              row's reflow — the left arrow included — is already genuinely
+              gradual, frame by frame, following the browser's own normal
+              layout response to that real width change. No framer smoothing
+              left to add here; it would only be smoothing something that's
+              already smooth. */}
+          <div className="flex gap-8">
             {/* Only ever disabled at a genuine end of SLIDES (see
                 SlideArrow's own comment) — never while a transition is
                 playing. A click mid-transition queues instead of being
@@ -808,11 +820,85 @@ export function AboutUsIntro({
               onClick={isTeamOpen ? onTeamPrev : goPrev}
               disabled={isTeamOpen ? false : slideIndex === 0}
             />
-            <SlideArrow
-              direction="right"
-              onClick={isTeamOpen ? onTeamNext : goNext}
-              disabled={isTeamOpen ? teamNextDisabled : slideIndex === SLIDES.length - 1}
-            />
+            {/* The old "Meet the Team" button (see the caption above for
+                where its own arriving animation went instead) now lives
+                here, replacing the right arrow specifically once the
+                slideshow has nowhere further right to go — the arrow
+                would otherwise just sit there disabled. Once the team
+                stage is open this slot goes back to being a real arrow
+                (team detail navigation), regardless of which slide the
+                slideshow was left on.
+                A real morph, not a crossfade between two elements — asked
+                for directly, explicitly rejecting a fade: "the circle
+                border of the right arrow should extend to become the pill
+                ... the arrow becoming the text as it expands." One
+                persistent <motion.button> (never unmounted, unlike the
+                SlideArrow-in-a-wrapper this had a moment ago).
+                animate={{width, ...}} on real CSS width/padding, not a
+                `layout` prop — `layout` was tried first, and its FLIP
+                technique animates size via a *scale* transform under the
+                hood, which distorts a rounded-full pill's own curved ends
+                as it stretches (they briefly go oval instead of staying
+                circular) — reported directly as "stretching too much,
+                unnecessarily." Animating the real width property instead
+                has the browser reflow it genuinely, frame by frame, so
+                border-radius stays correct throughout and the row/left
+                arrow outside this button reflow in step automatically —
+                no separate `layout` needed on that row any more either
+                (see its own comment). PILL_WIDTH is a first-guess fixed
+                target (enough for "Meet the Team" at this tracking/size
+                plus its own padding) rather than an animatable `auto`,
+                since framer can only tween real numbers. The icon and
+                label are two absolutely-unrelated children swapped via
+                AnimatePresence *inside* this same button (mode="popLayout"
+                so the exiting one is pulled out of flow immediately and
+                can't skew the button's own width measurement while both
+                are briefly present) — delayed fade-in on the incoming one
+                (~half the width transition) is what makes the label/arrow
+                read as resolving into place once the shape has room for
+                it, rather than both edges (border and glyph) moving in
+                perfect lockstep. */}
+            <motion.button
+              type="button"
+              onClick={isTeamOpen ? onTeamNext : showMeetButton ? onOpenTeam : goNext}
+              disabled={isTeamOpen ? teamNextDisabled : false}
+              animate={{
+                width: showMeetButton ? PILL_WIDTH : 44,
+                paddingLeft: showMeetButton ? 20 : 0,
+                paddingRight: showMeetButton ? 20 : 0,
+              }}
+              transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+              className="pointer-events-auto relative flex h-11 items-center justify-center overflow-hidden rounded-full border border-[#3B82F6] text-[#3B82F6] transition-colors duration-200 hover:border-white/40 hover:text-white/40 disabled:pointer-events-none disabled:opacity-25 disabled:hover:border-[#3B82F6] disabled:hover:text-[#3B82F6]"
+            >
+              <AnimatePresence mode="popLayout" initial={false}>
+                {showMeetButton ? (
+                  <motion.span
+                    key="label"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1, transition: { delay: 0.22, duration: 0.2 } }}
+                    exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                    className="text-xs font-extralight tracking-[0.2em] whitespace-nowrap uppercase"
+                  >
+                    Meet the Team
+                  </motion.span>
+                ) : (
+                  <motion.svg
+                    key="arrow"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1, transition: { delay: 0.22, duration: 0.15 } }}
+                    exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                  >
+                    <path d="M10 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </motion.svg>
+                )}
+              </AnimatePresence>
+            </motion.button>
           </div>
           </motion.div>
         </div>

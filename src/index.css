@@ -7,6 +7,16 @@
    subtle change, confirmed directly: no visible difference at any weight
    between extralight and black without this. */
 @import "@fontsource/plus-jakarta-sans/300.css";
+/* 400 — the actual midpoint between 300 (too thin) and 500 (too bold) for
+   the Meet the Team grid's "Members" title. 300 and 500 alone were loaded
+   first without this, leaving a real gap right where "somewhere in
+   between" needed to land. */
+@import "@fontsource/plus-jakarta-sans/400.css";
+/* 500 — same reasoning as 300/400 above: "Members" first asked for a
+   weight a little bolder than normal but nowhere near true bold, and
+   font-medium/font-normal/font-bold were all silently collapsing to
+   whichever of 200/300 was closest with no real file to back them. */
+@import "@fontsource/plus-jakarta-sans/500.css";
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', sans-serif;

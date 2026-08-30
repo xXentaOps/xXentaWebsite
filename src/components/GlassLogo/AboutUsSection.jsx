@@ -1,7 +1,12 @@
 import { forwardRef, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { shaderMaterial, Text } from '@react-three/drei'
+import { Canvas, extend, useFrame, useThree } from '@react-three/fiber'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
-import { MathUtils } from 'three'
+import { AdditiveBlending, Color, MathUtils } from 'three'
+// Same font file, weight, letter-spacing factor, color and fill opacity as
+// HeroTitle's own "New Way of Learning" — asked for directly ("same grey
+// color, boldness, everything") for the "Members of the Board" title below.
+import fontUrl from '@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-400-normal.woff?url'
 import {
   ACCENT_SPEED,
   gridPhaseShiftCells,
@@ -21,7 +26,7 @@ import { GlassCircle } from './GlassCircle'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
 import { GoogleCloudPartnerBadge } from './GoogleCloudPartnerBadge'
 import { GradientBlob } from './GradientBlob'
-import { MEMBERS, MeetTheTeamGrid, TEAM_MEMBER_COUNT } from './MeetTheTeamGrid'
+import { computeLayout, MEMBERS, MeetTheTeamGrid, TEAM_MEMBER_COUNT } from './MeetTheTeamGrid'
 import {
   CAPTURE_LAYER,
   CaptureLayerGate,
@@ -125,12 +130,24 @@ function scaleStyleForZoom(style, scale, opacityScale = 1) {
 // (teamContentSlidePx), not as a speed-scaled multiple of mainSlidePx: that
 // function adds a constant screen-width offset on top of mainSlidePx, which
 // `speed` alone (a pure multiplier) can't express.
-function SlideGroup({ progress, speed = 1, slidePx = mainSlidePx, children }) {
+//
+// `z` (default TEAM_SLIDE_Z) is which depth the px -> world-unit conversion
+// itself is computed at — see TEAM_SLIDE_Z's own comment for why that has
+// to match where the children actually render, not just be some shared
+// constant: perspective means a group moved a fixed number of world units
+// covers a different number of screen px at a different z, so a child
+// sitting far from TEAM_SLIDE_Z's own default (glass-object depth, ~1.6)
+// travels the *wrong* number of screen pixels unless told to compute the
+// conversion at its own actual depth instead. Added for RandomGridGlow,
+// whose squares sit near GRID_Z (-5) specifically to align with the
+// background grid — at the default z they visibly drifted off their own
+// grid cells over the course of the slide, reported directly.
+function SlideGroup({ progress, speed = 1, slidePx = mainSlidePx, z = TEAM_SLIDE_Z, children }) {
   const groupRef = useRef(null)
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
   const size = useThree((state) => state.size)
-  const { width: viewWidth } = viewport.getCurrentViewport(camera, [0, 0, TEAM_SLIDE_Z])
+  const { width: viewWidth } = viewport.getCurrentViewport(camera, [0, 0, z])
   const perPx = viewWidth / size.width
 
   useFrame(() => {
@@ -165,6 +182,298 @@ function nameIconDomRect(markerRect) {
     width: NAME_ICON_SIZE_PX,
     height: NAME_ICON_SIZE_PX,
   }
+}
+
+// Purely decorative glass squares sitting in specific otherwise-empty
+// squares of the Meet the Team grid (see DECORATIVE_SQUARE_CELLS in
+// MeetTheTeamGrid.jsx) — the exact same GlassIcon technique the per-member
+// name icons use, just extruding a plain filled square (public/square.svg)
+// instead of a member-specific symbol. Positioned analytically from the
+// same computeLayout math the actual photo tiles use, not a measured DOM
+// rect — there's no DOM element for an empty grid square to measure in the
+// first place, and computeLayout is a pure function of window width/height
+// with no transform baked in, exactly the "resting" coordinate space
+// SlideGroup's own slidePx expects (see nameIconDomRect's neighboring
+// GlassIcon for the DOM-measured version of this same contract).
+function DecorativeGridSquares({ teamProgress, isOpen, highQuality, visible }) {
+  const [squares, setSquares] = useState(() => computeLayout(window.innerWidth, window.innerHeight).decorativeSquares)
+  useEffect(() => {
+    const relayout = () => setSquares(computeLayout(window.innerWidth, window.innerHeight).decorativeSquares)
+    relayout()
+    window.addEventListener('resize', relayout)
+    return () => window.removeEventListener('resize', relayout)
+  }, [])
+
+  return squares.map((square, i) => (
+    <SlideGroup key={i} progress={teamProgress} slidePx={teamContentSlidePx}>
+      <GlassIcon
+        svgUrl="/square.svg"
+        viewBoxSize={100}
+        domRect={{ left: square.left, top: square.top, width: square.size, height: square.size }}
+        isOpen={isOpen}
+        highQuality={highQuality}
+        visible={visible}
+        // Faces the camera dead-on at rest, unlike the name icons' own
+        // pre-tilted BASE_TILT — asked for directly: only the cursor-follow
+        // motion should move these away from flat.
+        baseTilt={{ x: 0, y: 0 }}
+        // Plain glassMaterialProps, not the name icons' dimmed-for-small-
+        // shapes overrides — these squares are full-cell sized, and at the
+        // name icons' own overrides they read visibly darker than
+        // GlassCircle/the hero logo/the Google Cloud badge (reported
+        // directly). Glow pushed past even GlassCircle's own 0.55/0.15 —
+        // asked for "a bit more blue" on top of that already-matched look,
+        // and the glow overlay is literally what supplies the blue (plain
+        // TransmissionMaterial alone reads clear/gray).
+        glassOverrides={{}}
+        glowIntensity={0.75}
+        bleedGlowIntensity={0.2}
+      />
+    </SlideGroup>
+  ))
+}
+
+// A flat-fill glow quad for RandomGridGlow below — deliberately its own
+// tiny material rather than reusing GradientBlobMaterial: that one is
+// always fully opaque (fine for a backdrop wash, wrong for a mark that has
+// to fade to nothing) and radially falls off, not a flat fill. No falloff
+// here at all — asked for directly: the whole square lights evenly, no
+// gradient toward the edges.
+// uColor mixed a little toward white from the shared #3B82F6 — asked for
+// directly, "less saturated" — same mild desaturation move as the
+// decorative squares' own specularColor override.
+const GridGlowMaterial = shaderMaterial(
+  { uOpacity: 0, uColor: new Color('#6CA1F8') },
+  /* glsl */ `
+    void main() {
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  /* glsl */ `
+    uniform float uOpacity;
+    uniform vec3 uColor;
+    void main() {
+      gl_FragColor = vec4(uColor, uOpacity);
+    }
+  `,
+)
+extend({ GridGlowMaterial })
+
+// Fixed set of squares, hand-picked once (not re-rolled per mount/reload) —
+// asked for directly: "they shouldn't actually change location every time
+// I refresh the page... pick random places for them to sit and stay
+// there." Columns/rows span the same generous margin beyond the actual 5x3
+// photo layout (cols 0-4, rows 0-2) DECORATIVE_SQUARE_CELLS/TITLE_WORDS
+// already use, so most land on genuinely empty squares rather than under a
+// photo (opaque DOM, so a square there just wouldn't show at all).
+// Opacity range mirrors the same "some more transparent than others" spread
+// the earlier randomized version used, eased back down a little from that
+// round's brightness ceiling (0.05) — asked for directly, "a little less
+// visible". Two positions were also moved off their original random spots:
+// the one diagonal to Norma's (bottom-left, col 2/row 3) one square left to
+// col 1; the one diagonal to Schilders's (top-right, col 1/row -1) one
+// square right to col 2 — landing it directly above Ardie (col 2, row 0).
+const GRID_GLOWS = [
+  { col: -2, row: 3, opacity: 0.016 },
+  { col: 2, row: -1, opacity: 0.035 },
+  { col: 4, row: 4, opacity: 0.023 },
+  { col: -3, row: 0, opacity: 0.014 },
+  { col: 6, row: -2, opacity: 0.031 },
+  { col: 1, row: 3, opacity: 0.02 },
+  { col: -1, row: -2, opacity: 0.039 },
+  { col: 7, row: 2, opacity: 0.017 },
+]
+// Just in front of the grid lines (GRID_Z), same margin BoardTitleWord's
+// own TITLE_Z uses for the same reason — needs to draw over them, not fight
+// for the same depth.
+const GRID_GLOW_Z = GRID_Z + 0.1
+
+// Static ambient grid squares — a fixed set of squares around the grid
+// (GRID_GLOWS above), each at its own steady, low opacity. Unconditional on
+// sceneReady alone at the mount site (not gated on isTeamOpen), same as
+// DecorativeGridSquares/BoardTitleWord: mounting/unmounting with isTeamOpen
+// popped these in and out instantly instead of sliding with the grid —
+// asked for directly, "show up (slide left and right) together with the
+// grid" — since SlideGroup's own teamContentSlidePx only carries something
+// *already mounted* along with the slide, it can't produce a slide-in for
+// something that only starts existing once the slide is already underway.
+//
+// Position is genuinely static; only opacity still needs a per-frame
+// touch, multiplied by teamProgress — the same fix Board's own text needed
+// for the identical reason (its own comment has the full story): merely
+// riding the slide's *position* doesn't guarantee something fully clears
+// the screen at rest, and these squares' columns range wider than Board's
+// single one ever did. This is not the "animated" behavior that was
+// explicitly rejected — each square's own opacity ceiling stays fixed;
+// only the overall group fades with the slide itself, the same as every
+// other piece on this stage already does.
+//
+// Cell math mirrors DecorativeGridSquares/BoardTitleWord exactly — same
+// computeLayout, same "resting" CSS-px coordinate space, same SlideGroup
+// travel — just at fixed columns/rows of its own instead of member cells.
+function RandomGridGlow({ teamProgress }) {
+  const camera = useThree((state) => state.camera)
+  const viewport = useThree((state) => state.viewport)
+  const size = useThree((state) => state.size)
+  const [layout, setLayout] = useState(() => computeLayout(window.innerWidth, window.innerHeight))
+  useEffect(() => {
+    const relayout = () => setLayout(computeLayout(window.innerWidth, window.innerHeight))
+    relayout()
+    window.addEventListener('resize', relayout)
+    return () => window.removeEventListener('resize', relayout)
+  }, [])
+
+  const meshRefs = useRef([])
+
+  useFrame(() => {
+    const p = teamProgress.get()
+    for (let i = 0; i < GRID_GLOWS.length; i++) {
+      const mesh = meshRefs.current[i]
+      if (mesh) mesh.material.uOpacity = GRID_GLOWS[i].opacity * p
+    }
+  })
+
+  const { width: viewWidth } = viewport.getCurrentViewport(camera, [0, 0, GRID_GLOW_Z])
+  const perPx = viewWidth / size.width
+  const worldXOf = (px) => (px - size.width / 2) * perPx
+  const worldYOf = (px) => -(px - size.height / 2) * perPx
+  const cellWorldSize = layout.cell * perPx
+
+  return (
+    <SlideGroup progress={teamProgress} slidePx={teamContentSlidePx} z={GRID_GLOW_Z}>
+      <group>
+        {GRID_GLOWS.map((glow, i) => (
+          <mesh
+            key={i}
+            ref={(el) => {
+              meshRefs.current[i] = el
+            }}
+            position={[
+              worldXOf(layout.origin.x + (glow.col + 0.5) * layout.cell),
+              worldYOf(layout.origin.y + (glow.row + 0.5) * layout.cell),
+              GRID_GLOW_Z,
+            ]}
+            scale={[cellWorldSize, cellWorldSize, 1]}
+            raycast={() => null}
+          >
+            <planeGeometry args={[1, 1]} />
+            <gridGlowMaterial transparent depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+    </SlideGroup>
+  )
+}
+
+// A first guess, tuned relative to the grid's own cell size rather than a
+// viewport-height fraction the way HeroTitle's own LEARNING_FONT_FRACTION
+// works — "Board" is asked to align with a specific grid square, which
+// only makes sense if its font size scales with the grid's own cell size,
+// not independently of it.
+const TITLE_FONT_SIZE_CELL_RATIO = 0.6
+const TITLE_LETTER_SPACING_FACTOR = -0.03
+const TITLE_FILL_OPACITY = 0.7
+// Behind the decorative glass squares' own fixed z (1.6, inside GlassIcon)
+// so one sitting in front could still show anything behind it refracted
+// through, the same backdrop-capture mechanism that already shows the grid
+// lines through every piece of glass on this page. Ahead of GRID_Z/PLANE_Z
+// (-5/-6) so this draws over the grid lines, per the same depth-test
+// everything else in this canvas already relies on.
+const TITLE_Z = 0.8
+
+// "Board" — the small half of "Board Members" (see TITLE_WORDS in
+// MeetTheTeamGrid.jsx for exactly where it starts and why: two squares left
+// of Schilders, some letters intentionally landing behind his photo). On top
+// of the grid lines (TITLE_Z above) but below the actual photos, which are
+// DOM and so always paint over this canvas regardless of any WebGL depth
+// value. Same font/weight/letter-spacing/color/opacity as HeroTitle's own
+// "New Way of Learning" — asked for directly, "same grey color, boldness,
+// everything" — and no glass/tilt of its own: this is plain flat text, the
+// same as Hero's title is.
+//
+// "Members" (the big half, matching Hero's own "Learning" in size) is
+// *not* rendered here — it lives as a DOM element instead, inside
+// MeetTheTeamGrid's own JSX. troika's Text has no way to genuinely blur its
+// own glyph fill (only outlineBlur, a per-glyph SDF edge feather — tried
+// first, and it read exactly as HeroTitle's own comment on that same prop
+// warns: "a glow sitting on top of still-fully-legible letters," reported
+// directly). A real blur needs either the heavy capture+two-pass-Gaussian
+// rig GlassLogoGroup already runs for HeroTitle's word-switch effect, or
+// plain CSS `filter: blur()` on a DOM element — the second is dramatically
+// simpler and "Members" needs no glass/tilt/refraction of its own, so
+// there's no real cost to moving just this one word to DOM.
+// hideForDetail is a plain instant cut (matches the tiles' own fade-to-0 for
+// a *different* transition — opening/closing a detail view — untouched by
+// any of this). For the About Us <-> Meet the Team slide itself: entering
+// (isTeamOpen true) keeps the original instant appearance — asked for
+// directly, that direction already read fine, sliding in already at full
+// opacity — but exiting used a boolean `visible` toggle tied to isTeamOpen
+// that flipped the instant that state changed, well before teamProgress had
+// actually finished easing back to 0, reading as an abrupt cut. Only the
+// exit now fades continuously off of teamProgress itself (Board has no
+// glass/TransmissionMaterial, so real fillOpacity fading works, unlike
+// GlassIcon) — isTeamOpen false is exactly "closing or already closed," so
+// this also still keeps it properly invisible at rest on the About Us page.
+function BoardTitleWord({ teamProgress, isTeamOpen, hideForDetail }) {
+  const camera = useThree((state) => state.camera)
+  const viewport = useThree((state) => state.viewport)
+  const size = useThree((state) => state.size)
+  const textRef = useRef(null)
+  const [layout, setLayout] = useState(() => computeLayout(window.innerWidth, window.innerHeight))
+  useEffect(() => {
+    const relayout = () => setLayout(computeLayout(window.innerWidth, window.innerHeight))
+    relayout()
+    window.addEventListener('resize', relayout)
+    return () => window.removeEventListener('resize', relayout)
+  }, [])
+
+  useFrame(() => {
+    const node = textRef.current
+    if (!node) return
+    if (hideForDetail) {
+      node.fillOpacity = 0
+    } else if (isTeamOpen) {
+      // Entering: instant, same as the original visible toggle — the slide
+      // itself (SlideGroup below) is what visibly carries it in.
+      node.fillOpacity = TITLE_FILL_OPACITY
+    } else {
+      // Exiting (or already closed/at rest): fades with the same progress
+      // value driving the position slide, rather than cutting the instant
+      // isTeamOpen flips.
+      node.fillOpacity = TITLE_FILL_OPACITY * teamProgress.get()
+    }
+  })
+
+  const { width: viewWidth } = viewport.getCurrentViewport(camera, [0, 0, TITLE_Z])
+  const perPx = viewWidth / size.width
+  const worldXOf = (px) => (px - size.width / 2) * perPx
+  const worldYOf = (px) => -(px - size.height / 2) * perPx
+
+  const boardWord = layout.titleWords.find((word) => word.text === 'Board')
+  const boardFontSize = layout.cell * TITLE_FONT_SIZE_CELL_RATIO * perPx
+  // A tiny nudge right of its analytical column — asked for directly, a
+  // small tweak rather than a full column move. Tune live.
+  const BOARD_OFFSET_X_PX = 12
+
+  return (
+    <SlideGroup progress={teamProgress} slidePx={teamContentSlidePx}>
+      <group position={[worldXOf(boardWord.left + BOARD_OFFSET_X_PX), worldYOf(boardWord.top + layout.cell / 2), TITLE_Z]}>
+        <Text
+          ref={textRef}
+          font={fontUrl}
+          fontWeight={400}
+          anchorX="left"
+          anchorY="middle"
+          letterSpacing={TITLE_LETTER_SPACING_FACTOR * boardFontSize}
+          fontSize={boardFontSize}
+          color="#F8FAFC"
+          fillOpacity={0}
+        >
+          Board
+        </Text>
+      </group>
+    </SlideGroup>
+  )
 }
 
 function SeamlessGridBackdrop({
@@ -650,7 +959,21 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
   // is fully visible and on screen, unlike the instant reset just above.
   // A no-op when isTeamOpen is already false, which is exactly what should
   // happen when "About Us" is clicked from About Us proper: nothing moves.
-  useImperativeHandle(ref, () => ({ closeTeam: () => setIsTeamOpen(false) }), [])
+  // A getter, not the raw boolean — useImperativeHandle's factory here only
+  // ever runs once (empty deps), so a plain `isTeamOpen` value captured at
+  // that first render would freeze at whatever it was then. isTeamOpenRef
+  // is kept current by the effect below; reading through it at call time
+  // (from GlassLogoPreview's own wheel handler, to suppress the scroll-down
+  // dismiss while the team stage is up) always sees the live value.
+  const isTeamOpenRef = useRef(isTeamOpen)
+  useEffect(() => {
+    isTeamOpenRef.current = isTeamOpen
+  }, [isTeamOpen])
+  useImperativeHandle(
+    ref,
+    () => ({ closeTeam: () => setIsTeamOpen(false), isTeamOpen: () => isTeamOpenRef.current }),
+    [],
+  )
 
   // Which member's enlarged profile is showing, or null for the seven-photo
   // grid. Lives here rather than inside MeetTheTeamGrid because the arrows
@@ -769,34 +1092,112 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
               MeetTheTeamGrid's own DOM content, which travels on that
               different function (see teamTransition.js). */}
           {sceneReady && isTeamOpen && nameIconMarkerRect && MEMBERS[selectedMember]?.nameIcon && (
-            // Keyed on the member, same as MemberDetailPanel's own key —
-            // without this, switching between two members who both have a
-            // nameIcon just updates props on the *same* GlassIcon instance
-            // (same component, same position in the tree), so its entrance
-            // animation — driven by a mount-time ref inside GlassIcon —
-            // only ever plays once per session, for whichever member's
-            // icon happened to be the first one shown. Reported directly as
-            // "why don't they all have the entrance animation". A fresh key
-            // forces a genuine remount on every switch, replaying it for
-            // every profile.
-            <SlideGroup key={MEMBERS[selectedMember].id} progress={teamProgress} slidePx={teamContentSlidePx}>
-              <GlassIcon
-                svgUrl={`/${MEMBERS[selectedMember].nameIcon.svg}.svg`}
-                viewBoxSize={MEMBERS[selectedMember].nameIcon.viewBoxSize}
-                depthScale={MEMBERS[selectedMember].nameIcon.depthScale}
-                sizeScale={MEMBERS[selectedMember].nameIcon.sizeScale}
-                bevelEnabled={MEMBERS[selectedMember].nameIcon.bevelEnabled}
-                domRect={nameIconDomRect(nameIconMarkerRect)}
-                isOpen={isOpen}
-                highQuality={tier === 'high'}
-              />
-            </SlideGroup>
+            // Its own nested Suspense boundary, not just relying on the
+            // outer one this whole block already sits inside — each
+            // member's nameIcon SVG is a distinct URL, so useLoader
+            // genuinely suspends on the *first* time a given member's icon
+            // is requested (cached, and silent, on every later visit to the
+            // same profile — the exact pattern reported: "flashes the first
+            // time... only when going back to previously seen profiles does
+            // the flashing stop"). Without an inner boundary, that
+            // suspension bubbles up to the outer Suspense wrapping this
+            // entire canvas's content, which falls back to fallback={null}
+            // for *everything* under it — RandomGridGlow, DecorativeGridSquares,
+            // GlassCircle, the badges — unmounting and remounting all of
+            // them, which is what actually read as "the lit up squares
+            // flash." Scoping the fallback to just this one icon's own
+            // subtree means only it (briefly, invisibly) disappears and
+            // reappears, never its unrelated siblings.
+            <Suspense fallback={null}>
+              {/* Keyed on the member, same as MemberDetailPanel's own key —
+                  without this, switching between two members who both have a
+                  nameIcon just updates props on the *same* GlassIcon instance
+                  (same component, same position in the tree), so its entrance
+                  animation — driven by a mount-time ref inside GlassIcon —
+                  only ever plays once per session, for whichever member's
+                  icon happened to be the first one shown. Reported directly as
+                  "why don't they all have the entrance animation". A fresh key
+                  forces a genuine remount on every switch, replaying it for
+                  every profile. */}
+              <SlideGroup key={MEMBERS[selectedMember].id} progress={teamProgress} slidePx={teamContentSlidePx}>
+                <GlassIcon
+                  svgUrl={`/${MEMBERS[selectedMember].nameIcon.svg}.svg`}
+                  viewBoxSize={MEMBERS[selectedMember].nameIcon.viewBoxSize}
+                  depthScale={MEMBERS[selectedMember].nameIcon.depthScale}
+                  sizeScale={MEMBERS[selectedMember].nameIcon.sizeScale}
+                  bevelEnabled={MEMBERS[selectedMember].nameIcon.bevelEnabled}
+                  domRect={nameIconDomRect(nameIconMarkerRect)}
+                  isOpen={isOpen}
+                  highQuality={tier === 'high'}
+                />
+              </SlideGroup>
+            </Suspense>
           )}
+          {/* Unconditional on sceneReady alone — same as GlassCircle/
+              GoogleCloudPartnerBadge just above, never gated on isTeamOpen.
+              Positioned purely analytically (computeLayout, no DOM rect to
+              wait on), so unlike nameIcon there's no technical reason to
+              mount/unmount this at all: SlideGroup's own teamContentSlidePx
+              already carries it off past the right edge while About Us
+              shows (progress 0) and into place as the team stage slides in
+              (progress 1), exactly the way the real DOM photo tiles arrive —
+              gating this on isTeamOpen as well was still replaying the
+              reveal animation (and popping the squares in/out) on every
+              About Us <-> Meet the Team toggle, reported directly as still
+              happening after the first fix (which only addressed the
+              grid<->detail toggle). Staying mounted the whole time removes
+              the mount/unmount cycle entirely — visible (a plain
+              group.visible toggle inside GlassIcon, not another mount) is
+              what hides these specifically in the detail view, since they
+              shouldn't show there either but must stay mounted to avoid
+              replaying the reveal a third way. */}
+          {sceneReady && (
+            <DecorativeGridSquares
+              teamProgress={teamProgress}
+              isOpen={isOpen}
+              highQuality={tier === 'high'}
+              visible={selectedMember == null}
+            />
+          )}
+          {/* Same unconditional-on-sceneReady/visible-toggle treatment as
+              DecorativeGridSquares just above, for the same reason: plain
+              text has no mount-time reveal to worry about replaying, but
+              keeping it consistently mounted and just toggling visible
+              avoids re-deriving that argument twice. */}
+          {/* No isTeamOpen/visible gate any more — see BoardTitleWord's own
+              comment: it now fades its real fillOpacity continuously off of
+              teamProgress itself, which is what actually fixed both the
+              abrupt disappearance *and* keeps it invisible at rest without
+              a separate boolean cutoff. hideForDetail is the one remaining
+              instant cut, for the unrelated grid<->detail transition. */}
+          {sceneReady && (
+            <BoardTitleWord teamProgress={teamProgress} isTeamOpen={isTeamOpen} hideForDetail={selectedMember != null} />
+          )}
+          {/* Unconditional on sceneReady alone, same as DecorativeGridSquares/
+              BoardTitleWord and for the same reason — see RandomGridGlow's
+              own comment: mounting/unmounting with isTeamOpen prevented it
+              from ever sliding with the grid at all. */}
+          {sceneReady && <RandomGridGlow teamProgress={teamProgress} />}
           {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
         <SceneRenderGate isVisibleRef={isVisibleRef} />
       </Canvas>
 
+      {/* Click-anywhere-to-close backdrop for the detail view — asked for
+          directly: clicking anywhere on the Detailed Profiles screen that
+          isn't the text, the scrollbar, or the arrows brings the user back
+          to the grid. Positioned here, before both AboutUsIntro (the
+          arrows) and MeetTheTeamGrid (the name/role/bio text, each given
+          their own pointer-events-auto specifically to sit above this) so
+          plain DOM stacking order — not a z-index fight — is what keeps
+          every exempted element clickable: this has no explicit z-index of
+          its own, so it always paints beneath both siblings' own z-50
+          content, regardless of screen position. pointer-events-auto only
+          while a profile is actually open, so it never intercepts clicks
+          on the grid itself or on About Us. */}
+      {selectedMember != null && (
+        <div className="pointer-events-auto absolute inset-0" onClick={() => setSelectedMember(null)} />
+      )}
       <AboutUsIntro
         isOpen={isOpen}
         badgeAnchorRef={badgeAnchorRef}

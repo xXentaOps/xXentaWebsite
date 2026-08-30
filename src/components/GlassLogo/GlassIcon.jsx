@@ -157,6 +157,37 @@ export function GlassIcon({
   depthScale = 1,
   sizeScale = 1,
   bevelEnabled = true,
+  // Per-instance override of BASE_TILT — the name icons all want that
+  // shared resting angle, but the decorative grid squares were asked to
+  // face the camera dead-on by default, only tilting away from it on
+  // cursor movement (not resting pre-tilted the way a name icon does).
+  baseTilt = BASE_TILT,
+  // Per-instance override of GLASS_OVERRIDES — see that constant's own
+  // comment for why the name icons need it (a small shape reads near-opaque
+  // at the shared glassMaterialProps' envMapIntensity/transmission). The
+  // decorative grid squares are full-cell sized, much closer to GlassCircle's
+  // own scale, and at GLASS_OVERRIDES' dimmed envMapIntensity (1.2 vs the
+  // shared 4.5) they read visibly darker than GlassCircle/the hero logo/the
+  // Google Cloud badge — reported directly. Passing {} gets them the exact
+  // same brightness as those, unmodified.
+  glassOverrides = GLASS_OVERRIDES,
+  // Same story as glassOverrides above: GlassCircle/GoogleCloudPartnerBadge
+  // use 0.55/0.15 for their own two-tier glow (see either's own comment) —
+  // GLOW_INTENSITY/BLEED_GLOW_INTENSITY below are dimmed from that
+  // specifically for small icons (a stronger glow reads as a solid film at
+  // that size). The decorative squares want the un-dimmed siblings' values.
+  glowIntensity = GLOW_INTENSITY,
+  bleedGlowIntensity = BLEED_GLOW_INTENSITY,
+  // Hides the group without unmounting it — for the decorative grid squares,
+  // which need to disappear in the Meet the Team detail view but must stay
+  // mounted the whole time (see AboutUsSection's own comment on why
+  // mounting/unmounting this at all replays the mount-time reveal below).
+  // A plain group.visible toggle, not another animated scale-out: revisiting
+  // the reveal machinery for this would reintroduce exactly the repeated
+  // pop-in this is meant to avoid — mountedAtRef/revealScaleRef are never
+  // touched here, so flipping back to true just shows it already fully
+  // grown in, instantly, with nothing to replay.
+  visible = true,
 }) {
   const groupRef = useRef(null)
   const camera = useThree((state) => state.camera)
@@ -166,9 +197,9 @@ export function GlassIcon({
 
   const extrudeSettings = extrudeSettingsFor(viewBoxSize, depthScale, bevelEnabled)
   const { mergedGeometry, center, size: shapeSize } = useExtrudedSvgGeometry(svgUrl, extrudeSettings)
-  const glowOverlayMaterial = useGlowOverlayMaterial(GLOW_INTENSITY)
+  const glowOverlayMaterial = useGlowOverlayMaterial(glowIntensity)
   useEffect(() => () => glowOverlayMaterial.dispose(), [glowOverlayMaterial])
-  const bleedGlowMaterial = useGlowOverlayMaterial(BLEED_GLOW_INTENSITY)
+  const bleedGlowMaterial = useGlowOverlayMaterial(bleedGlowIntensity)
   useEffect(() => () => bleedGlowMaterial.dispose(), [bleedGlowMaterial])
 
   const z = 1.6
@@ -200,14 +231,14 @@ export function GlassIcon({
   useFrame((_, delta) => {
     const group = groupRef.current
     if (!group) return
-    const desiredX = BASE_TILT.x - pointer.y * MAX_TILT
-    const desiredY = BASE_TILT.y + pointer.x * MAX_TILT
+    const desiredX = baseTilt.x - pointer.y * MAX_TILT
+    const desiredY = baseTilt.y + pointer.x * MAX_TILT
     group.rotation.x = MathUtils.damp(group.rotation.x, desiredX, TILT_LAMBDA, delta)
     group.rotation.y = MathUtils.damp(group.rotation.y, desiredY, TILT_LAMBDA, delta)
 
     const elapsed = performance.now() - mountedAtRef.current
     const delaying = elapsed < REVEAL_DELAY_MS
-    group.visible = !delaying
+    group.visible = !delaying && visible
     if (delaying) return
 
     revealScaleRef.current = MathUtils.damp(revealScaleRef.current, 1, REVEAL_LAMBDA, delta)
@@ -224,7 +255,7 @@ export function GlassIcon({
             <TransmissionMaterial
               thickness={extrudeSettings.depth}
               {...glassMaterialProps}
-              {...GLASS_OVERRIDES}
+              {...glassOverrides}
               active={isOpen}
             />
           ) : (

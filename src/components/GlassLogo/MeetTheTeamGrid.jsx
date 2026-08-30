@@ -33,6 +33,56 @@ const MEMBER_CELLS = [
 const LAYOUT_COLS = 5
 const LAYOUT_ROWS = 3
 
+// Purely decorative 3D glass squares sitting in otherwise-empty squares of
+// the same grid — same col/row coordinate space as MEMBER_CELLS above, so
+// they land on and travel with the actual grid exactly like a member photo
+// would. One column left of Schilders (col 0, row 0) and Juliana (col 0,
+// row 2) — row 1 is the row between the two of them; one square left of
+// Norma's picture (col 3, row 2); one square past the layout's own right
+// edge on row 0, same "go past LAYOUT_COLS" move DETAIL_ORIGIN already
+// makes on the left side.
+const DECORATIVE_SQUARE_CELLS = [
+  { col: -1, row: 1 },
+  { col: 2, row: 2 },
+  { col: 5, row: 0 },
+]
+
+// "Board Members" — "Board" is a small decorative title word, two squares
+// left of Schilders (col 0, row 0), reading through his photo (some letters
+// meant to land behind it) and into the empty gap before Ardie's (col 2,
+// row 0) — the exact spot "Members" held back when the title read "Members
+// of the Board" instead. "Members" itself is now a much larger word (asked
+// to match Hero's own "Learning" in size), starting right below this one —
+// its size means it doesn't fit this small per-cell font-sizing convention,
+// so it's a separate element built directly in AboutUsSection.jsx's
+// BoardTitleWord, not part of this array.
+const TITLE_WORDS = [{ text: 'Board', col: -2, row: 0 }]
+
+// "Members" — see the render below for why this is plain DOM/CSS rather
+// than the WebGL troika text BoardTitleWord (in AboutUsSection.jsx) uses
+// for "Board": troika can't genuinely blur its own glyph fill, only soften
+// the edge (outlineBlur), which read as a glow over still-crisp text once
+// actually tried — reported directly. A real blur needs either the heavy
+// capture+two-pass-Gaussian rig GlassLogoGroup already runs for HeroTitle's
+// own word-switch effect, or plain CSS filter: blur() — the second costs
+// nothing extra here since "Members" needs no glass/tilt/refraction of its
+// own. MEMBERS_FONT_FRACTION mirrors HeroTitle's own LEARNING_FONT_FRACTION
+// (asked to match "Learning" in size exactly) — the same fraction works for
+// a CSS px size with no further conversion, since the world-height terms
+// that would otherwise appear on both sides of a WebGL px-per-world-unit
+// conversion cancel out identically for a plain screen-space fraction.
+const MEMBERS_FONT_FRACTION = 0.34
+// Pushes "Members" right of Board's own left edge, and down from directly
+// below Board's row — asked for directly. First guess, tune live.
+const MEMBERS_OFFSET_X_PX = 250
+const MEMBERS_OFFSET_Y_PX = 40
+// Dimmer and properly blurred, as asked — a real CSS Gaussian blur, not
+// troika's glow-reading outline trick (see the comment above). Opacity
+// pushed down further still each time it's been checked live — asked for
+// directly. Tune live.
+const MEMBERS_OPACITY = 0.05
+const MEMBERS_BLUR_PX = 3
+
 // Where the enlarged photo sits in detail mode: nine squares, starting one
 // column left of the first photo's own square and running to the square
 // immediately right of the second photo's. Anchored to the layout rather
@@ -169,10 +219,10 @@ const TILE_FADE_TRANSITION = { duration: 0.25, ease: 'easeOut' }
 const SNAP_XYZ = { x: { duration: 0 }, y: { duration: 0 }, scale: { duration: 0 } }
 const SWAP_ENTER_TRANSITION = { ...SNAP_XYZ, opacity: { duration: 0 } }
 const SWAP_EXIT_TRANSITION = { ...SNAP_XYZ, opacity: TILE_FADE_TRANSITION }
-// Every photo's resting opacity in the grid — full opacity is reserved for
-// the one actually enlarged into a detail view (see the tile's own target
-// below), so this is never 1 while a tile is just sitting in the grid.
-const TILE_REST_OPACITY = 0.8
+// Every photo's resting opacity in the grid — asked to go back to full
+// opacity, so a resting tile now reads exactly the same as the enlarged
+// detail view.
+const TILE_REST_OPACITY = 1
 // How far below its own square a hovered tile's name label sits.
 const NAME_LABEL_GAP_PX = 12
 // The exact motion AboutUsIntro's own "Meet the Team" button arrives with
@@ -202,7 +252,7 @@ const NAME_LABEL_TRANSITION = { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
 // Snapping to About Us's phase would leave every photo four fifths of a cell
 // off its square once the slide landed. Folding the same travel in here is
 // what makes them land *on* the squares instead.
-function computeLayout(width, height) {
+export function computeLayout(width, height) {
   const settled = gridScreenMetrics({
     width,
     height,
@@ -226,9 +276,33 @@ function computeLayout(width, height) {
 
   return {
     cell,
+    // The grid's own origin in this same CSS-px space — exposed so a caller
+    // can invert the col/row math above (which cell a given px point falls
+    // in), rather than every consumer needing its own copy of column/row/
+    // phaseX/phaseY. Added for AboutUsSection's cursor grid trail, which
+    // has to snap a live pointer position to a cell the same way every
+    // other element here snaps to one.
+    origin: { x: originX, y: originY },
     tiles: MEMBER_CELLS.map((position) => ({
       left: originX + position.col * cell,
       top: originY + position.row * cell,
+    })),
+    // Same left/top math as tiles above, plus size (a plain member tile
+    // gets its own width/height from `cell` directly at render time, but
+    // these have no such render site of their own to read it from).
+    decorativeSquares: DECORATIVE_SQUARE_CELLS.map((position) => ({
+      left: originX + position.col * cell,
+      top: originY + position.row * cell,
+      size: cell,
+    })),
+    // Left/top of each word's own starting cell — cell is returned
+    // alongside this already, so the render site can derive font size from
+    // it directly rather than this carrying a duplicate copy of the same
+    // number.
+    titleWords: TITLE_WORDS.map((word) => ({
+      text: word.text,
+      left: originX + word.col * cell,
+      top: originY + word.row * cell,
     })),
     detail: {
       left: originX + DETAIL_ORIGIN.col * cell,
@@ -282,6 +356,17 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
 
   const x = useTransform(teamProgress, (p) => teamContentSlidePx(p, window.innerWidth))
   const isDetail = selectedIndex != null
+  // Same direction-aware fade as BoardTitleWord in AboutUsSection.jsx (see
+  // its own comment) — entering keeps the original instant appearance
+  // (isTeamOpen true), only exiting fades continuously with progress itself
+  // rather than cutting the instant isTeamOpen flips false. Recomputes on
+  // every teamProgress tick, which starts immediately after isTeamOpen (or
+  // isDetail) actually changes, so the closure's read of either is never
+  // stale by more than a frame.
+  const membersOpacity = useTransform(teamProgress, (p) => {
+    if (isDetail) return 0
+    return isTeamOpen ? MEMBERS_OPACITY : MEMBERS_OPACITY * p
+  })
 
   // prevSelectedIndexRef.current, read before the effect below updates it,
   // still holds the *previous* render's selectedIndex (the standard
@@ -399,6 +484,31 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
       aria-hidden={!isTeamOpen}
       className="pointer-events-none absolute inset-0 z-50"
     >
+      {/* "Members" — the big half of "Board Members" (see TITLE_WORDS'
+          "Board" for the small half, rendered as WebGL troika text in
+          AboutUsSection.jsx's BoardTitleWord). Plain DOM/CSS specifically so
+          filter: blur() can give it a real blur (see MEMBERS_BLUR_PX's own
+          comment above) — a first for this file, everything else here being
+          crisp. Placed first among this container's children, ahead of the
+          tile map below, so it paints *under* every photo (same z-50
+          stacking context; DOM order alone decides paint order between
+          equal-z-index siblings) — and fades with them (isDetail) since it
+          belongs to the same resting grid layout the tiles do. */}
+      <motion.p
+        aria-hidden
+        className="absolute font-normal text-[#F8FAFC]"
+        style={{
+          left: layout.titleWords[0].left + MEMBERS_OFFSET_X_PX,
+          top: layout.titleWords[0].top + layout.cell + MEMBERS_OFFSET_Y_PX,
+          fontSize: window.innerHeight * MEMBERS_FONT_FRACTION,
+          letterSpacing: `${window.innerHeight * MEMBERS_FONT_FRACTION * -0.03}px`,
+          lineHeight: 1,
+          opacity: membersOpacity,
+          filter: `blur(${MEMBERS_BLUR_PX}px)`,
+        }}
+      >
+        Members
+      </motion.p>
       {layout.tiles.map((tile, index) => {
         const member = MEMBERS[index]
         if (!member) return null
@@ -649,7 +759,13 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
           whole row (name + marker) within its own grid row — see
           nameTopOffset's own comment above for why it's measured rather
           than a fixed guess. */}
-      <div className="flex items-center gap-3" style={{ marginTop: nameTopOffset }}>
+      {/* pointer-events-auto (this block only, not the whole
+          pointer-events-none stage) — so a click landing directly on the
+          name doesn't fall through to AboutUsSection's own click-anywhere-
+          to-close backdrop, sitting behind everything on this stage.
+          Same reasoning as the bio scroll box's own pointer-events-auto
+          below. */}
+      <div className="pointer-events-auto flex items-center gap-3" style={{ marginTop: nameTopOffset }}>
         <div ref={nameRef} className="flex w-fit shrink-0 flex-col gap-1" style={{ maxWidth: layout.nameBox.width }}>
           {/* min-w-0 overrides the flex item's default min-width:auto —
               without it, a flex child's *content* (a long unbroken
@@ -706,7 +822,10 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
           this up to sit exactly on row 1's own top edge — see that state's
           own comment above for why it's computed rather than a flat gap
           under the name. */}
-      <div className="shrink-0" style={{ width: layout.textBox.width, marginTop: ruleTopOffset }}>
+      {/* pointer-events-auto for the same reason the name block just above
+          has it — the rule/role text shouldn't fall through to the
+          click-anywhere-to-close backdrop either. */}
+      <div className="pointer-events-auto shrink-0" style={{ width: layout.textBox.width, marginTop: ruleTopOffset }}>
         {/* Matches BackgroundGrid's own EDGE_STYLE accent line — see
             RULE_COLOR/RULE_OPACITY/RULE_THICKNESS_PX above. Short — a
             title-underline accent, not sized to the paragraph column it

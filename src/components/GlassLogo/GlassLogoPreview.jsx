@@ -805,7 +805,17 @@ export default function GlassLogoPreview() {
         // it — but only one per gesture: gestureUsed swallows the rest of
         // the same burst so a hard flick can't close it *and* carry on into
         // the carousel in a single go.
-        if (delta > 0 && !gestureUsed) {
+        //
+        // Suppressed entirely while the Meet the Team stage is up (see
+        // AboutUsSection's own isTeamOpen getter, exposed through this same
+        // ref for exactly this check): scrolling down from Meet the Team
+        // used to fall through to this same dismiss and send the visitor
+        // all the way back to the hero, past About Us, in one motion —
+        // asked for directly to do nothing instead. The `return` below
+        // still fires either way, so a scroll down here is simply inert,
+        // the same as it already is for every other wheel event this
+        // branch doesn't act on.
+        if (delta > 0 && !gestureUsed && !aboutUsSectionRef.current?.isTeamOpen()) {
           gestureUsed = true
           classifier.lastActionAt = now
           dismiss()

@@ -91,7 +91,11 @@ export const TEAM_MEMBERS = [
     id: 'member-2',
     name: 'Juliana Müller Venturi',
     role: '[ Role ]',
-    bio: ['[ Paragraph — a few lines in their own words, to be added. ]'],
+    bio: [
+      'As Lead Web & Product Designer at xXenta, Juliana Müller Venturi is a passionate advocate for crafting digital experiences that people genuinely enjoy using. With a diverse background spanning technical user interface architecture, cognitive accessibility research, and award-winning art direction, she brings a uniquely holistic perspective to product design. Having graduated Summa Cum Laude in Digital Design, her expertise lives exactly at the intersection of aesthetic appeal and rigorous usability.',
+      'Juliana knows better than anyone that even the most intelligent AI is only as powerful as the interface that delivers it. Her approach is rooted in the conviction that technology must seamlessly adapt to human cognition, not the other way around. At xXenta, she translates this philosophy into reality by directing a talented team of designers and developers. By managing end-to-end UIX and rigorous workflow mapping, Juliana builds the critical bridge between our Gemini-powered AI architecture and the professionals in healthcare and education who rely on it daily.',
+      'Beyond the screen, Juliana’s drive to build functional, people-first systems extends directly into her community. As a dedicated advocate for social impact, she co-founded a non-profit initiative with Tilburg University that actively connects unhoused students with welcoming local host families. Whether she is designing an intuitive AI learning ecosystem, illustrating for international bestsellers, or driving community action, Juliana is motivated by the exact same purpose—building empathetic, functional systems that meaningfully improve people’s lives.',
+    ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/juliana-muller-venturi/',
     // sizeScale: same "dense shape reads bigger" correction as computer.svg
@@ -153,31 +157,6 @@ export const TEAM_MEMBERS = [
     isDog: false,
   },
   {
-    id: 'member-5',
-    name: 'Jeroen Krouwels',
-    role: '[ Role ]',
-    bio: [
-      'As Co-founder, Member of the Board, and Lead Sales & Education, Jeroen Krouwels is a passionate entrepreneur with a keen eye for the future of learning. His career began in education as an educational specialist with expertise in modern foreign languages before evolving into the successful founding and leadership of several software companies. This unique combination of educational expertise, entrepreneurship, and technological innovation forms the foundation of his work at xXenta.',
-      "With decades of experience in Learning & Development, Jeroen knows better than anyone that learning only creates value when it translates into everyday practice. That is precisely why xXenta's mission resonates so strongly with him: bridging the traditional gap between learning and working. Rather than relying on stand-alone training programs or one-time knowledge transfer, he believes in continuous learning embedded in the flow of work, supported by intelligent AI solutions that help people exactly when they need it. As a sought-after keynote speaker, Jeroen has a unique talent for making complex technological developments accessible and inspiring people to embrace the AI transformation with confidence.",
-      'At xXenta, Jeroen serves as Lead Sales & Education, building the bridge between our innovative AI technology and the day-to-day reality of education. He is dedicated to helping educational institutions leverage AI to create more meaningful, effective, and future-ready learning experiences.',
-      "Beyond his entrepreneurial career, Jeroen is, above all, a creative spirit. As a keyboard player, composer, and songwriter, he enjoys writing and performing his own music in his spare time. His passion for storytelling and creativity extends far beyond music: one of his lifelong dreams is to write an original theatre production. Whether through technology, learning, or the arts, Jeroen is driven by the same purpose—to touch people's lives, inspire them, and set meaningful change in motion.",
-    ],
-    email: 'name@example.com',
-    linkedin: 'https://www.linkedin.com/in/jeroenkrouwels/',
-    // Graduation cap for his roots as an educational specialist, mentioned
-    // in his own bio above. depthScale: this shape is thin arms (a diamond
-    // outline, a band, a tassel) with a lot of empty space between them —
-    // at the default depth ratio every other icon uses it read as flat, no
-    // depth wall at all. This is the one shape that needs the amplification;
-    // see GlassIcon's own extrudeSettingsFor comment for why it isn't the
-    // default for everyone.
-    nameIcon: { svg: 'graduation-cap', viewBoxSize: 24, depthScale: 4 },
-    x: 62.5,
-    y: 13,
-    headTop: 11.5,
-    isDog: false,
-  },
-  {
     id: 'member-6',
     name: 'Norma Wouters-Snell',
     role: '[ Role ]',
@@ -200,6 +179,31 @@ export const TEAM_MEMBERS = [
     x: 75,
     y: 18,
     headTop: 15.8,
+    isDog: false,
+  },
+  {
+    id: 'member-5',
+    name: 'Jeroen Krouwels',
+    role: '[ Role ]',
+    bio: [
+      'As Co-founder, Member of the Board, and Lead Sales & Education, Jeroen Krouwels is a passionate entrepreneur with a keen eye for the future of learning. His career began in education as an educational specialist with expertise in modern foreign languages before evolving into the successful founding and leadership of several software companies. This unique combination of educational expertise, entrepreneurship, and technological innovation forms the foundation of his work at xXenta.',
+      "With decades of experience in Learning & Development, Jeroen knows better than anyone that learning only creates value when it translates into everyday practice. That is precisely why xXenta's mission resonates so strongly with him: bridging the traditional gap between learning and working. Rather than relying on stand-alone training programs or one-time knowledge transfer, he believes in continuous learning embedded in the flow of work, supported by intelligent AI solutions that help people exactly when they need it. As a sought-after keynote speaker, Jeroen has a unique talent for making complex technological developments accessible and inspiring people to embrace the AI transformation with confidence.",
+      'At xXenta, Jeroen serves as Lead Sales & Education, building the bridge between our innovative AI technology and the day-to-day reality of education. He is dedicated to helping educational institutions leverage AI to create more meaningful, effective, and future-ready learning experiences.',
+      "Beyond his entrepreneurial career, Jeroen is, above all, a creative spirit. As a keyboard player, composer, and songwriter, he enjoys writing and performing his own music in his spare time. His passion for storytelling and creativity extends far beyond music: one of his lifelong dreams is to write an original theatre production. Whether through technology, learning, or the arts, Jeroen is driven by the same purpose—to touch people's lives, inspire them, and set meaningful change in motion.",
+    ],
+    email: 'name@example.com',
+    linkedin: 'https://www.linkedin.com/in/jeroenkrouwels/',
+    // Graduation cap for his roots as an educational specialist, mentioned
+    // in his own bio above. depthScale: this shape is thin arms (a diamond
+    // outline, a band, a tassel) with a lot of empty space between them —
+    // at the default depth ratio every other icon uses it read as flat, no
+    // depth wall at all. This is the one shape that needs the amplification;
+    // see GlassIcon's own extrudeSettingsFor comment for why it isn't the
+    // default for everyone.
+    nameIcon: { svg: 'graduation-cap', viewBoxSize: 24, depthScale: 4 },
+    x: 62.5,
+    y: 13,
+    headTop: 11.5,
     isDog: false,
   },
   {
