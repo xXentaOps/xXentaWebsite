@@ -4,7 +4,17 @@ import { motion, useTransform } from 'framer-motion'
 import { Backdrop } from './Backdrop'
 import { HeroTitle } from './HeroTitle'
 import { ReflectionEnvironment } from './ReflectionEnvironment'
+import { useBreakpoint } from './useBreakpoint'
 import { usePerformanceTier } from './usePerformanceTier'
+
+// The logo is normalized to fit within `targetSize` world units (see
+// GlassLogoGroup's own scale = targetSize / max(size.x, size.y)) — but world
+// *width* is always world height × pixel aspect ratio, whatever the camera's
+// FOV, so a fixed targetSize that fits a wide desktop aspect ratio can
+// overflow a narrow/portrait phone's much smaller world width. Scaled down
+// per breakpoint for the same reason HeroTitle's own font fractions are —
+// a first-pass estimate, meant to be tuned live.
+const TARGET_SIZE_BY_BREAKPOINT = { mobile: 2.4, tablet: 3.2, desktop: 4 }
 
 // R3F's own `eventPrefix="client"` (tried first, in place of this) computes
 // pointer NDC as clientX/clientY divided straight through by the canvas's
@@ -39,6 +49,8 @@ function createFixedPointerEvents(store) {
 
 export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScrollComp, aboutUsProgress }) {
   const tier = usePerformanceTier()
+  const breakpoint = useBreakpoint()
+  const targetSize = TARGET_SIZE_BY_BREAKPOINT[breakpoint] ?? 4
   // Lifted here because BackgroundGrid (inside Backdrop) and HeroTitle are
   // siblings under Canvas, not parent/child — this is the nearest shared
   // ancestor that can pass the active grid button down to both.
@@ -141,7 +153,7 @@ export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScr
           isForceScrollingRef={isForceScrollingRef}
         />
         <Suspense fallback={null}>
-          <HeroTitle targetSize={4} highQuality={tier === 'high'} activeIndex={activeIndex} isHeroVisibleRef={isHeroVisibleRef} />
+          <HeroTitle targetSize={targetSize} highQuality={tier === 'high'} activeIndex={activeIndex} isHeroVisibleRef={isHeroVisibleRef} />
           {tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
       </Canvas>

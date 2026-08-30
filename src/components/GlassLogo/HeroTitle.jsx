@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { MathUtils, ShaderMaterial, Vector2 } from 'three'
 import { GlassLogoGroup, OVERLAY_LAYER, TEXT_SOURCE_LAYER } from './GlassLogoGroup'
 import { MARGIN_EM as LEFT_MARGIN_EM, MARGIN_REFERENCE_FONT_FRACTION } from './pageMargin'
+import { useBreakpoint } from './useBreakpoint'
 import fontUrl from '@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-400-normal.woff?url'
 
 // Behind the glass logo's own depth (the logo's extrusion spans roughly
@@ -632,6 +633,15 @@ function useBottomInkCorrection(fontSize, ready) {
 const LEARNING_FONT_FRACTION = 0.34
 const NEW_WAY_OF_FONT_FRACTION = 0.09
 
+// Both fractions above scale off viewport *height* only — fine at a wide
+// desktop aspect ratio, but on a narrow/portrait phone screen the available
+// *width* shrinks much faster than the height does, so the same
+// height-relative font size starts overflowing it. FOV can't fix this (world
+// width is always height × pixel-aspect-ratio, whatever the FOV), so this
+// scales the fractions themselves down on narrower breakpoints instead. A
+// first-pass estimate — tune live against real device widths.
+const FONT_FRACTION_SCALE_BY_BREAKPOINT = { mobile: 0.62, tablet: 0.82, desktop: 1 }
+
 // Swaps in place of "Learning" to match whichever grid button (see
 // BackgroundGrid's BUTTON_LABELS, same order/index: Academia/Enterprises/
 // Achievers) is currently hovered or selected — index 0 ("AI for
@@ -643,9 +653,11 @@ function useHeroTitleLines(activeIndex) {
   const { width, height } = useViewportAt(Z)
   const fontReady = useCanvasFontReady()
   const learningWord = LEARNING_WORDS[activeIndex ?? 0]
+  const breakpoint = useBreakpoint()
+  const fontFractionScale = FONT_FRACTION_SCALE_BY_BREAKPOINT[breakpoint] ?? 1
 
-  const learningFontSize = height * LEARNING_FONT_FRACTION
-  const newWayOfFontSize = height * NEW_WAY_OF_FONT_FRACTION
+  const learningFontSize = height * LEARNING_FONT_FRACTION * fontFractionScale
+  const newWayOfFontSize = height * NEW_WAY_OF_FONT_FRACTION * fontFractionScale
   // Margins scale off this fixed reference, not learningFontSize — see
   // MARGIN_REFERENCE_FONT_FRACTION.
   const marginFontSize = height * MARGIN_REFERENCE_FONT_FRACTION

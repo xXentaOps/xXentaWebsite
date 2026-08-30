@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 
 // Placeholder links with no page of their own yet — clicking one just
 // toggles the same grey a selected grid button uses (see BackgroundGrid's
@@ -17,8 +17,19 @@ const OTHER_NAV_LINKS = ['Contact', 'Security & Compliance']
 // to the viewport instead, so it now stays on screen through every section
 // and through the About Us open/close transition, same as a real site's
 // navbar would.
+function navLinkClass(isActive) {
+  return `cursor-pointer px-2 py-2 transition-colors duration-200 ${
+    isActive ? 'text-white/40' : 'text-white/15 hover:text-white/40'
+  }`
+}
+
 export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
   const [selectedLink, setSelectedLink] = useState(null)
+  // Below `md`, "About Us" / "Contact" / "Security & Compliance" plus the
+  // wordmark no longer fit in one row (confirmed: three tracked-out labels
+  // alongside the logo overflow a phone-width viewport) — collapsed behind
+  // this toggle into a dropdown instead, same links, same click handlers.
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   return (
     <div className="pointer-events-none fixed inset-x-6 top-5 z-20 flex items-center justify-between md:inset-x-8 md:top-6">
@@ -74,14 +85,9 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
-        className="pointer-events-auto flex items-center gap-2 text-xs font-extralight tracking-[0.2em] uppercase md:gap-4"
+        className="pointer-events-auto hidden items-center gap-2 text-xs font-extralight tracking-[0.2em] uppercase md:flex md:gap-4"
       >
-        <span
-          onClick={onAboutUsClick}
-          className={`cursor-pointer px-2 py-2 transition-colors duration-200 ${
-            isAboutUsActive ? 'text-white/40' : 'text-white/15 hover:text-white/40'
-          }`}
-        >
+        <span onClick={onAboutUsClick} className={navLinkClass(isAboutUsActive)}>
           About Us
         </span>
         {OTHER_NAV_LINKS.map((label) => (
@@ -92,14 +98,68 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
           <span
             key={label}
             onClick={() => setSelectedLink((current) => (current === label ? null : label))}
-            className={`cursor-pointer px-2 py-2 transition-colors duration-200 ${
-              selectedLink === label ? 'text-white/40' : 'text-white/15 hover:text-white/40'
-            }`}
+            className={navLinkClass(selectedLink === label)}
           >
             {label}
           </span>
         ))}
       </motion.div>
+
+      {/* Mobile-only hamburger toggle, replacing the row above below `md`. */}
+      <motion.button
+        type="button"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
+        onClick={() => setIsMenuOpen((current) => !current)}
+        aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+        className="pointer-events-auto flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
+      >
+        <span
+          className={`h-px w-5 bg-white/40 transition-transform duration-200 ${isMenuOpen ? 'translate-y-[3.5px] rotate-45' : ''}`}
+        />
+        <span className={`h-px w-5 bg-white/40 transition-opacity duration-200 ${isMenuOpen ? 'opacity-0' : ''}`} />
+        <span
+          className={`h-px w-5 bg-white/40 transition-transform duration-200 ${isMenuOpen ? '-translate-y-[3.5px] -rotate-45' : ''}`}
+        />
+      </motion.button>
+
+      {/* Dropdown panel for the toggle above — same links/handlers as the
+          desktop row, just stacked. Positioned relative to the outer fixed
+          wrapper (its own positioning context), not the button itself. */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="pointer-events-auto absolute top-full right-0 mt-3 flex flex-col items-end gap-1 rounded-lg bg-[#0F172B]/90 px-3 py-3 text-xs font-extralight tracking-[0.2em] uppercase backdrop-blur-sm md:hidden"
+          >
+            <span
+              onClick={() => {
+                onAboutUsClick()
+                setIsMenuOpen(false)
+              }}
+              className={navLinkClass(isAboutUsActive)}
+            >
+              About Us
+            </span>
+            {OTHER_NAV_LINKS.map((label) => (
+              <span
+                key={label}
+                onClick={() => {
+                  setSelectedLink((current) => (current === label ? null : label))
+                  setIsMenuOpen(false)
+                }}
+                className={navLinkClass(selectedLink === label)}
+              >
+                {label}
+              </span>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

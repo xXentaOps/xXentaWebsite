@@ -98,11 +98,17 @@ export const TEAM_MEMBERS = [
     // above, milder here — went 0.92, then 0.88, then 0.8 chasing "a bit
     // smaller" each time, then overshot ("a tiny bit bigger again"). Split
     // the difference between the last two.
-    // offsetX pushes it right, off the default flex-gap spot right against
-    // the name block — asked for directly ("isn't glued to her name").
-    // Positive here (unlike Norma's negative one), since hers needed
-    // pulling left instead. First guess, tune live.
-    nameIcon: { svg: 'canvas', viewBoxSize: 24, sizeScale: 0.84, offsetX: 50 },
+    // offsetX pushes/pulls it relative to the default flex-gap spot right
+    // against the name block. Was 50 pre-"Müller": the marker sits off the
+    // *whole* w-fit box's own right edge, which sizes to its widest line —
+    // splitName cuts on the first space only, so "Müller" landed on the
+    // *second* line ("Müller Venturi", 78px bold), roughly doubling that
+    // line's own width versus "Venturi" alone. A first ~30px pull-in did
+    // nothing visible against a shift that size, so this corrects hard in
+    // the other direction instead — a rough estimate of that width jump,
+    // meant to land near where the marker sat relative to "Venturi" before,
+    // not a small nudge. Tune live from here.
+    nameIcon: { svg: 'canvas', viewBoxSize: 24, sizeScale: 0.84, offsetX: -180 },
     x: 29.2,
     y: 19,
     headTop: 17,
