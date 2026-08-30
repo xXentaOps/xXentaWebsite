@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { forwardRef, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
 import { MathUtils } from 'three'
@@ -6,6 +6,7 @@ import {
   ACCENT_SPEED,
   gridPhaseShiftCells,
   mainSlidePx,
+  teamContentSlidePx,
   TEAM_SLIDE_TRANSITION,
   TEAM_SLIDE_Z,
 } from './teamTransition'
@@ -14,12 +15,13 @@ import { GridPlane } from './BackgroundGrid'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, THROUGH_GLASS_STYLE } from './gridConstants'
 import GridAlignmentOverlay from './GridAlignmentOverlay'
 import { gridScreenMetrics } from './gridScreenMetrics'
+import { GlassIcon } from './GlassIcon'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
 import { GlassCircle } from './GlassCircle'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
 import { GoogleCloudPartnerBadge } from './GoogleCloudPartnerBadge'
 import { GradientBlob } from './GradientBlob'
-import { MeetTheTeamGrid, TEAM_MEMBER_COUNT } from './MeetTheTeamGrid'
+import { MEMBERS, MeetTheTeamGrid, TEAM_MEMBER_COUNT } from './MeetTheTeamGrid'
 import {
   CAPTURE_LAYER,
   CaptureLayerGate,
@@ -115,7 +117,15 @@ function scaleStyleForZoom(style, scale, opacityScale = 1) {
 // for the glass objects that lead the rest. Reading progress inside useFrame
 // rather than taking it as a prop keeps the whole slide off React's render
 // path: one motion value is mutated per frame and this writes one number.
-function SlideGroup({ progress, speed = 1, children }) {
+//
+// `slidePx` (default mainSlidePx) is which of teamTransition.js's own
+// functions of (progress, viewportWidth) this group's travel is computed
+// from — added for the Meet the Team detail photo's own corner icons, which
+// need to travel exactly as MeetTheTeamGrid's DOM content does
+// (teamContentSlidePx), not as a speed-scaled multiple of mainSlidePx: that
+// function adds a constant screen-width offset on top of mainSlidePx, which
+// `speed` alone (a pure multiplier) can't express.
+function SlideGroup({ progress, speed = 1, slidePx = mainSlidePx, children }) {
   const groupRef = useRef(null)
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
@@ -126,10 +136,35 @@ function SlideGroup({ progress, speed = 1, children }) {
   useFrame(() => {
     const group = groupRef.current
     if (!group) return
-    group.position.x = mainSlidePx(progress.get(), size.width) * speed * perPx
+    group.position.x = slidePx(progress.get(), size.width) * speed * perPx
   })
 
   return <group ref={groupRef}>{children}</group>
+}
+
+// Asked for explicitly ("the exact same... size") to match GlassCircle, the
+// 3D circle behind the About Us slideshow — hoisted here (GlassCircle's own
+// copy is declared inside the component, further down, purely as a local
+// convenience) so both actually share one number instead of two constants
+// that could quietly drift apart.
+const CIRCLE_SIZE = 220
+const NAME_ICON_SIZE_PX = CIRCLE_SIZE
+
+// A square domRect (CSS px, the section-relative space useDomAnchorRect
+// already produces) centered on nameIconMarkerRect — a near-zero-size DOM
+// marker MeetTheTeamGrid positions immediately beside (and vertically
+// centred on) a member's name via plain flexbox (see nameIconAnchorRef's
+// own comment there), so this only ever needs to turn that single point
+// into a same-size square for GlassIcon.
+function nameIconDomRect(markerRect) {
+  const centerX = markerRect.left + markerRect.width / 2
+  const centerY = markerRect.top + markerRect.height / 2
+  return {
+    left: centerX - NAME_ICON_SIZE_PX / 2,
+    top: centerY - NAME_ICON_SIZE_PX / 2,
+    width: NAME_ICON_SIZE_PX,
+    height: NAME_ICON_SIZE_PX,
+  }
 }
 
 function SeamlessGridBackdrop({
@@ -379,6 +414,51 @@ function useDomAnchorRect(ref, containerRef) {
   return [rect, () => measureRef.current()]
 }
 
+// Same measurement useDomAnchorRect does (container-relative
+// getBoundingClientRect, kept fresh via ResizeObserver/window resize), but
+// keyed off the DOM *node* itself rather than a ref object — needed
+// specifically for an anchor whose target element mounts and unmounts
+// (rather than always existing, like every useDomAnchorRect caller in this
+// file), since a plain ref's own identity never changes just because
+// ref.current does, so useDomAnchorRect's effect would never know to
+// re-attach once the element actually showed up. A state-backed node
+// (set via a callback ref) does trigger a normal re-render/effect run when
+// that happens, which is all this needs — used for the Meet the Team name
+// icon anchor, whose marker (see MeetTheTeamGrid's own nameIconAnchorRef
+// comment) only exists while a member with one is selected.
+function useDomAnchorRectForNode(node, containerRef) {
+  const [rect, setRect] = useState(null)
+
+  useEffect(() => {
+    if (!node) {
+      setRect(null)
+      return
+    }
+    function measure() {
+      const box = node.getBoundingClientRect()
+      const container = containerRef?.current?.getBoundingClientRect()
+      const originLeft = container?.left ?? 0
+      const originTop = container?.top ?? 0
+      setRect({
+        left: box.left - originLeft,
+        top: box.top - originTop,
+        width: box.width,
+        height: box.height,
+      })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [node, containerRef])
+
+  return rect
+}
+
 // A fixed overlay, not a normal-flow section — the top of the site must
 // always be GlassLogoHero, reachable at real scrollY 0 exactly as before
 // this existed, with nothing scrollable above it. This never touches real
@@ -394,7 +474,15 @@ function useDomAnchorRect(ref, containerRef) {
 // Read once at module scope — see GridAlignmentOverlay, ?gridlines to show it.
 const SHOW_GRID_LINES = new URLSearchParams(window.location.search).has('gridlines')
 
-export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
+// forwardRef + closeTeam: the navbar's "About Us" link (in GlassLogoPreview,
+// a sibling with no other route to this section's own isTeamOpen state)
+// needs to be able to back out of the Meet the Team stage without closing
+// About Us entirely — clicking it while already on this stage should land
+// back on the last-viewed About Us slide, not drop all the way to the Hero.
+// An imperative handle is the narrow way to reach in for that one action
+// without lifting isTeamOpen itself (and everything that already reads/sets
+// it below) out of this component.
+export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }, ref) {
   const tier = usePerformanceTier()
   const sectionRef = useRef(null)
   const badgeAnchorRef = useRef(null)
@@ -408,6 +496,17 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   // its real rect. This one feeds PhotoBackdropCapture, so the badge's
   // glass has the actual photo to refract instead of empty canvas.
   const photoWindowRef = useRef(null)
+  // A near-zero-size marker MeetTheTeamGrid positions immediately beside
+  // (and vertically centred on) the open member's name — same handoff
+  // *shape* as badgeAnchorRef, but this one only exists in the DOM while a
+  // member with a nameIcon is actually selected (badgeAnchorRef's own
+  // target is always mounted), so it's a callback-ref-backed state value
+  // rather than a plain useRef — see useDomAnchorRectForNode's own comment
+  // above for why that distinction matters here. Passed straight through
+  // as the `ref` MeetTheTeamGrid attaches to that marker; a callback ref
+  // works there exactly like an object ref would.
+  const [nameIconAnchorNode, setNameIconAnchorNode] = useState(null)
+  const nameIconMarkerRect = useDomAnchorRectForNode(nameIconAnchorNode, sectionRef)
   // Cell size and boundary phase in CSS pixels, written every frame by
   // SeamlessGridBackdrop inside the canvas and read by AboutUsIntro outside
   // it, so the photo can sit on whole grid squares rather than near them.
@@ -427,8 +526,8 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
   // rest peeks out into the grid/blob behind it. Derived from photoRect
   // rather than its own DOM measurement since there's no real element to
   // measure — this circle is purely a computed offset, the same way
-  // CornerBracketCapture's own bars are.
-  const CIRCLE_SIZE = 220
+  // CornerBracketCapture's own bars are. CIRCLE_SIZE itself now lives at
+  // module scope (see its own comment there) — NAME_ICON_SIZE_PX shares it.
   const CIRCLE_X_OFFSET = 35
   const circleRect = photoRect && {
     left: photoRect.left - CIRCLE_SIZE / 2 + CIRCLE_X_OFFSET,
@@ -546,6 +645,12 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
       teamProgress.set(0)
     }
   }, [isOpen, isTeamOpen, teamProgress])
+  // The one thing exposed to the navbar (see the forwardRef comment above) —
+  // animated, not reset outright, since this is reachable while the section
+  // is fully visible and on screen, unlike the instant reset just above.
+  // A no-op when isTeamOpen is already false, which is exactly what should
+  // happen when "About Us" is clicked from About Us proper: nothing moves.
+  useImperativeHandle(ref, () => ({ closeTeam: () => setIsTeamOpen(false) }), [])
 
   // Which member's enlarged profile is showing, or null for the seven-photo
   // grid. Lives here rather than inside MeetTheTeamGrid because the arrows
@@ -644,6 +749,49 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
           <SlideGroup progress={teamProgress}>
             {sceneReady && <GoogleCloudPartnerBadge domRect={partnerBadgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
           </SlideGroup>
+          {/* A glass icon beside whichever member's name is open in the Meet
+              the Team detail view (see MEMBERS[...].nameIcon in teamData.js).
+              In THIS canvas, deliberately — not the team-photo badge's
+              overlay one — for the same reason GlassCircle and the plaque
+              above are here: this canvas's own grid/blob are on the default
+              layer, so TransmissionMaterial's plain backdrop capture picks
+              them up and the glass actually shows grid lines through it. See
+              GlassIcon's own top comment for what happens when it isn't.
+              Being behind the DOM (this canvas sits under AboutUsIntro and
+              MeetTheTeamGrid) is fine: those are transparent except for
+              their own text/photos, and this icon lands in the empty space
+              beside the name.
+              Anchored to nameIconMarkerRect — measured via
+              useDomAnchorRectForNode (see that hook's own comment for why
+              a measured rect is right here) rather than computed from grid
+              layout. slidePx is teamContentSlidePx, not the mainSlidePx
+              every other SlideGroup here defaults to: this icon belongs to
+              MeetTheTeamGrid's own DOM content, which travels on that
+              different function (see teamTransition.js). */}
+          {sceneReady && isTeamOpen && nameIconMarkerRect && MEMBERS[selectedMember]?.nameIcon && (
+            // Keyed on the member, same as MemberDetailPanel's own key —
+            // without this, switching between two members who both have a
+            // nameIcon just updates props on the *same* GlassIcon instance
+            // (same component, same position in the tree), so its entrance
+            // animation — driven by a mount-time ref inside GlassIcon —
+            // only ever plays once per session, for whichever member's
+            // icon happened to be the first one shown. Reported directly as
+            // "why don't they all have the entrance animation". A fresh key
+            // forces a genuine remount on every switch, replaying it for
+            // every profile.
+            <SlideGroup key={MEMBERS[selectedMember].id} progress={teamProgress} slidePx={teamContentSlidePx}>
+              <GlassIcon
+                svgUrl={`/${MEMBERS[selectedMember].nameIcon.svg}.svg`}
+                viewBoxSize={MEMBERS[selectedMember].nameIcon.viewBoxSize}
+                depthScale={MEMBERS[selectedMember].nameIcon.depthScale}
+                sizeScale={MEMBERS[selectedMember].nameIcon.sizeScale}
+                bevelEnabled={MEMBERS[selectedMember].nameIcon.bevelEnabled}
+                domRect={nameIconDomRect(nameIconMarkerRect)}
+                isOpen={isOpen}
+                highQuality={tier === 'high'}
+              />
+            </SlideGroup>
+          )}
           {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
         <SceneRenderGate isVisibleRef={isVisibleRef} />
@@ -671,6 +819,7 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
         isTeamOpen={isTeamOpen}
         selectedIndex={selectedMember}
         onSelect={setSelectedMember}
+        nameIconAnchorRef={setNameIconAnchorNode}
       />
       {SHOW_GRID_LINES && <GridAlignmentOverlay gridMetricsRef={gridMetricsRef} />}
 
@@ -817,6 +966,6 @@ export function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }) {
     </motion.section>
     </motion.div>
   )
-}
+})
 
 export default AboutUsSection

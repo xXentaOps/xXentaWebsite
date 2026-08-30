@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useTransform } from 'framer-motion'
 import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
 import { gridScreenMetrics } from './gridScreenMetrics'
@@ -83,6 +83,12 @@ const TEXT_COLS = 3
 const RULE_COLOR = '#3B82F6'
 const RULE_OPACITY = 0.9
 const RULE_THICKNESS_PX = 5
+// The rule's own top, not its middle, is what lands on row 1's boundary by
+// default (see ruleTopOffset) — its middle then sits RULE_THICKNESS_PX/2
+// below that line, not on it. The background grid's own hairline at that
+// same boundary is centred exactly on it, so half the rule's thickness is
+// how far up the rule has to shift for the two middles to actually line up.
+const RULE_GRID_LINE_ALIGN_PX = RULE_THICKNESS_PX / 2
 // Much shorter than the paragraph column it sits above — a short
 // title-underline accent, not a rule spanning the full text width.
 const RULE_LENGTH_PX = 64
@@ -127,8 +133,12 @@ function splitName(fullName) {
 }
 
 // The seven people — teamData also carries the two dogs, which the group
-// photo includes and this block doesn't.
-const MEMBERS = TEAM_MEMBERS.filter((member) => !member.isDog)
+// photo includes and this block doesn't. Exported (not just its length) so
+// AboutUsSection can look up a member's own data — e.g. which glass icons
+// to hang off their detail photo — by the same selectedIndex it already
+// owns, without re-deriving this exact filter a second time and risking
+// the two ever drifting apart.
+export const MEMBERS = TEAM_MEMBERS.filter((member) => !member.isDog)
 export const TEAM_MEMBER_COUNT = MEMBERS.length
 
 // Same family as the rest of the page's motion (see aboutUsTransition's own
@@ -139,6 +149,40 @@ const TILE_TRANSITION = { type: 'spring', bounce: 0, duration: 0.7 }
 // gone before it has visibly travelled anywhere, so the eye reads "the
 // others disappeared" rather than "the others shrank back into place".
 const TILE_FADE_TRANSITION = { duration: 0.25, ease: 'easeOut' }
+// Detail-to-detail navigation — the arrows, already inside a profile — is a
+// true crossfade, the same shape AboutUsIntro's own slideshow dissolve
+// uses: the incoming photo snaps straight to full opacity at the detail
+// rect (no fade-in of its own — there is nothing to see it fade in
+// *against*, since the outgoing photo is still opaque on top of it), and
+// only the outgoing photo animates, dissolving away in place to reveal it.
+// Both get x/y/scale snapped (duration 0) rather than sliding from
+// wherever their own grid square happens to sit — that's what makes every
+// member's photo arrive the same simple way regardless of where its own
+// square is — but critically the *outgoing* tile snaps its x/y/scale to
+// where it already is (still the detail rect), never back to its resting
+// grid square. Snapping it to the grid square is what used to flash that
+// square's position on screen for a frame before the opacity fade had a
+// chance to hide it — duration 0 makes a position change happen instantly,
+// same frame, in full view. Kept in place until fully transparent, it has
+// nothing left to reveal by the time it's ever visually at that square
+// again.
+const SNAP_XYZ = { x: { duration: 0 }, y: { duration: 0 }, scale: { duration: 0 } }
+const SWAP_ENTER_TRANSITION = { ...SNAP_XYZ, opacity: { duration: 0 } }
+const SWAP_EXIT_TRANSITION = { ...SNAP_XYZ, opacity: TILE_FADE_TRANSITION }
+// Every photo's resting opacity in the grid — full opacity is reserved for
+// the one actually enlarged into a detail view (see the tile's own target
+// below), so this is never 1 while a tile is just sitting in the grid.
+const TILE_REST_OPACITY = 0.8
+// How far below its own square a hovered tile's name label sits.
+const NAME_LABEL_GAP_PX = 12
+// The exact motion AboutUsIntro's own "Meet the Team" button arrives with
+// (see its own comment there) — reused verbatim here, just re-triggered by
+// hover instead of mount, so a photo's name arrives with the same "settle
+// into focus" quality as that button did, rather than a plain fade the eye
+// would read as a different, unrelated kind of motion on the same page.
+const NAME_LABEL_HIDDEN = { opacity: 0, y: -16, filter: 'blur(8px)' }
+const NAME_LABEL_SHOWN = { opacity: 1, y: 0, filter: 'blur(0px)' }
+const NAME_LABEL_TRANSITION = { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
 
 // Where each photo lands, in CSS px, against the grid as it rests on the
 // Meet the Team stage — plus the nine-square rect the detail view occupies.
@@ -226,7 +270,7 @@ function computeLayout(width, height) {
 // selectedIndex is owned by AboutUsSection rather than here, because the
 // arrows that walk through it live in AboutUsIntro — three components need
 // to agree on it, so it sits in the one place that already renders both.
-export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSelect }) {
+export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSelect, nameIconAnchorRef }) {
   const [layout, setLayout] = useState(() => computeLayout(window.innerWidth, window.innerHeight))
 
   useLayoutEffect(() => {
@@ -238,6 +282,64 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
 
   const x = useTransform(teamProgress, (p) => teamContentSlidePx(p, window.innerWidth))
   const isDetail = selectedIndex != null
+
+  // prevSelectedIndexRef.current, read before the effect below updates it,
+  // still holds the *previous* render's selectedIndex (the standard
+  // usePrevious pattern). Comparing it against the current selectedIndex
+  // is what tells the tiles below whether this is a grid<->detail
+  // transition (one side is null: keep the existing grow/shrink) or a
+  // detail-to-detail one (the arrows moved from one open profile straight
+  // to another: use DETAIL_SWAP_TRANSITION instead).
+  const prevSelectedIndexRef = useRef(null)
+  const isDetailSwap =
+    prevSelectedIndexRef.current != null && selectedIndex != null && prevSelectedIndexRef.current !== selectedIndex
+
+  // Which tile is currently the *exiting* side of a swap — persists across
+  // however many renders the fade actually takes, unlike isDetailSwap
+  // above (necessarily true for only one render, since the layout effect
+  // below catches prevSelectedIndexRef up immediately after). That used to
+  // be fine when nothing else forced an extra render during the fade, but
+  // it isn't safe to assume any more: AboutUsSection's own name-icon anchor
+  // (nameIconMarkerRect) re-measures via a passive effect a frame or two
+  // after every member switch, which re-renders this component while the
+  // exiting tile is still visibly mid-fade. On that extra render,
+  // isDetailSwap has already gone false, so the exiting tile's target
+  // would fall back to its ordinary "already at rest" case one render
+  // early — snapping its x/y/scale straight back to the grid square while
+  // it's still visible, exactly the flash this file's whole dissolve
+  // technique exists to prevent. Reported directly, twice, both times
+  // traced to a re-render landing mid-fade for a reason unrelated to the
+  // swap itself — a plain ref comparison can't survive that; a timer
+  // matched to the fade's own duration can.
+  const [swapExitIndex, setSwapExitIndex] = useState(null)
+  const swapExitTimerRef = useRef(0)
+  // No dependency array is deliberate here, same as the ref-sync effect
+  // this one replaces — it has to see isDetailSwap fresh on every render to
+  // catch the one render it's ever true on, and the setState inside is
+  // guarded by that same check, which is only ever true for one render per
+  // real selectedIndex change (prevSelectedIndexRef is caught up by the end
+  // of this very call), so this can't cascade into a render loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    if (isDetailSwap) {
+      const exitingIndex = prevSelectedIndexRef.current
+      setSwapExitIndex(exitingIndex)
+      clearTimeout(swapExitTimerRef.current)
+      swapExitTimerRef.current = setTimeout(() => {
+        setSwapExitIndex((current) => (current === exitingIndex ? null : current))
+      }, TILE_FADE_TRANSITION.duration * 1000 + 50)
+    }
+    prevSelectedIndexRef.current = selectedIndex
+  })
+  useEffect(() => () => clearTimeout(swapExitTimerRef.current), [])
+
+  // Which grid tile the cursor is currently over — null the rest of the
+  // time, including whenever isDetail (a name label has nothing to show
+  // while its own photo is enlarged into a detail view, not sitting in the
+  // grid to be hovered). Drives the name label below each tile; a single
+  // piece of state here rather than local hover state per tile since only
+  // ever one tile can be hovered at a time.
+  const [hoveredIndex, setHoveredIndex] = useState(null)
 
   // The currently-open profile's own bio scroll box — set by
   // MemberDetailPanel via the same ref it renders onto that element, so
@@ -301,6 +403,15 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
         const member = MEMBERS[index]
         if (!member) return null
         const selected = index === selectedIndex
+        // Whether *this* tile was the one open the render before — used
+        // below to tell the tile shrinking back into the grid (detail ->
+        // overview, selectedIndex now null) apart from the five that were
+        // never involved and are simply sitting invisible at their own
+        // square already. Not used for the swap-exit case any more (see
+        // swapExitIndex's own comment above for why a plain ref comparison
+        // like this one isn't safe to build that on).
+        const wasSelected = prevSelectedIndexRef.current === index
+        const isSwapExit = swapExitIndex === index
         // Grow in place: the tile keeps its own grid square as its layout
         // box and reaches the detail rect by transform alone (scale about
         // its own top-left corner, then translate that corner onto the
@@ -308,54 +419,107 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
         // because only the former is composited — and because a square
         // scaling to a square can't distort the photo inside it, so
         // object-cover keeps framing it exactly as it does at rest.
-        const scale = selected ? layout.detail.size / layout.cell : 1
-        const target = selected
-          ? { x: layout.detail.left - tile.left, y: layout.detail.top - tile.top, scale, opacity: 1 }
-          : { x: 0, y: 0, scale: 1, opacity: isDetail ? 0 : 1 }
+        const detailScale = layout.detail.size / layout.cell
+        const detailXY = { x: layout.detail.left - tile.left, y: layout.detail.top - tile.top }
+        let target
+        let transition
+        if (selected) {
+          target = { ...detailXY, scale: detailScale, opacity: 1 }
+          // Opening from the grid still grows/fades in with the spring;
+          // arriving via a swap snaps straight in (see SWAP_ENTER_TRANSITION
+          // above) since it's the outgoing tile on top that does the
+          // animating in that case, not this one.
+          transition = isDetailSwap ? SWAP_ENTER_TRANSITION : { ...TILE_TRANSITION, opacity: TILE_FADE_TRANSITION }
+        } else if (isSwapExit) {
+          // Stays put at the detail rect — same x/y/scale it already had —
+          // and only opacity moves, dissolving away in place.
+          target = { ...detailXY, scale: detailScale, opacity: 0 }
+          transition = SWAP_EXIT_TRANSITION
+        } else {
+          target = { x: 0, y: 0, scale: 1, opacity: isDetail ? 0 : TILE_REST_OPACITY }
+          // The one tile shrinking back into the grid (closing the whole
+          // detail view) still gets the graceful spring — it's the only one
+          // of the seven actually visible while its position changes. Every
+          // other tile here is either already at its own square or, if it
+          // just finished a swap-exit dissolve above, already invisible —
+          // in both cases a snap is unnoticed, so there's no reason to pay
+          // for (or risk) a slow spring settling in while hidden.
+          transition = wasSelected
+            ? { ...TILE_TRANSITION, opacity: TILE_FADE_TRANSITION }
+            : { ...SNAP_XYZ, opacity: TILE_FADE_TRANSITION }
+        }
 
         return (
-          <motion.button
-            key={member.id}
-            type="button"
-            // Only a control while the grid is showing — in detail mode the
-            // arrows do the navigating, and the enlarged photo isn't a
-            // button any more.
-            disabled={isDetail}
-            aria-label={`Open ${member.name}'s profile`}
-            onClick={() => onSelect(index)}
-            animate={target}
-            transition={{ ...TILE_TRANSITION, opacity: TILE_FADE_TRANSITION }}
-            style={{
-              left: tile.left,
-              top: tile.top,
-              width: layout.cell,
-              height: layout.cell,
-              transformOrigin: 'top left',
-              // Stacked above its siblings while enlarged so the nine
-              // squares it covers are never crossed by a still-fading
-              // neighbour on its way out.
-              zIndex: selected ? 1 : 0,
-            }}
-            // `group` only in grid mode, which is what gates the hover zoom
-            // below: with no group ancestor, group-hover simply never
-            // matches, so the enlarged photo can't pick up a hover state
-            // it shouldn't have.
-            className={`absolute overflow-hidden bg-white/5 ${
-              isDetail ? '' : 'group pointer-events-auto cursor-pointer'
-            }`}
-          >
-            {/* The hover zoom is CSS, not framer-motion, deliberately: the
-                button itself is already animating a transform (the grow),
-                and two owners of one element's transform would fight. This
-                sits on the image *inside* it instead, so the two compose
-                instead of overwriting each other. */}
-            <img
-              src={`/team/${member.id}.jpg`}
-              alt={member.name}
-              draggable={false}
-              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
-            />
-          </motion.button>
+          <Fragment key={member.id}>
+            <motion.button
+              type="button"
+              // Only a control while the grid is showing — in detail mode
+              // the arrows do the navigating, and the enlarged photo isn't
+              // a button any more.
+              disabled={isDetail}
+              aria-label={`Open ${member.name}'s profile`}
+              onClick={() => onSelect(index)}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex((current) => (current === index ? null : current))}
+              animate={target}
+              transition={transition}
+              style={{
+                left: tile.left,
+                top: tile.top,
+                width: layout.cell,
+                height: layout.cell,
+                transformOrigin: 'top left',
+                // Stacked above its siblings while enlarged so the nine
+                // squares it covers are never crossed by a still-fading
+                // neighbour on its way out. The swap-exit tile outranks
+                // even the newly-selected one here — it has to sit on top
+                // of the incoming photo to dissolve away and reveal it,
+                // not the other way around.
+                zIndex: isSwapExit ? 2 : selected ? 1 : 0,
+              }}
+              // `group` only in grid mode, which is what gates the hover
+              // zoom below: with no group ancestor, group-hover simply
+              // never matches, so the enlarged photo can't pick up a hover
+              // state it shouldn't have.
+              className={`absolute overflow-hidden bg-white/5 ${
+                isDetail ? '' : 'group pointer-events-auto cursor-pointer'
+              }`}
+            >
+              {/* The hover zoom is CSS, not framer-motion, deliberately:
+                  the button itself is already animating a transform (the
+                  grow), and two owners of one element's transform would
+                  fight. This sits on the image *inside* it instead, so the
+                  two compose instead of overwriting each other. */}
+              <img
+                src={`/team/${member.id}.jpg`}
+                alt={member.name}
+                draggable={false}
+                className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
+              />
+            </motion.button>
+            {/* The name, below its own square — only while in the grid
+                (never during a detail view, where the tile itself is
+                shrunk/hidden and has nothing left to name) and only for
+                the one tile actually under the cursor. animate rather than
+                whileHover: whileHover ties the motion to *this* element's
+                own hover state, but the thing being hovered is the button
+                above, a sibling, not this label — hoveredIndex is what
+                actually tracks that. Same opacity/y/blur values and easing
+                as AboutUsIntro's own "Meet the Team" button uses for its
+                entrance (see NAME_LABEL_HIDDEN/SHOWN/TRANSITION above),
+                just retriggered by hover instead of mount. */}
+            {!isDetail && (
+              <motion.p
+                initial={NAME_LABEL_HIDDEN}
+                animate={hoveredIndex === index ? NAME_LABEL_SHOWN : NAME_LABEL_HIDDEN}
+                transition={NAME_LABEL_TRANSITION}
+                className="pointer-events-none absolute text-center text-[11px] font-extralight tracking-[0.15em] text-white/80 uppercase"
+                style={{ left: tile.left, top: tile.top + layout.cell + NAME_LABEL_GAP_PX, width: layout.cell }}
+              >
+                {member.name}
+              </motion.p>
+            )}
+          </Fragment>
         )
       })}
       {isDetail && MEMBERS[selectedIndex] && (
@@ -370,6 +534,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
           member={MEMBERS[selectedIndex]}
           layout={layout}
           bioScrollRef={bioScrollRef}
+          nameIconAnchorRef={nameIconAnchorRef}
         />
       )}
     </motion.div>
@@ -391,7 +556,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
 // component would remount to a fresh, empty one every time the key
 // changes to a new member, which is exactly when that handler still
 // needs a live element to redirect to.
-function MemberDetailPanel({ member, layout, bioScrollRef }) {
+function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) {
   const { first, last } = splitName(member.name)
   const bioRef = bioScrollRef
   const [bioOverflows, setBioOverflows] = useState(false)
@@ -411,15 +576,16 @@ function MemberDetailPanel({ member, layout, bioScrollRef }) {
   // space" has to be computed from whatever the name actually rendered at,
   // not assumed constant.
   const [nameTopOffset, setNameTopOffset] = useState(0)
-  // Pulls the rule/role block up to land its top edge exactly on row 1's
-  // own top — the same boundary as the top of the grid square one row
-  // below the name — rather than a fixed gap under the name. Computed from
-  // the same measurement as nameTopOffset (row height minus wherever the
-  // name block's bottom actually lands), so it's negative exactly when the
-  // centred name reaches lower than that boundary on its own, and stays
-  // correct if the name's rendered height ever changes rather than
-  // silently drifting out of place the way a flat margin picked to fit
-  // today's names would.
+  // Pulls the rule/role block up to land the rule's own *middle* on row 1's
+  // boundary — the same line the background grid's own hairline is centred
+  // on there — rather than a fixed gap under the name. Computed from the
+  // same measurement as nameTopOffset (row height minus wherever the name
+  // block's bottom actually lands, then RULE_GRID_LINE_ALIGN_PX further up
+  // so the rule's middle lands on that boundary instead of its top edge),
+  // so it's negative exactly when the centred name reaches lower than that
+  // boundary on its own, and stays correct if the name's rendered height
+  // ever changes rather than silently drifting out of place the way a flat
+  // margin picked to fit today's names would.
   const [ruleTopOffset, setRuleTopOffset] = useState(0)
 
   // Measures the *unpadded* bio block to decide whether it needs to scroll
@@ -436,7 +602,7 @@ function MemberDetailPanel({ member, layout, bioScrollRef }) {
     const nameHeight = nameRef.current ? nameRef.current.getBoundingClientRect().height : 0
     const nameTop = Math.max(0, (layout.cell - nameHeight) / 2)
     setNameTopOffset(nameTop)
-    setRuleTopOffset(layout.cell - nameTop - nameHeight)
+    setRuleTopOffset(layout.cell - nameTop - nameHeight - RULE_GRID_LINE_ALIGN_PX)
 
     const updateScrollState = () => {
       setScrollState({
@@ -475,31 +641,63 @@ function MemberDetailPanel({ member, layout, bioScrollRef }) {
           space first, never this. marginTop centres this block within its
           own row — see nameTopOffset's own comment above for why it's
           measured rather than a fixed guess. */}
-      <div
-        ref={nameRef}
-        className="flex shrink-0 flex-col gap-1"
-        style={{ width: layout.nameBox.width, marginTop: nameTopOffset }}
-      >
-        {/* min-w-0 overrides the flex item's default min-width:auto —
-            without it, a flex child's *content* (a long unbroken
-            word/hyphenated name) can dictate a wider intrinsic minimum
-            than the box itself, pushing the box wider instead of wrapping
-            inside it. break-words (overflow-wrap) is a safety net for
-            whatever survives even that fix — a name segment between break
-            opportunities (whitespace/an existing hyphen) too wide for the
-            box on its own, with nowhere else to wrap. Both kept even now
-            that the wider box fits every current name, including
-            "Wouters-Snell", on one line with room to spare: they're cheap
-            insurance against a future name this box hasn't seen yet, not
-            something today's roster still needs. */}
-        {/* #F8FAFC matches HeroTitle's own color exactly — the same value
-            it uses for "New Way of" and the switching Learning/Managing/
-            Growing word alike, so the name picks up the Hero's own voice
-            rather than the page's usual white/90. */}
-        <p className="min-w-0 break-words text-[64px] leading-[1.1] font-bold text-[#F8FAFC]">{first}</p>
-        {/* "A little bigger" than the first name — one step up, same
-            weight/color, not a different voice. */}
-        <p className="min-w-0 break-words text-[78px] leading-[1.1] font-bold text-[#F8FAFC]">{last}</p>
+      {/* items-center flex row: the marker below (rendered only when this
+          member has a nameIcon) needs to land vertically centred against
+          the *actual* two-line name block, not a fixed row height — a flex
+          row with a near-zero-size sibling does that for free. marginTop
+          moved here from the name block itself so it still centres the
+          whole row (name + marker) within its own grid row — see
+          nameTopOffset's own comment above for why it's measured rather
+          than a fixed guess. */}
+      <div className="flex items-center gap-3" style={{ marginTop: nameTopOffset }}>
+        <div ref={nameRef} className="flex w-fit shrink-0 flex-col gap-1" style={{ maxWidth: layout.nameBox.width }}>
+          {/* min-w-0 overrides the flex item's default min-width:auto —
+              without it, a flex child's *content* (a long unbroken
+              word/hyphenated name) can dictate a wider intrinsic minimum
+              than the box itself, pushing the box wider instead of wrapping
+              inside it. break-words (overflow-wrap) is a safety net for
+              whatever survives even that fix — a name segment between break
+              opportunities (whitespace/an existing hyphen) too wide for the
+              box on its own, with nowhere else to wrap. Both kept even now
+              that the wider box fits every current name, including
+              "Wouters-Snell", on one line with room to spare: they're cheap
+              insurance against a future name this box hasn't seen yet, not
+              something today's roster still needs. w-fit (was a flat width
+              equal to maxWidth) is what lets a shorter name's own box —
+              and so the icon marker sitting right after it in this row —
+              hug the actual rendered text instead of always sitting at this
+              box's own widest possible edge. */}
+          {/* #F8FAFC matches HeroTitle's own color exactly — the same value
+              it uses for "New Way of" and the switching Learning/Managing/
+              Growing word alike, so the name picks up the Hero's own voice
+              rather than the page's usual white/90. */}
+          <p className="min-w-0 break-words text-[64px] leading-[1.1] font-bold text-[#F8FAFC]">{first}</p>
+          {/* "A little bigger" than the first name — one step up, same
+              weight/color, not a different voice. */}
+          <p className="min-w-0 break-words text-[78px] leading-[1.1] font-bold text-[#F8FAFC]">{last}</p>
+        </div>
+        {/* A near-zero-size marker, not the icon itself — the icon is a
+            real 3D glass object drawn in AboutUsSection's own WebGL canvas
+            (see GlassIcon there), which needs this DOM element's rect (via
+            useDomAnchorRect, the same anchor-ref handoff badgeAnchorRef
+            already uses) to know where "beside this member's name" actually
+            is on screen. Only rendered for a member with a nameIcon —
+            nameIconAnchorRef would otherwise sit unattached, and
+            AboutUsSection's own lookup of member.nameIcon already gates
+            whether anything reads its rect. marginLeft applies
+            nameIcon.offsetX (see teamData.js), a per-member escape hatch
+            for names whose two lines are very different widths — the
+            marker's default spot is right of the *whole* (w-fit) name
+            block, which sizes to its widest line, so a much longer surname
+            than first name otherwise leaves the icon sitting far past the
+            shorter line above it. */}
+        {member.nameIcon && (
+          <div
+            ref={nameIconAnchorRef}
+            className="pointer-events-none h-px w-px shrink-0"
+            style={{ marginLeft: member.nameIcon.offsetX ?? 0 }}
+          />
+        )}
       </div>
       {/* The rule and role — a normal-flow sibling of the name block above,
           but its own shrink-0 block separate from the bio, so it stays put
@@ -516,7 +714,7 @@ function MemberDetailPanel({ member, layout, bioScrollRef }) {
             layout.textBox.width). */}
         <div style={{ width: RULE_LENGTH_PX, height: RULE_THICKNESS_PX, background: RULE_COLOR, opacity: RULE_OPACITY }} />
         {!member.isDog && (
-          <p className="mt-5 text-[10px] tracking-[0.3em] text-[#6BB9FF] uppercase">{member.role}</p>
+          <p className="mt-3 text-[10px] tracking-[0.3em] text-[#6BB9FF] uppercase">{member.role}</p>
         )}
       </div>
       {/* flex-1 min-h-0 + overflow-y-auto: a real multi-paragraph bio
@@ -550,7 +748,7 @@ function MemberDetailPanel({ member, layout, bioScrollRef }) {
           composite for no visible effect). */}
       <div
         ref={bioRef}
-        className="bio-scrollbar mt-2 min-h-0 flex-1 overflow-y-auto pointer-events-auto"
+        className="bio-scrollbar mt-3 min-h-0 flex-1 overflow-y-auto pointer-events-auto"
         style={{
           width: layout.textBox.width,
           '--scrollbar-thickness': `${RULE_THICKNESS_PX}px`,
@@ -567,7 +765,9 @@ function MemberDetailPanel({ member, layout, bioScrollRef }) {
             render, rather than collapsing into one run-on block. mt-3
             between them reads as paragraph spacing rather than one more
             line of the same paragraph; the gap above the first one is the
-            scroll block's own mt-2, off the role/rule above it.
+            scroll block's own mt-3, off the role above it — the same
+            amount, so role-to-bio reads as the same kind of break as
+            paragraph-to-paragraph rather than a smaller one.
             paddingRight, only once bioOverflows is known (see the effect
             above): extra clearance from the scrollbar for a bio long
             enough to actually show one, without shifting a short bio's

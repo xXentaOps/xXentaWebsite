@@ -285,30 +285,21 @@ export function AboutUsIntro({
   // one already there beneath it, never as a dip to the bare grid. null once
   // there's nothing left to dissolve.
   //
-  // The `id`/key matters more than it looks. Without one, React reconciled
-  // each new snapshot onto the *same* <img> DOM node as the previous
-  // transition's — a node already sitting at opacity 0 from having just
-  // faded out. Re-using it meant the next transition's "from" state (opacity
-  // 0.8) was a style *change* on a live node rather than a fresh mount, and
-  // if the incoming photo's load event landed before the browser painted
-  // that 0.8 frame, the style went 0 -> 0.8 -> 0 within a single frame:
-  // no visible change, therefore no CSS transition, therefore no
-  // transitionend. Keying it guarantees every dissolve starts from a
-  // genuinely freshly-mounted node in its own "from" state.
+  // Animated by framer-motion (mount at opacity 0.8, animate to 0, see the
+  // window JSX below) rather than a raw CSS transition — no waiting on the
+  // incoming photo's load event first, no two-frame "let the browser paint a
+  // from-state before it has anything to transition from" dance a plain
+  // style toggle needs. Framer drives the animation itself the instant it
+  // mounts, the same zero-latency plain-crossfade shape MeetTheTeamGrid's
+  // own photo swap already uses. The `id` key still matters for the same
+  // reason it always did: it guarantees every dissolve starts on a genuinely
+  // fresh node at a clean opacity 0.8, never a still-fading previous one
+  // caught mid-flight by a rapid run of clicks.
   const [outgoing, setOutgoing] = useState(null)
-  // Whether the current outgoing snapshot should be animating away yet.
-  // Split out from the old imgLoaded flag it replaces: that one conflated
-  // "the incoming image is ready" with "the outgoing layer's target style",
-  // which is what let a fast load collapse a transition into no-op (see the
-  // key note above). This is only ever flipped a frame *after* the snapshot
-  // has mounted and painted, so the browser always has two distinct states
-  // to interpolate between.
-  const [fadeOut, setFadeOut] = useState(false)
-  // Mirrors outgoing for the parallax loop below, which reads it every
-  // frame off a ref rather than depending on the state directly — adding
-  // outgoing to that effect's own deps would tear down and restart the
-  // whole rAF loop (and its dt/last timing) on every slide change instead
-  // of just skipping a frame's write.
+  // Mirrors outgoing for startTransition below (and the parallax loop
+  // further down), read off a ref rather than the state directly so both
+  // always see whether a dissolve is *currently* playing without waiting on
+  // a re-render to catch up.
   const outgoingRef = useRef(null)
   outgoingRef.current = outgoing
   // The authoritative current index for *scheduling* purposes. slideIndex
@@ -325,93 +316,44 @@ export function AboutUsIntro({
   // first. The arrows are never disabled during a transition (people should
   // always be able to keep skipping ahead/back), but two overlapping
   // transitions can't share one outgoing snapshot: a click landing mid-fade
-  // used to replace that snapshot outright, and since that swaps the <img>'s
-  // src rather than animating an existing one, the browser had nothing to
-  // transition from — it popped straight to the new photo at whatever
-  // opacity/blur the interrupted one happened to be at (reported as the
-  // previous picture "flashing" mid-transition). Queuing means a fast run of
-  // clicks plays out as a clean chain of full dissolves, landing wherever
-  // the *last* click asked for.
+  // used to replace that snapshot outright, which popped straight to the new
+  // photo with nothing to transition from (reported as the previous picture
+  // "flashing" mid-transition). Queuing means a fast run of clicks plays out
+  // as a clean chain of full dissolves, landing wherever the *last* click
+  // asked for.
   const pendingIndexRef = useRef(null)
-  // Monotonic id for the in-flight transition. Every deferred callback below
-  // (rAF, timers, load events) captures the id it was scheduled for and
-  // no-ops if a newer transition has since superseded it, so a late callback
-  // from an abandoned transition can never drive the current one.
-  const transitionIdRef = useRef(0)
-  const timersRef = useRef({ safety: 0, finish: 0, raf: 0 })
+  // Unique React key for each outgoing snapshot — see the outgoing state's
+  // own comment above for why every dissolve needs a genuinely fresh node.
+  const snapshotIdRef = useRef(0)
 
-  // Must match the outgoing layer's own transition-duration class below.
-  const CROSSFADE_MS = 500
-  // How long to wait on the incoming photo's load event before dissolving
-  // anyway. The dissolve waits for the incoming image so the reveal never
-  // exposes a half-loaded photo, but it must never wait *forever*: a load
-  // event that doesn't arrive (cache quirk, decode failure, an <img> whose
-  // src didn't actually change) previously meant the transition simply never
-  // ran and the slideshow wedged. This is the ceiling on that wait.
-  const LOAD_SAFETY_MS = 1200
+  // Matches PhotoBackdropCapture's own CROSSFADE_MS and cubic-bezier(0.4,0,
+  // 0.2,1) exactly (that file's own comment explains why the Google Cloud
+  // badge's reflected dissolve has to stay in lockstep with this one, not
+  // just a same-shaped approximation) — framer-motion accepts a bezier
+  // control-point array directly, so there's no need for a hand-rolled
+  // curve-sampler here the way that WebGL side still needs one.
+  const CROSSFADE_TRANSITION = { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
 
-  const clearTimers = () => {
-    const t = timersRef.current
-    if (t.safety) clearTimeout(t.safety)
-    if (t.finish) clearTimeout(t.finish)
-    if (t.raf) cancelAnimationFrame(t.raf)
-    t.safety = 0
-    t.finish = 0
-    t.raf = 0
-  }
-
-  // Ends the current transition and immediately starts whatever was queued
-  // during it. Driven by a plain timer rather than the outgoing layer's own
-  // transitionend event, deliberately: transitionend is not guaranteed to
-  // fire (a transition that never starts never ends, and that single missed
-  // event was exactly what left `outgoing` set forever, every later click
-  // queuing behind a dissolve that was never going to complete — the arrows
-  // looking live while doing nothing). A timer always fires, so the state
-  // machine can no longer deadlock on a missing event, at the cost of
-  // completing a few ms after the visual fade rather than exactly on it.
-  const finishTransition = (id) => {
-    if (id !== transitionIdRef.current) return
-    clearTimers()
+  // Ends the current dissolve and immediately starts whatever queued up
+  // during it. Called from the outgoing layer's own onAnimationComplete
+  // (see the window JSX below), so this fires exactly when the fade
+  // actually finishes rather than on a separately-guessed timer.
+  const finishTransition = () => {
     const pending = pendingIndexRef.current
     pendingIndexRef.current = null
+    setOutgoing(null)
     if (pending != null && pending !== slideIndexRef.current) {
       beginTransition(pending)
-    } else {
-      setOutgoing(null)
-      setFadeOut(false)
     }
-  }
-
-  // Kicks the snapshot into fading, one *painted* frame after it mounted —
-  // two nested rAFs, since a single one can still land inside the same frame
-  // the mount is committed in, which would collapse the whole dissolve into
-  // one style recalculation with nothing to interpolate.
-  const startFadeOut = (id) => {
-    const t = timersRef.current
-    if (id !== transitionIdRef.current || t.finish || t.raf) return
-    if (t.safety) {
-      clearTimeout(t.safety)
-      t.safety = 0
-    }
-    t.raf = requestAnimationFrame(() => {
-      t.raf = requestAnimationFrame(() => {
-        t.raf = 0
-        if (id !== transitionIdRef.current) return
-        setFadeOut(true)
-        t.finish = setTimeout(() => finishTransition(id), CROSSFADE_MS + 80)
-      })
-    })
   }
 
   // Snapshots the *current* slide and switches to the target. Unconditional
   // — callers (startTransition, and finishTransition draining the queue) are
   // what decide whether a transition should start at all. Reads the outgoing
   // photo off slideIndexRef rather than the render's own `slide`, so a
-  // chained transition started from a timer callback snapshots what is
+  // chained transition started from finishTransition snapshots what is
   // actually on screen rather than whatever the closure happened to capture.
   const beginTransition = (targetIndex) => {
-    clearTimers()
-    const id = ++transitionIdRef.current
     const from = SLIDES[slideIndexRef.current]
     const image = imageRef.current
     setOutgoing({
@@ -419,19 +361,10 @@ export function AboutUsIntro({
       alt: from.alt,
       height: image?.style.height,
       transform: image?.style.transform,
-      id,
+      id: ++snapshotIdRef.current,
     })
-    setFadeOut(false)
     setSlideIndex(targetIndex)
     slideIndexRef.current = targetIndex
-    if (SLIDES[targetIndex].photo) {
-      // Wait for the incoming <img>'s load (see its onLoad below), but only
-      // up to LOAD_SAFETY_MS.
-      timersRef.current.safety = setTimeout(() => startFadeOut(id), LOAD_SAFETY_MS)
-    } else {
-      // Photo-less slide — a flat gray fill has nothing to wait on.
-      startFadeOut(id)
-    }
   }
 
   const startTransition = (targetIndex) => {
@@ -449,12 +382,21 @@ export function AboutUsIntro({
   const goPrev = () => startTransition(Math.max(0, nextTargetFrom() - 1))
   const goNext = () => startTransition(Math.min(SLIDES.length - 1, nextTargetFrom() + 1))
 
-  useEffect(() => clearTimers, [])
   // Bubbles the current slide's photo up — same "report state, don't lift
   // it" shape as BackgroundGrid's own onActiveIndexChange — so AboutUsSection
   // can hand the Google Cloud badge's glass the *actual* photo sitting
   // behind it (see PhotoBackdropCapture there) instead of a hardcoded one.
-  useEffect(() => {
+  // useLayoutEffect, not useEffect: this is the first hop in the relay that
+  // gets the new photo to the badge (AboutUsIntro -> AboutUsSection's own
+  // currentPhoto state -> the src prop PhotoBackdropCapture's own
+  // useLayoutEffect below reacts to). A passive effect only runs once the
+  // browser is idle enough to schedule it, and on this dev setup's software
+  // WebGL fallback the main thread is busy enough, often enough, that each
+  // such wait was stacking into a real, visible delay — the badge still
+  // showing the old photo noticeably after the DOM had already moved on to
+  // the new one. useLayoutEffect runs synchronously in the commit phase
+  // instead, ahead of paint, closing that gap at its source.
+  useLayoutEffect(() => {
     onPhotoChange?.(slide.photo)
   }, [slide.photo, onPhotoChange])
 
@@ -708,30 +650,21 @@ export function AboutUsIntro({
               change, only which element the image sits inside. */}
           <div className="absolute inset-0 overflow-hidden">
             {/* The incoming layer — always at its resting opacity, never
-                dipped. Same ref/className/style/height/transform contract on
-                both branches (only the tag and src/onLoad differ) — the
-                layout and parallax logic above sets
+                dipped, and never waits on anything: SLIDE_PHOTOS is preloaded
+                well before the slideshow's first click (see
+                preloadPhotoTextures in PhotoBackdropCapture), so by the time
+                a real slide change lands here the photo is already sitting
+                in the browser's own cache. Same ref/className/style/height/
+                transform contract on both branches (only the tag and src
+                differ) — the layout and parallax logic above sets
                 imageRef.current.style.height/.transform imperatively and
-                doesn't know or care which element currently holds the ref.
-                It's fine for this to be genuinely underneath a still-loading
-                image for a beat: the outgoing layer below stays opaque over
-                it until this one's load fires, so there's nothing to see
-                through to yet. */}
+                doesn't know or care which element currently holds the ref. */}
             {slide.photo ? (
               <img
                 ref={imageRef}
                 src={slide.photo}
                 alt={slide.alt}
                 draggable={false}
-                // Releases the outgoing snapshot to start dissolving, now
-                // that there's a fully-loaded photo underneath it to reveal.
-                // Only a *trigger* — it no longer feeds the outgoing layer's
-                // own style, so a load that arrives unusually early (a warm
-                // cache, most often) can't collapse the dissolve into a
-                // single no-op style recalculation the way it used to. If it
-                // never arrives at all, beginTransition's own safety timer
-                // starts the fade regardless.
-                onLoad={() => startFadeOut(transitionIdRef.current)}
                 // Full window width, natural height — taller than the
                 // window, which is what leaves something to reveal.
                 // Positioned from the top and moved by transform only, so
@@ -752,40 +685,37 @@ export function AboutUsIntro({
                 doesn't jump before it starts to dissolve. Sits on top of the
                 incoming layer in stacking order purely by coming later in
                 the DOM (both share the same non-positioned/positioned
-                stacking context), no z-index needed. Starts fully opaque and
-                sharp — matching how it already looked the instant before
-                this render — then blurs and fades once fadeOut flips true a
-                painted frame later, revealing the incoming layer that was
-                sitting ready underneath the whole time rather than the bare
-                grid behind it. Keyed on outgoing.id so each dissolve gets a
-                genuinely fresh node (see the outgoing state's own comment).
-                Removed by finishTransition's timer so it never lingers as a
-                fully transparent layer. */}
+                stacking context), no z-index needed. Starts at the same
+                opacity 0.8 the incoming layer rests at — matching how it
+                already looked the instant before this render — and animates
+                straight to 0 the moment it mounts (framer-motion needs no
+                waiting or two-frame gate to do that; see the outgoing
+                state's own comment above for why a raw CSS transition did).
+                onAnimationComplete calls finishTransition once that fade
+                actually lands, which is what unmounts this. */}
             {outgoing && (
               outgoing.photo ? (
-                <img
+                <motion.img
                   key={outgoing.id}
                   src={outgoing.photo}
                   alt={outgoing.alt}
                   draggable={false}
-                  className="pointer-events-none absolute top-0 left-0 w-full max-w-none object-cover transition-[opacity,filter] duration-500 ease-in-out"
-                  style={{
-                    height: outgoing.height,
-                    transform: outgoing.transform,
-                    opacity: fadeOut ? 0 : 0.8,
-                    filter: fadeOut ? 'blur(16px)' : 'blur(0px)',
-                  }}
+                  initial={{ opacity: 0.8 }}
+                  animate={{ opacity: 0 }}
+                  transition={CROSSFADE_TRANSITION}
+                  onAnimationComplete={finishTransition}
+                  className="pointer-events-none absolute top-0 left-0 w-full max-w-none object-cover"
+                  style={{ height: outgoing.height, transform: outgoing.transform }}
                 />
               ) : (
-                <div
+                <motion.div
                   key={outgoing.id}
-                  className="pointer-events-none absolute top-0 left-0 h-full w-full bg-gray-500 transition-[opacity,filter] duration-500 ease-in-out"
-                  style={{
-                    height: outgoing.height,
-                    transform: outgoing.transform,
-                    opacity: fadeOut ? 0 : 1,
-                    filter: fadeOut ? 'blur(16px)' : 'blur(0px)',
-                  }}
+                  initial={{ opacity: 1 }}
+                  animate={{ opacity: 0 }}
+                  transition={CROSSFADE_TRANSITION}
+                  onAnimationComplete={finishTransition}
+                  className="pointer-events-none absolute top-0 left-0 h-full w-full bg-gray-500"
+                  style={{ height: outgoing.height, transform: outgoing.transform }}
                 />
               )
             )}

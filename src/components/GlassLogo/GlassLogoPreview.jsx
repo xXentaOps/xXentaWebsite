@@ -141,6 +141,11 @@ export default function GlassLogoPreview() {
   // the very first event of a gesture, not just the ones after React
   // catches up.
   const lockApiRef = useRef(null)
+  // AboutUsSection's own imperative handle — currently just closeTeam, for
+  // the navbar's "About Us" click below to back out of the Meet the Team
+  // stage without dismissing the whole overlay (see that handle's own
+  // comment in AboutUsSection.jsx).
+  const aboutUsSectionRef = useRef(null)
   useEffect(() => {
     const html = document.documentElement
     const body = document.body
@@ -921,12 +926,15 @@ export default function GlassLogoPreview() {
       <SiteNavbar
         isAboutUsActive={isAboutUsOpen}
         onAboutUsClick={() => {
-          // open()/dismiss() are the single source of truth for both
-          // transitions now — the same two functions the scroll-up/scroll-
-          // down gestures use (see the lock effect above), so a click and a
-          // scroll always produce identical behavior.
+          // Clicking "About Us" is only ever a way *in*, never a way out —
+          // once inside, it backs out of Meet the Team to the last About Us
+          // slide if that stage is open, or does nothing at all if About Us
+          // itself is already showing. Dismissing the whole overlay used to
+          // happen here too (a plain open/closed toggle), which is exactly
+          // what let this link kick a visitor back out to the Hero from
+          // inside the section it's meant to keep them on.
           if (isAboutUsOpen) {
-            lockApiRef.current?.dismiss()
+            aboutUsSectionRef.current?.closeTeam()
           } else {
             lockApiRef.current?.open()
           }
@@ -957,7 +965,12 @@ export default function GlassLogoPreview() {
       <ClientLogoCarousel sectionRef={carouselRef} />
       <BackgroundGlowSection carouselRef={carouselRef} />
       {SHOW_FRAME_RATE && <FrameRateMeter />}
-      <AboutUsSection isOpen={isAboutUsOpen} openScrollComp={openScrollComp} aboutUsProgress={aboutUsProgress} />
+      <AboutUsSection
+        ref={aboutUsSectionRef}
+        isOpen={isAboutUsOpen}
+        openScrollComp={openScrollComp}
+        aboutUsProgress={aboutUsProgress}
+      />
     </>
   )
 }

@@ -29,6 +29,42 @@
 // have to somehow know how much hair, or for Ardie how little, sits above
 // each person's own face-center point). Re-cropping from a new or better
 // group photo — see public/team-photo.jpg — starts from these same numbers.
+//
+// nameIcon: a small glass icon hung beside a member's name in the detail
+// view (see MeetTheTeamGrid/AboutUsSection), chosen to nod at something in
+// their own bio. Optional — omit the field entirely for a member with no
+// icon yet. Fields:
+//   svg          required. The file's basename under public/ (no extension).
+//   viewBoxSize  required. That file's own declared SVG viewBox width —
+//                every icon here comes from a different source with a
+//                different native size, and GlassIcon needs the real one to
+//                keep its extrusion depth reading as the same relative
+//                thickness regardless of which icon is showing.
+//   depthScale   optional, default 1 (no amplification — the same depth
+//                ratio GlassCircle/the plaque use, which reads correctly on
+//                a solid, densely-filled shape). Only the graduation cap
+//                overrides this: its thin arms with empty space between
+//                them read as flat at ratio 1, so it needs real
+//                amplification to show a depth wall at all. Confirmed
+//                directly that applying that same amplification to a solid
+//                shape instead makes *it* read as "super thick" — this is a
+//                per-shape correction, not a per-icon-in-general one.
+//   sizeScale    optional, default 1. A shape that fills its own bounding
+//                box densely reads as visibly bigger than a sparse one even
+//                once both are normalized to the same target size — used to
+//                pull a too-large-looking dense icon back down slightly.
+//   offsetX      optional, default 0. CSS px nudge on the marker's default
+//                flex position (see MeetTheTeamGrid) — for a member whose
+//                two name lines are very different widths, since the
+//                marker's default spot is right of the *whole* (widest-line)
+//                name block.
+//   bevelEnabled optional, default true. False for a source shape where a
+//                thin feature (a narrow connecting line between two wider
+//                shapes) is narrower than the bevel's own inset, which makes
+//                the bevel geometry self-intersect right at that thin spot —
+//                reads as z-fighting/flicker, not fixed by depthScale or
+//                sizeScale since neither touches the bevel's own inset math.
+//                See GlassIcon's own extrudeSettingsFor comment.
 export const TEAM_MEMBERS = [
   {
     id: 'member-1',
@@ -42,6 +78,10 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/jeroen-schilders-59282798/',
+    // sizeScale: computer.svg is a solid, densely-filled shape — at the
+    // same target size as the sparser icons it read as visibly too big.
+    // First guess, meant to be tuned live.
+    nameIcon: { svg: 'computer', viewBoxSize: 24, sizeScale: 0.8 },
     x: 16.3,
     y: 13,
     headTop: 10.5,
@@ -49,11 +89,20 @@ export const TEAM_MEMBERS = [
   },
   {
     id: 'member-2',
-    name: 'Juliana Venturi',
+    name: 'Juliana Müller Venturi',
     role: '[ Role ]',
     bio: ['[ Paragraph — a few lines in their own words, to be added. ]'],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/juliana-muller-venturi/',
+    // sizeScale: same "dense shape reads bigger" correction as computer.svg
+    // above, milder here — went 0.92, then 0.88, then 0.8 chasing "a bit
+    // smaller" each time, then overshot ("a tiny bit bigger again"). Split
+    // the difference between the last two.
+    // offsetX pushes it right, off the default flex-gap spot right against
+    // the name block — asked for directly ("isn't glued to her name").
+    // Positive here (unlike Norma's negative one), since hers needed
+    // pulling left instead. First guess, tune live.
+    nameIcon: { svg: 'canvas', viewBoxSize: 24, sizeScale: 0.84, offsetX: 50 },
     x: 29.2,
     y: 19,
     headTop: 17,
@@ -70,6 +119,7 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/renatevandijken/',
+    nameIcon: { svg: 'communication', viewBoxSize: 72 },
     x: 39,
     y: 14,
     headTop: 10.5,
@@ -82,6 +132,15 @@ export const TEAM_MEMBERS = [
     bio: ['[ Paragraph — a few lines in their own words, to be added. ]'],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/ardie-van-honk-a1054230/',
+    // Swapped from graph.svg (rebuilt once already to fix a glitch, still
+    // not quite right) to document.svg — a solid document-with-folded-
+    // corner shape plus three short rounded-rect "text line" bars, all
+    // reasonably thick, no near-hairline geometry the way the original
+    // graph.svg's diagonal connectors were. viewBoxSize is that file's own
+    // viewBox width (32).
+    // sizeScale: solid, densely-filled shape — same "reads bigger than a
+    // sparse shape at the same target size" correction as the others.
+    nameIcon: { svg: 'document', viewBoxSize: 32, sizeScale: 0.8 },
     x: 51.0,
     y: 12.5,
     headTop: 11,
@@ -99,6 +158,14 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/jeroenkrouwels/',
+    // Graduation cap for his roots as an educational specialist, mentioned
+    // in his own bio above. depthScale: this shape is thin arms (a diamond
+    // outline, a band, a tassel) with a lot of empty space between them —
+    // at the default depth ratio every other icon uses it read as flat, no
+    // depth wall at all. This is the one shape that needs the amplification;
+    // see GlassIcon's own extrudeSettingsFor comment for why it isn't the
+    // default for everyone.
+    nameIcon: { svg: 'graduation-cap', viewBoxSize: 24, depthScale: 4 },
     x: 62.5,
     y: 13,
     headTop: 11.5,
@@ -116,6 +183,14 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/norma-wouters-snell-6116153/',
+    // offsetX pulls the icon left from its default spot (right of her full
+    // name block, which sizes to her much wider "Wouters-Snell" line) back
+    // in toward her shorter first name — asked for directly. Negative CSS
+    // px, a first guess meant to be tuned live rather than treated as final.
+    // sizeScale: shield.svg is a solid, densely-filled shape — same "reads
+    // bigger than a sparse shape at the same target size" correction as
+    // computer.svg/canvas.svg above.
+    nameIcon: { svg: 'shield', viewBoxSize: 16, offsetX: -180, sizeScale: 0.85 },
     x: 75,
     y: 18,
     headTop: 15.8,
@@ -131,6 +206,10 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/arno-wouters/',
+    // sizeScale: cog.svg is a solid, densely-filled shape — same "reads
+    // bigger than a sparse shape at the same target size" correction as
+    // computer.svg/canvas.svg/shield.svg above.
+    nameIcon: { svg: 'cog', viewBoxSize: 72, sizeScale: 0.85 },
     x: 84.5,
     y: 10,
     headTop: 5.3,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { extend, useFrame, useThree } from '@react-three/fiber'
 import { shaderMaterial } from '@react-three/drei'
 import { Color, TextureLoader } from 'three'
@@ -165,93 +165,6 @@ export function preloadPhotoTextures(urls) {
   urls.forEach((url) => loadCachedTexture(url, () => {}))
 }
 
-// How far the blur samples spread, in UV units (the plane's own 0–1 texture
-// space, not world or screen px — so this scales with the photo regardless
-// of how big the badge itself ends up on screen). Picked to roughly match
-// the DOM photo's own blur(16px) over its ~800px-wide window (16/800 = 0.02)
-// — approximate, since UV-space blur doesn't map 1:1 onto a CSS pixel radius
-// the way the DOM's own filter does, but it's the same order of softness.
-const MAX_BLUR_UV = 0.02
-
-// Same shape as BracketBlurMaterial below — a small custom shader rather
-// than a plain meshBasicMaterial — because meshBasicMaterial has no blur
-// lever at all. Without this the outgoing plane could only ever fade
-// (opacity), never soften the way the DOM photo's own
-// transition-[opacity,filter] does, so the two visibly read as two
-// different *kinds* of transition side by side rather than the same one.
-// A real multi-pass separable Gaussian would need its own render target —
-// a lot of machinery for a plane this small and a dissolve this brief — so
-// this is a single-pass 5x5 tap blur instead, weighted with the 1-4-6-4-1
-// Pascal's-triangle row (outer product across both axes) rather than a flat
-// box average: a *uniformly*-weighted box blur has a visibly different
-// character from CSS's own Gaussian filter — flatter, more "smeared" at the
-// edges of the blurred region instead of tapering off — which was part of
-// why this read as a different kind of blur even after the color-space fix
-// below fixed the brightening. This kernel isn't a true Gaussian either, but
-// it tapers the same way one does, which a flat box average never will
-// regardless of sample count.
-const PhotoDissolveMaterial = shaderMaterial(
-  { map: null, color: new Color(WHITE_DIM_COLOR), opacity: 1, blurAmount: 0 },
-  /* glsl */ `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  /* glsl */ `
-    varying vec2 vUv;
-    uniform sampler2D map;
-    uniform vec3 color;
-    uniform float opacity;
-    uniform float blurAmount;
-
-    // Cheap sRGB<->linear approximation (gamma 2.2) — texture2D returns
-    // whatever's in the JPEG's own gamma-encoded space, and averaging those
-    // values directly (the first version of this shader) systematically
-    // biases bright: gamma encoding compresses highlights, so a plain mean
-    // of two gamma values reads brighter than the true mean of the colors
-    // they represent. Barely visible per sample, but stacks up over a 5x5
-    // box blur on high-contrast photo content (dark clothing against a
-    // bright studio backdrop, here) into a visible whitening — reported as
-    // a "white flash" mid-transition, and part of why this blur read as a
-    // different *kind* of blur than the DOM photo's own CSS filter, which
-    // the browser already blurs in the correct space. Decoding to linear
-    // before averaging and re-encoding after fixes the math without
-    // changing anything at blurAmount 0 — a single sample decoded then
-    // immediately re-encoded is the same value it always was (mod float
-    // rounding) — since nothing was wrong there to begin with; this only
-    // touches what happens while actually blurred.
-    vec3 srgbToLinear(vec3 c) { return pow(c, vec3(2.2)); }
-    vec3 linearToSrgb(vec3 c) { return pow(c, vec3(1.0 / 2.2)); }
-
-    // Pascal's-triangle row for a 5-tap 1D kernel (1,4,6,4,1) — the same
-    // weights a real 5-tap Gaussian approximation uses, indexed by tap
-    // offset (-2..2).
-    float tapWeight(int i) {
-      if (i == 0) return 6.0;
-      if (i == -1 || i == 1) return 4.0;
-      return 1.0;
-    }
-
-    void main() {
-      vec4 sum = vec4(0.0);
-      float total = 0.0;
-      for (int x = -2; x <= 2; x++) {
-        for (int y = -2; y <= 2; y++) {
-          float weight = tapWeight(x) * tapWeight(y);
-          vec4 s = texture2D(map, vUv + vec2(float(x), float(y)) * blurAmount);
-          sum += vec4(srgbToLinear(s.rgb), s.a) * weight;
-          total += weight;
-        }
-      }
-      vec4 avg = sum / total;
-      gl_FragColor = vec4(linearToSrgb(avg.rgb) * color, avg.a * opacity);
-    }
-  `,
-)
-extend({ PhotoDissolveMaterial })
-
 // A plain textured plane holding the team photo, sized and placed to land
 // exactly where the real DOM photo paints — so refracting it reads as the
 // badge sitting on the actual photo, not on a placeholder.
@@ -278,6 +191,35 @@ export function PhotoBackdropCapture({ domRect, src }) {
   const fadeStartRef = useRef(0)
   const currentMeshRef = useRef(null)
   const outgoingMeshRef = useRef(null)
+  // Sets each mesh's capture-only layer the instant React attaches it,
+  // rather than in a useEffect keyed on current/outgoing. An effect runs
+  // after commit — a real gap on this canvas, since it's the same one
+  // GoogleCloudGlassBadge renders normally into: a freshly-mounted mesh
+  // sits on the *default* layer for however long that gap lasts, which
+  // means it's actually visible here for a frame, as a flat undistorted
+  // rectangle popping in over the glass, before the effect catches up and
+  // moves it onto CAPTURE_LAYER (invisible except through the badge's own
+  // refraction). outgoingMeshRef's mesh is the one this actually bit: it
+  // mounts fresh every time a new dissolve starts, and rapid back-and-forth
+  // clicking starts a lot of those in quick succession, chaining fades
+  // (see startFade/pendingRef below) far more often than clicking one
+  // direction repeatedly does — reported as the badge "glitching" on rapid
+  // direction changes specifically. A callback ref fires synchronously
+  // while React attaches it, before anything can paint, closing that gap.
+  // useCallback (stable identity) rather than a plain inline function — a
+  // callback ref that changes identity every render gets detached and
+  // reattached by React on every one of them (null, then the element again)
+  // even though the underlying mesh never actually unmounts. Harmless here
+  // either way since it's synchronous within the same commit, but there's
+  // no reason to churn it needlessly.
+  const setCurrentMesh = useCallback((mesh) => {
+    currentMeshRef.current = mesh
+    mesh?.layers.set(CAPTURE_LAYER)
+  }, [])
+  const setOutgoingMesh = useCallback((mesh) => {
+    outgoingMeshRef.current = mesh
+    mesh?.layers.set(CAPTURE_LAYER)
+  }, [])
   // The in-flight fade's completion timer, and the authority on whether a
   // fade is currently playing. A timer handle rather than a mirror of the
   // `outgoing` state, deliberately: state doesn't commit until React
@@ -348,7 +290,16 @@ export function PhotoBackdropCapture({ domRect, src }) {
     fadeTimerRef.current = setTimeout(finishFade, CROSSFADE_MS + 80)
   }
 
-  useEffect(() => {
+  // useLayoutEffect, not useEffect — see AboutUsIntro's own matching
+  // onPhotoChange effect for why: this is the second (and last) hop in the
+  // relay that gets a new slide's photo from the DOM's own click handler to
+  // this component's fade. A passive effect waits for the browser to judge
+  // the main thread idle enough to run it; on this dev setup's software
+  // WebGL fallback that idle window can be scarce, and every hop that waits
+  // for it stacks into real, visible delay — the badge still showing the
+  // previous photo well after the DOM had already moved on. This runs
+  // synchronously in the commit phase instead, ahead of paint.
+  useLayoutEffect(() => {
     let cancelled = false
     loadCachedTexture(target, (texture) => {
       if (cancelled) return
@@ -377,22 +328,13 @@ export function PhotoBackdropCapture({ domRect, src }) {
     if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
   }, [])
 
-  useEffect(() => {
-    currentMeshRef.current?.layers.set(CAPTURE_LAYER)
-  }, [current])
-  useEffect(() => {
-    outgoingMeshRef.current?.layers.set(CAPTURE_LAYER)
-  }, [outgoing])
-
-  // Pure animation — writes two material uniforms and nothing else. No
-  // React state is touched from inside the frame loop at all any more (see
-  // finishFade above for what used to be here, and why that mattered).
+  // Pure animation — writes one material uniform and nothing else. No React
+  // state is touched from inside the frame loop at all (see finishFade above
+  // for what used to be here, and why that mattered).
   useFrame(() => {
     if (!outgoing || !outgoingMeshRef.current) return
     const t = Math.min(1, (performance.now() - fadeStartRef.current) / CROSSFADE_MS)
-    const eased = easeInOut(t)
-    outgoingMeshRef.current.material.opacity = 1 - eased
-    outgoingMeshRef.current.material.blurAmount = eased * MAX_BLUR_UV
+    outgoingMeshRef.current.material.opacity = 1 - easeInOut(t)
   })
 
   const world = useDomRectWorld(domRect)
@@ -400,7 +342,7 @@ export function PhotoBackdropCapture({ domRect, src }) {
 
   return (
     <>
-      <mesh ref={currentMeshRef} position={[world.x, world.y, world.z]} raycast={() => null}>
+      <mesh ref={setCurrentMesh} position={[world.x, world.y, world.z]} raycast={() => null}>
         <planeGeometry args={[world.width, world.height]} />
         <meshBasicMaterial map={current.texture} color={WHITE_DIM_COLOR} toneMapped={false} />
       </mesh>
@@ -408,22 +350,29 @@ export function PhotoBackdropCapture({ domRect, src }) {
         // renderOrder + depthTest (rather than leaning on z position) is
         // what actually guarantees this draws on top of current — both
         // planes share the same world.z, so any stacking that depended on
-        // depth alone would be a coin flip on which one wins.
+        // depth alone would be a coin flip on which one wins. Plain
+        // meshBasicMaterial, same as the current plane's own — the outgoing
+        // photo just dissolves via opacity (see the useFrame above), the
+        // same plain-crossfade shape MeetTheTeamGrid's own photo swap uses,
+        // rather than a custom per-pixel blur shader trying to match the DOM
+        // photo's CSS blur+fade exactly. Viewed through the badge's own
+        // refractive, already-softened glass, that extra blur wasn't doing
+        // visible work worth its GPU cost (25 texture samples a pixel) or
+        // the shader code it took to keep it sRGB-correct.
         <mesh
-          ref={outgoingMeshRef}
+          ref={setOutgoingMesh}
           position={[world.x, world.y, world.z]}
           renderOrder={1}
           raycast={() => null}
         >
           <planeGeometry args={[world.width, world.height]} />
-          <photoDissolveMaterial
+          <meshBasicMaterial
             map={outgoing.texture}
             color={WHITE_DIM_COLOR}
             toneMapped={false}
             transparent
             depthTest={false}
             opacity={1}
-            blurAmount={0}
           />
         </mesh>
       )}
@@ -492,10 +441,17 @@ extend({ BracketBlurMaterial })
 export function CornerBracketCapture({ windowRect }) {
   const bottomRef = useRef(null)
   const rightRef = useRef(null)
-
-  useEffect(() => {
-    bottomRef.current?.layers.set(CAPTURE_LAYER)
-    rightRef.current?.layers.set(CAPTURE_LAYER)
+  // Callback refs, not useEffect — see the matching ones in
+  // PhotoBackdropCapture above for why setting the layer at attach time
+  // (rather than after commit) is what actually keeps these off the
+  // default, directly-visible layer with no gap.
+  const setBottomMesh = useCallback((mesh) => {
+    bottomRef.current = mesh
+    mesh?.layers.set(CAPTURE_LAYER)
+  }, [])
+  const setRightMesh = useCallback((mesh) => {
+    rightRef.current = mesh
+    mesh?.layers.set(CAPTURE_LAYER)
   }, [])
 
   const SIZE = 40
@@ -540,11 +496,11 @@ export function CornerBracketCapture({ windowRect }) {
 
   return (
     <>
-      <mesh ref={bottomRef} position={[bottomBar.x, bottomBar.y, bottomBar.z]} raycast={() => null}>
+      <mesh ref={setBottomMesh} position={[bottomBar.x, bottomBar.y, bottomBar.z]} raycast={() => null}>
         <planeGeometry args={[bottomBar.width, bottomBar.height]} />
         <bracketBlurMaterial color={BRACKET_COLOR} transparent toneMapped={false} />
       </mesh>
-      <mesh ref={rightRef} position={[rightBar.x, rightBar.y, rightBar.z]} raycast={() => null}>
+      <mesh ref={setRightMesh} position={[rightBar.x, rightBar.y, rightBar.z]} raycast={() => null}>
         <planeGeometry args={[rightBar.width, rightBar.height]} />
         <bracketBlurMaterial color={BRACKET_COLOR} transparent toneMapped={false} />
       </mesh>
