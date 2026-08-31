@@ -17,6 +17,11 @@
    font-medium/font-normal/font-bold were all silently collapsing to
    whichever of 200/300 was closest with no real file to back them. */
 @import "@fontsource/plus-jakarta-sans/500.css";
+/* 700 — the chat showcase's character names are specified as true Bold, and
+   without the file loaded `font-bold` has exactly the same non-effect the
+   300/400/500 weights above were each added to fix: the browser silently
+   renders the nearest weight it actually has and the class does nothing. */
+@import "@fontsource/plus-jakarta-sans/700.css";
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', sans-serif;
@@ -130,6 +135,42 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* The chat showcase's input caret. step-end rather than a smooth fade — a
+   real text caret snaps on and off, and easing it reads as a pulsing light
+   sitting in the box instead. The element carrying this animation is nested
+   inside the one framer-motion drives (see InputBar): a running CSS animation
+   on `opacity` wins over an inline value written to that same property, so
+   the scroll-driven visibility and the blink have to be on separate
+   elements. */
+@keyframes caretBlink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The three dots of a character's typing indicator, staggered by an inline
+   animation-delay per dot. The one thing in this section that runs on real
+   time rather than on scroll position, deliberately — it's the cue that the
+   other side is composing a reply *now*, which a dot that only moves while
+   the visitor scrolls cannot convey. */
+@keyframes typingDot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 0.9;
+    transform: translateY(-2px);
   }
 }
 

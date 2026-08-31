@@ -352,6 +352,11 @@ export function GridPlane({
   // loop below copies it straight into the uniform instead, the same
   // write-a-ref/read-it-next-frame handoff gridMetricsRef already uses.
   xPhaseShiftCellsRef,
+  // Likewise a ref, for the same reason: BackgroundGlowSection fades its one
+  // highlighted edge out as the section pins and the chat takes the screen,
+  // and that fade is driven from scroll position every frame. Absent (every
+  // other caller), the uniform keeps EDGE_STYLE's own opacity untouched.
+  edgeOpacityRef,
   buttonColumnLeftUV,
   buttonColumnRightUV,
   buttonBottomUV,
@@ -386,6 +391,10 @@ export function GridPlane({
 
     if (xPhaseShiftCellsRef) {
       material.uniforms.uXPhaseShiftCells.value = xPhaseShiftCellsRef.current
+    }
+
+    if (edgeOpacityRef) {
+      material.uniforms.uEdgeOpacity.value = EDGE_STYLE.opacity * edgeOpacityRef.current
     }
 
     if (!buttonsEnabled) return

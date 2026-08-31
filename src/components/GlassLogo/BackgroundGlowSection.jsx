@@ -1,8 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Html } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
+import { useScroll, useTransform } from 'framer-motion'
 import { MathUtils } from 'three'
 import { GridPlane } from './BackgroundGrid'
+import { CHAT_SCROLL_VH, CHAT_TIMELINE } from './chatShowcaseScript'
+import { ChatShowcase } from './ChatShowcase'
 import { DIRECT_STYLE, EDGE_STYLE, OVERSCALE, THROUGH_GLASS_STYLE } from './gridConstants'
 import { pageMarginPx } from './pageMargin'
 import { GradientBlob } from './GradientBlob'
@@ -55,6 +58,26 @@ import { useSeamlessGrid } from './useSeamlessGrid'
 // implausibly large" (too close to center) — see finalZoomScale.
 const EDGE_COLUMN_FROM_LEFT = 3
 
+// How much of the grid plane's own spare overscan the slow drift below is
+// allowed to spend.
+//
+// Once this section pins, the grid stops moving with the page entirely — it
+// is a sticky, screen-sized canvas — so without something driving it, it
+// would sit frozen for the whole chat sequence. What's wanted instead is for
+// it to keep going, just far slower than the page it's behind. Moving the
+// whole scaled group (rather than the shader's own phase) is what keeps the
+// highlighted edge and the callout beside it attached to the exact cells they
+// belong to, which a phase shift would slide the lines out from under.
+//
+// The cost of moving a finite plane is that it has a finite amount of
+// overscan to move *within*: the plane is OVERSCALE wider/taller than the
+// screen and then grown again by finalZoomScale, and the drift may not spend
+// more of that spare than exists, or the pattern's own edge comes into view.
+// So the budget is derived from the real slack at the real zoom (see
+// driftWorld) rather than being a picked number that happens to be safe at
+// the viewport it was tuned on.
+const DRIFT_SLACK_FRACTION = 0.7
+
 // Zero velocity at both ends — same reasoning as this piece's other
 // smoothstepEase duplicates (see BackgroundGrid/HeroTitle): a linear zoom
 // tied directly to scroll position reads as mechanical, while easing both
@@ -85,7 +108,7 @@ function smoothstepEase(t) {
 //    full screen, rather than each canvas centering its own content
 //    independently. See yPhaseShiftCells and blobY below for the actual
 //    derivation.
-function SeamlessBackdrop({ carouselRef, isVisibleRef }) {
+function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef }) {
   // screenOffset 1 — this section continues the pattern one screen *below*
   // the hero (see useSeamlessGrid for the shared derivation of
   // yPhaseShiftCells/blobY this used to do inline).
@@ -95,6 +118,15 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef }) {
   // softer shape untouched keeps it reading as the stable backdrop the grid
   // zooms *in front of*) so finalZoomScale can scale them as one unit.
   const gridGroupRef = useRef(null)
+  // The callout — the highlighted blue edge and the copy beside it — belongs
+  // to this section's *first* screen, the one that's already there before
+  // anything pins. Once the chat takes over the screen it has to go, or it
+  // sits frozen behind a chat window for the rest of the section. Both halves
+  // fade on the same number so they leave together: a plain DOM ref for the
+  // copy and a uniform ref for the edge (see edgeOpacityRef in GridPlane),
+  // neither of them React state, since this changes on every scroll frame.
+  const calloutRef = useRef(null)
+  const edgeOpacityRef = useRef(1)
 
   // Left edge of column EDGE_COLUMN_FROM_LEFT — same formula BackgroundGrid
   // uses for its own buttons' left/right columns (buttonLeftX there), just
@@ -125,6 +157,14 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef }) {
   // what actually lines up the stroke's visible edge, not its midpoint.
   const edgeHalfWidthWorld = EDGE_STYLE.halfWidthPx * (gridWidth / size.width)
   const finalZoomScale = targetEdgeLeftX / (edgeX - edgeHalfWidthWorld)
+  // How far the grid may drift upward across the pinned phase, in world
+  // units — see DRIFT_SLACK_FRACTION. The plane covers gridHeight × OVERSCALE
+  // × finalZoomScale once fully zoomed, of which gridHeight is on screen, so
+  // half the difference is the spare above (and below) the visible area.
+  // Math.max guards the case where that difference is negative, which is what
+  // a viewport too narrow for finalZoomScale to come out above 1 would
+  // produce: no drift at all rather than a drift the wrong way.
+  const driftWorld = Math.max(0, ((gridHeight * (OVERSCALE * finalZoomScale - 1)) / 2) * DRIFT_SLACK_FRACTION)
   // The cell straddling true vertical center (world Y = 0), found by
   // solving GridPatternMaterial's own cell.y fract() for its nearest
   // boundary at or below Y = 0 — the same "worldY = cellSize×(N - 0.5 -
@@ -176,6 +216,23 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef }) {
     // is unusually large (a fast flick, a jump-to-anchor).
     const nextScale = MathUtils.damp(group.scale.x, targetScale, 8, delta)
     group.scale.set(nextScale, nextScale, 1)
+
+    // The pinned phase, from here down. position is applied in the parent's
+    // own space, before this group's scale, so the drift is unaffected by
+    // whatever the zoom is currently doing — the two compose rather than
+    // multiply. Positive Y is up: the page has stopped moving the background
+    // for us, so this keeps it going in the direction it was already going,
+    // just far slower than the scroll driving it.
+    const pinned = pinnedProgressRef.current
+    group.position.y = driftWorld * pinned
+
+    // ...and the callout crossing out as the chat crosses in, over the chat's
+    // own entry window so neither waits for the other. smoothstepEase for the
+    // same reason the zoom above uses it: a fade tied linearly to scroll
+    // position reads as mechanical.
+    const calloutOpacity = 1 - smoothstepEase(MathUtils.clamp(pinned / CHAT_TIMELINE.entryEnd, 0, 1))
+    edgeOpacityRef.current = calloutOpacity
+    if (calloutRef.current) calloutRef.current.style.opacity = calloutOpacity
   })
 
   return (
@@ -213,6 +270,7 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef }) {
           edgeXUV={edgeXUV}
           edgeBottomUV={edgeBottomUV}
           edgeTopUV={edgeTopUV}
+          edgeOpacityRef={edgeOpacityRef}
         />
 
         {/* Placeholder copy sitting beside the highlighted edge — inside
@@ -236,13 +294,23 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef }) {
               container rather than its own text, collapsing to the single
               longest word's width no matter how generous max-width was set.
               An explicit width sidesteps that shrink-to-fit calculation
-              entirely instead of trying to bound it. */}
-          <p className="w-[300px] animate-[fadeInUp_1s_ease-out_both] text-xs leading-loose font-extralight text-white/40">
-            Placeholder copy for this callout — nothing to read here yet, just holding the spot until real content is ready. This block exists purely to
-            check how a longer run of text sits next to the highlighted edge: how it wraps, how much vertical room it takes up, and whether the spacing
-            still feels right once real copy replaces it. None of this is meant to be read closely — it's here to test layout, not to say anything in
-            particular.
-          </p>
+              entirely instead of trying to bound it.
+
+              Two elements rather than one, and not for layout: the scroll-
+              driven fade is written to this wrapper's inline opacity every
+              frame, while the first-load fadeInUp stays on the paragraph
+              itself. They cannot share an element — a CSS animation with
+              fill-mode `both` keeps applying its final `opacity: 1` after it
+              finishes, and an animation's value beats an inline one, so the
+              fade would have silently done nothing at all. */}
+          <div ref={calloutRef} className="w-[300px]">
+            <p className="animate-[fadeInUp_1s_ease-out_both] text-xs leading-loose font-extralight text-white/40">
+              Placeholder copy for this callout — nothing to read here yet, just holding the spot until real content is ready. This block exists purely
+              to check how a longer run of text sits next to the highlighted edge: how it wraps, how much vertical room it takes up, and whether the
+              spacing still feels right once real copy replaces it. None of this is meant to be read closely — it's here to test layout, not to say
+              anything in particular.
+            </p>
+          </div>
         </Html>
       </group>
     </>
@@ -264,8 +332,88 @@ function SceneRenderGate({ isVisibleRef }) {
   return null
 }
 
+// How much of this section is the original, unpinned placeholder screen. The
+// rest — CHAT_SCROLL_VH, derived from the script itself rather than picked —
+// is scroll spent standing still while the chat plays out.
+const INTRO_VH = 100
+const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH
+
+// 0 the instant the sticky stage pins (this section's top reaching the top of
+// the screen, which is also the exact moment the grid zoom and the callout
+// finish arriving — see the carousel-driven progress above, which hits 1 on
+// that same frame), 1 the instant it unpins.
+//
+// Built from scrollY and the section's own cached offset rather than
+// useScroll's own `target`/`offset` element tracking. Not a style preference:
+// that combination was tried on SiteFooter, against a container with a sticky
+// child, and put its window in the wrong place badly enough to need a live
+// debug overlay to find — see that file's own note. Arithmetic against one
+// measured number is a thing that can be reasoned about from the outside.
+function usePinnedProgress(sectionRef, carouselRef) {
+  const { scrollY } = useScroll()
+
+  // Measured on mount and whenever anything could have moved this section,
+  // then read per-frame as a plain property — never measured inside the
+  // transform below. getBoundingClientRect forces a synchronous layout
+  // reflow, and doing that on every scroll frame is exactly the main-thread
+  // stall the page's wheel-gesture classifier reads event timing through
+  // (see SiteFooter's dimsRef for the longer version of this same argument).
+  const rangeRef = useRef({ start: 0, distance: 1 })
+  useLayoutEffect(() => {
+    const section = sectionRef.current
+    if (!section) return
+    function measure() {
+      rangeRef.current = {
+        start: section.getBoundingClientRect().top + window.scrollY,
+        // The sticky stage is one screen tall inside a section SECTION_VH
+        // tall, so it stays pinned for exactly the difference — which is
+        // CHAT_SCROLL_VH, by construction.
+        distance: Math.max(1, window.innerHeight * (CHAT_SCROLL_VH / 100)),
+      }
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    // Where this section *starts* is the height of everything above it, and
+    // a resize listener alone would miss that changing on its own — a web
+    // font arriving late and re-flowing the carousel's wordmarks, most
+    // realistically. The hero above is a flat h-screen, so the carousel is
+    // the only variable height between the top of the document and here;
+    // watching it directly catches every way it can change without having to
+    // guess at causes. (Not the document element: index.css gives html/body
+    // an explicit height: 100%, so their boxes are one viewport tall no
+    // matter how long the page is, and a ResizeObserver on either reports
+    // nothing but viewport resizes the listener above already covers.)
+    const carousel = carouselRef?.current
+    const observer = carousel ? new ResizeObserver(measure) : null
+    if (carousel) observer.observe(carousel)
+    return () => {
+      window.removeEventListener('resize', measure)
+      observer?.disconnect()
+    }
+  }, [sectionRef, carouselRef])
+
+  const progress = useTransform(scrollY, (latest) => {
+    const { start, distance } = rangeRef.current
+    return MathUtils.clamp((latest - start) / distance, 0, 1)
+  })
+
+  // The same number again, as a plain ref, for the WebGL side — useFrame runs
+  // outside React and wants a property read, not a subscription. One source,
+  // two readers, rather than two independent copies of the arithmetic.
+  const progressRef = useRef(0)
+  useEffect(() => {
+    progressRef.current = progress.get()
+    return progress.on('change', (value) => {
+      progressRef.current = value
+    })
+  }, [progress])
+
+  return { progress, progressRef }
+}
+
 export function BackgroundGlowSection({ carouselRef }) {
   const sectionRef = useRef(null)
+  const { progress, progressRef } = usePinnedProgress(sectionRef, carouselRef)
   // Whether this section is painting anywhere on screen. Until this existed
   // it simply never stopped: GlassLogoHero and AboutUsSection each gate their
   // own canvas on exactly this, and this one — a full-screen canvas a whole
@@ -289,15 +437,33 @@ export function BackgroundGlowSection({ carouselRef }) {
   }, [])
 
   return (
-    <section ref={sectionRef} className="relative h-screen w-full overflow-hidden bg-[#0F172B]">
-      {/* Capped the same way GlassLogoHero's own canvas is — left uncapped,
-          this renders at the browser's raw devicePixelRatio, which on a 3x
-          phone/laptop panel is a lot of extra fill rate for a plain grid +
-          gradient with no fine detail that benefits from it. */}
-      <Canvas dpr={[1, 2]} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
-        <SeamlessBackdrop carouselRef={carouselRef} isVisibleRef={isVisibleRef} />
-        <SceneRenderGate isVisibleRef={isVisibleRef} />
-      </Canvas>
+    // No overflow-hidden here, unlike the h-screen version this replaces —
+    // that would make this box a scrollport, and a sticky child sticks to its
+    // nearest scrolling ancestor, so the stage below would have stuck to a
+    // container that never scrolls (i.e. not stuck at all). The clipping
+    // moves onto the stage itself, which is the only thing that needed it.
+    <section ref={sectionRef} className="relative w-full bg-[#0F172B]" style={{ height: `${SECTION_VH}vh` }}>
+      {/* The pinned stage. Exactly one screen tall inside a taller section,
+          which is the whole mechanism: it rides up with the page until its
+          top reaches the top of the screen, holds there for the section's
+          remaining height, then releases and scrolls away with it — no
+          scroll listener, no transform, no unpin logic to get wrong. */}
+      <div className="sticky top-0 h-screen w-full overflow-hidden">
+        {/* Capped the same way GlassLogoHero's own canvas is — left uncapped,
+            this renders at the browser's raw devicePixelRatio, which on a 3x
+            phone/laptop panel is a lot of extra fill rate for a plain grid +
+            gradient with no fine detail that benefits from it. */}
+        <Canvas dpr={[1, 2]} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
+          <SeamlessBackdrop carouselRef={carouselRef} isVisibleRef={isVisibleRef} pinnedProgressRef={progressRef} />
+          <SceneRenderGate isVisibleRef={isVisibleRef} />
+        </Canvas>
+        {/* Plain DOM over the canvas rather than more drei Html: this is a
+            text-heavy interface with real wrapping, masks and hairlines, and
+            nothing about it wants to be in the 3D scene. It sits after the
+            Canvas in tree order, so it paints over both the grid and the
+            callout's own Html without needing a z-index. */}
+        <ChatShowcase progress={progress} />
+      </div>
     </section>
   )
 }
