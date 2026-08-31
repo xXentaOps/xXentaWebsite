@@ -83,8 +83,16 @@ function rgbaString(rgb, alpha) {
 // #314158"), so that same hex stands in for both roles there, the same way
 // angry's own two values (also #FB2C36, at 20% for both "the pill" and "the
 // pill background") were given explicitly.
+//
+// #314158 itself was reported back as still too low-contrast — the pill's
+// own plate/border at 10%/20% opacity of a dark slate barely lifts off the
+// already-darkened dim backdrop, unlike blue/red's own vivid hues at the
+// same opacities. Moved to MUTED, the same lighter grey MARK_DIM below was
+// already given for the identical reason, so pill and glyph read at a
+// consistent, actually-visible weight together rather than the glyph alone
+// standing out against a plate still too dim to see.
 const ACCENT_LIT = hexToRgb('#2B7FFF')
-const ACCENT_DIM = hexToRgb('#314158')
+const ACCENT_DIM = hexToRgb(MUTED)
 const ACCENT_ANGRY = hexToRgb('#FB2C36')
 const MARK_LIT = hexToRgb('#51A2FF')
 // A solid glyph in the same #314158 as its own 20%-opacity plate (ACCENT_DIM
@@ -415,7 +423,10 @@ function ChatHeader({ selection, progress }) {
         {/* The rule between the room and the people in it. ml-1 on top of the
             row's own 4px gap is what makes it 8px clear of the pill on its
             left while staying 4px + the next entry's own 12px padding — 16px
-            — from Dr. Sam's picture on its right, both as specified. */}
+            — from Dr. Sam's picture on its right, both as specified. Still
+            his picture even though his own private channel is never opened
+            in-script anymore — his header entry stays regardless, see
+            CHANNEL_ORDER's own comment. */}
         <div aria-hidden className="ml-1 h-5 w-px shrink-0" style={{ backgroundColor: SEPARATOR }} />
         {CHANNEL_ORDER.slice(1).map((id, i) => (
           <HeaderEntry

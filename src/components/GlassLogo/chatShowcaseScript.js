@@ -49,6 +49,13 @@ export const SPEAKERS = {
 
 // Left to right in the header, and the order the selection pill slides
 // along. The room always sits first, with the separator drawn after it.
+// Sam's own entry stays even though nothing in CHAT_SCRIPT ever switches
+// into it anymore (his private aside was cut for length, see CHAT_SCRIPT's
+// own history) — asked for directly, kept in the header regardless, simply
+// never selected: chatSelectionAt only ever eases the pill toward a
+// channel some segment actually opens, so an entry with no segment of its
+// own just sits there at rest the whole time, same as it would before the
+// visitor ever reaches the first channel that *is* used.
 export const CHANNEL_ORDER = [ROOM.id, 'sam', 'carla', 'peter']
 
 // The brief, sitting under the header from the moment the section pins and
@@ -109,13 +116,6 @@ export const CHAT_SCRIPT = [
   },
   { channel: 'room', from: 'sam', text: "ECG's up — ST elevation in II, III and aVF. Inferior STEMI." },
   { channel: 'room', from: 'carla', text: "That's my dad. Is he going to be okay?" },
-
-  { channel: 'sam', from: 'user', text: 'Right-sided leads before anyone reaches for nitrates.' },
-  {
-    channel: 'sam',
-    from: 'sam',
-    text: 'V4R positive — right ventricular involvement. Nitrates would have bottomed him out. Cath lab is paged.',
-  },
 
   { channel: 'peter', from: 'user', text: 'Peter, can you hear me? Squeeze my hand.', mood: 'dim' },
 

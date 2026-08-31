@@ -109,6 +109,17 @@ const ROW_OFFSET_CELLS_BOTTOM = 4
 // two-row version of this list cycled through) — a plain cell count rather
 // than a 'top'/'bottom' enum specifically so a callout can land somewhere
 // between the two, not just one or the other (see rowGeometryAt).
+//
+// The five trigger indices below are segments[1..4] — every segment the
+// Floren Showcase's own script has left, in order — not segments[1,2,4,5]
+// the way this list read before: cutting the private aside with Dr. Sam for
+// length (asked for directly, "the script is too long") removed a whole
+// segment, which shifted every later one back by one. Left as the old
+// indices, segments[5] would have been undefined outright (only five
+// segments exist now, 0-4) and segments[4] would have silently retargeted
+// the last callout onto Carla's own arc instead of Peter waking — this
+// spells out the new mapping explicitly rather than leaving that shift
+// implicit in numbers that used to mean something else.
 const CALLOUTS = [
   {
     column: 'A',
@@ -119,25 +130,34 @@ const CALLOUTS = [
   {
     column: 'B',
     rowOffset: 0,
+    // Peter's own dim check, now — the private aside used to be Dr. Sam's,
+    // but this text was always generic enough ("someone," not "Dr. Sam") to
+    // land just as well on any pulled-aside, one-on-one thread.
     trigger: CHAT_TIMELINE.segments[1],
     text: 'Pull someone aside and the conversation is theirs to keep — private, and different every time.',
   },
   {
     column: 'A',
     rowOffset: ROW_OFFSET_CELLS_BOTTOM,
+    // The code sequence — compressions, then the shock. Reads at least as
+    // well here as it did on Peter's own dim check (its previous trigger,
+    // now segments[1] above): "miss the moment, and it shows" fits a code's
+    // own urgency if anything more than a quiet bedside check did.
     trigger: CHAT_TIMELINE.segments[2],
     text: "The case reacts to what's actually happening to the patient, not to a script. Miss the moment, and it shows.",
   },
   {
     column: 'A',
     rowOffset: 2,
-    trigger: CHAT_TIMELINE.segments[4],
+    // Peter waking up.
+    trigger: CHAT_TIMELINE.segments[3],
     text: 'Every character in the room, and the room itself, is running live on Gemini.',
   },
   {
     column: 'B',
     rowOffset: ROW_OFFSET_CELLS_BOTTOM,
-    trigger: CHAT_TIMELINE.segments[5],
+    // Carla's own arc — pulled aside angry, then calmed.
+    trigger: CHAT_TIMELINE.segments[4],
     text: 'Academic skill is only half of it. Calming a terrified relative is a skill too, and nothing here is graded — only practiced.',
   },
 ]
@@ -250,6 +270,40 @@ const TEXT_RIGHT_MARGIN_PX = 6
 // a headline.
 const SCREEN_EDGE_MARGIN_PX = 20
 
+// The same two lit squares relabel in place, rather than a second pair
+// living further along the grid — asked for directly, after an earlier pass
+// tried the second-pair version. "Exams & Syllabi", left-justified, is what
+// the lockup becomes; SIM_TEXT/right-justified is what it still is at rest.
+const EXAMS_TEXT = 'Exams & Syllabi'
+// Longer than SIM_TEXT and includes a space and an ampersand — both render
+// narrower than a typical letter, which this same-register-per-character
+// estimate doesn't know to discount. That only ever makes the estimate
+// *more* conservative (a bigger assumed width than the real one), which is
+// the same safe direction SIM_AVG_CHAR_EM's own estimate already errs in.
+const EXAMS_AVG_CHAR_EM = 0.6
+// The gap kept between the squares' own left edge and the incoming lockup's
+// own left edge, once it's left-justified — TEXT_RIGHT_MARGIN_PX's own
+// register (6) reads fine on the *right*, where safeTextRightX already keeps
+// real distance from the true screen edge on top of it, but with nothing
+// else backing it up here once the squares sit flush against that edge
+// themselves, 6px alone read as the text glued right to it. Bumped up to
+// SCREEN_EDGE_MARGIN_PX's own register instead — a real, deliberate margin
+// off an edge, not a hairline gap off a neighbouring square.
+const EXAMS_TEXT_LEFT_MARGIN_PX = 24
+// How much world space the squares' own slide spends catching up to its
+// target each frame — gentler than the zoom's own lambda (8), appropriate
+// for a slower, more deliberate motion than the zoom's.
+const PAN_LAMBDA = 6
+// How much of the pan's own 0..1 the "previous page" fade-outs spend —
+// shared between the chat UI's own opacity (a DOM motion value, see
+// chatOpacity in BackgroundGlowSection) and the active callout's (a WebGL
+// per-frame write, see the frame loop below), so the two fade out together
+// rather than the callout lingering after the chat itself is already gone,
+// or vice versa. Well short of 1 — both should be long gone before the
+// squares finish landing on the second lockup, not still dissolving as it
+// arrives.
+const PAN_FADE_END = 0.3
+
 // Zero velocity at both ends — same reasoning as this piece's other
 // smoothstepEase duplicates (see BackgroundGrid/HeroTitle): a linear zoom
 // tied directly to scroll position reads as mechanical, while easing both
@@ -302,7 +356,7 @@ function safeCellsBelowCenter(preferredCells, safeFraction, gridHeight, finalZoo
 //    full screen, rather than each canvas centering its own content
 //    independently. See yPhaseShiftCells and blobY below for the actual
 //    derivation.
-function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef, angryRef }) {
+function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panProgressRef, dimRef, angryRef }) {
   // screenOffset 1 — this section continues the pattern one screen *below*
   // the hero (see useSeamlessGrid for the shared derivation of
   // yPhaseShiftCells/blobY this used to do inline).
@@ -312,6 +366,14 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
   // softer shape untouched keeps it reading as the stable backdrop the grid
   // zooms *in front of*) so finalZoomScale can scale them as one unit.
   const gridGroupRef = useRef(null)
+  // A sibling of gridGroupRef, not a child of it — the callouts render here
+  // instead so the squares' own slide (see panWorldDistance) doesn't carry
+  // them along with it. Reported directly, after the squares' own pan
+  // shipped: "the 'Academic skill is only half of it' text shouldn't follow
+  // along." Mirrors gridGroupRef's own scale and Y-drift every frame (so it
+  // still reads as sitting on the same grid, at the same zoom, everywhere
+  // else) but never receives the X pan gridGroupRef itself gets.
+  const calloutGroupRef = useRef(null)
   // CALLOUTS.length plain DOM refs, one per callout, indexed the same way —
   // an array rather than a fixed calloutARef/calloutBRef pair, so the number
   // of callouts is a property of the CALLOUTS list alone and nothing below
@@ -341,6 +403,15 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
   const punchRef = useRef(null)
   const logoTextRef = useRef(null)
   const simTextRef = useRef(null)
+  // The incoming "Exams & Syllabi" lockup — crossfades in as SIM_TEXT's own
+  // block crossfades out (see the frame loop), both sitting on the *same*
+  // two squares rather than a second pair elsewhere. A separate DOM block
+  // rather than retargeting the one above for the same reason the callouts
+  // each get their own element: the two have to be visible at once, mid-
+  // crossfade, which one retargeted element could never show.
+  const examsPunchRef = useRef(null)
+  const examsLogoTextRef = useRef(null)
+  const examsTextRef = useRef(null)
   // The one highlighted edge this canvas can draw (see uEdgeX etc. in
   // GridPatternMaterial — there's a single set of uniforms, not a list),
   // written every frame with whichever callout's own geometry currently
@@ -482,6 +553,26 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
     y: litSquareRowY,
   }))
 
+  // Where the squares' own slide ends: flush against the screen's *true*
+  // left edge — asked for directly, "literally touch the left edge," not
+  // the page's own standard margin targetEdgeLeftX uses above. -gridWidth/2
+  // is that true edge in world space at this Z (gridWidth is the full
+  // viewport width there), with nothing subtracted from it.
+  const trueScreenLeftX = -gridWidth / 2
+  // How far gridGroupRef itself has to move — the *whole* group, grid and
+  // callouts included, not the squares on their own: reported directly that
+  // the squares can never separate from the grid they sit on, which a
+  // second, independently-offset inner group (tried first) would have done
+  // the instant it moved anywhere the outer group's own drift/zoom hadn't
+  // already put it. group.position lives in the *parent's* own space,
+  // applied before this group's scale (same as driftWorld above), so the
+  // offset needed is the true world distance directly — edgeXB×finalZoomScale
+  // is where the squares' own left edge already sits, and the gap between
+  // that and trueScreenLeftX is exactly how far the whole group has to
+  // travel to close it. Same backwards-from-the-destination technique
+  // finalZoomScale itself already uses for the highlighted edge.
+  const panWorldDistance = trueScreenLeftX - edgeXB * finalZoomScale
+
   // Scroll-driven zoom, X/Y only (see finalZoomScale) — reads the
   // carousel's own real position every frame (getBoundingClientRect, not
   // window.scrollY plus assumed constants) so it stays correct however
@@ -517,6 +608,9 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
     // is unusually large (a fast flick, a jump-to-anchor).
     const nextScale = MathUtils.damp(group.scale.x, targetScale, 8, delta)
     group.scale.set(nextScale, nextScale, 1)
+    // Mirrored onto the callouts' own group too — same zoom, just never the
+    // X pan (see calloutGroupRef's own comment).
+    if (calloutGroupRef.current) calloutGroupRef.current.scale.set(nextScale, nextScale, 1)
 
     // The logo/"Simulations" lockup's own font sizes, tracking that same
     // scale — cellSize's own screen footprint is TARGET_CELL_PX at rest (see
@@ -551,6 +645,19 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
       const widthPx = widthBudgetPx / (SIM_TEXT.length * SIM_AVG_CHAR_EM)
       simTextRef.current.style.fontSize = `${Math.min(heightPx, widthPx)}px`
     }
+    // The second lockup's own font sizes — identical shape to the block
+    // just above, minus TEXT_RIGHT_MARGIN_PX's own name (it's the same
+    // margin register either side, just spent on the left this time).
+    if (examsLogoTextRef.current) {
+      const heightPx = onScreenCellPx * 0.16
+      const widthPx = widthBudgetPx / (LOGO_TEXT.length * (LOGO_AVG_CHAR_EM + LOGO_TRACKING_EM))
+      examsLogoTextRef.current.style.fontSize = `${Math.min(heightPx, widthPx)}px`
+    }
+    if (examsTextRef.current) {
+      const heightPx = onScreenCellPx * 0.58
+      const widthPx = widthBudgetPx / (EXAMS_TEXT.length * EXAMS_AVG_CHAR_EM)
+      examsTextRef.current.style.fontSize = `${Math.min(heightPx, widthPx)}px`
+    }
 
     // The pinned phase, from here down. position is applied in the parent's
     // own space, before this group's scale, so the drift is unaffected by
@@ -560,6 +667,32 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
     // just far slower than the scroll driving it.
     const pinned = pinnedProgressRef.current
     group.position.y = driftWorld * pinned
+    // Mirrored onto the callouts' own group as well, same reason the scale
+    // is — see calloutGroupRef's own comment.
+    if (calloutGroupRef.current) calloutGroupRef.current.position.y = driftWorld * pinned
+
+    // gridGroupRef's own slide to the screen's true left edge — the grid and
+    // the squares moving together as one rigid unit (see panWorldDistance's
+    // own comment on why this can't be a second, independently-offset inner
+    // group), *not* the callouts, which live in their own sibling group
+    // specifically so they stay put while this happens — and the crossfade
+    // from "Simulations" to "Exams & Syllabi" riding along with it, both
+    // driven by panProgressRef, which stays 0 for all of the chat (see
+    // panProgress's own comment) and only starts moving once the chat
+    // itself is done. smoothstepEase for the same "a linear reveal reads as
+    // mechanical" reason the zoom above uses it; MathUtils.damp on top for
+    // the same reason nextScale is damped rather than set directly — a fast
+    // flick through this stretch still catches up smoothly rather than
+    // snapping the instant scroll outruns a plain lerp.
+    const panT = smoothstepEase(panProgressRef.current)
+    group.position.x = MathUtils.damp(group.position.x, panWorldDistance * panT, PAN_LAMBDA, delta)
+    // Crossfading, not a hard swap at some threshold — the outgoing block
+    // is still right-justified and the incoming one is already left-
+    // justified, so both are genuinely visible together for the width of
+    // the transition, which only reads as one shape morphing into the other
+    // because the squares underneath are sliding at the same time.
+    if (punchRef.current) punchRef.current.style.opacity = `${1 - panT}`
+    if (examsPunchRef.current) examsPunchRef.current.style.opacity = `${panT}`
 
     // ...and each callout crossing into the next, over the segment whose
     // opening is the whole reason it exists to say what it says (see
@@ -582,11 +715,19 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
     // (nothing transitions *into* it, it's simply there until the first
     // swap starts eating into it), the difference between two consecutive
     // swaps for everything in the middle, and the last swap outright for
-    // the final one (nothing transitions *out of* it).
+    // the final one (nothing transitions *out of* it) — multiplied by
+    // calloutPanFade so whichever one is still showing once the chat is
+    // over (always the last) dissolves smoothly along with the rest of
+    // that page, rather than sitting frozen on screen while the squares
+    // slide out from under it. Reported directly: it "should disappear
+    // smoothly with the rest of the previous page" — a first pass just
+    // left it in its own group, on screen, unfaded, once that stopped
+    // sliding with the squares.
+    const calloutPanFade = 1 - MathUtils.clamp(panProgressRef.current / PAN_FADE_END, 0, 1)
     CALLOUTS.forEach((callout, i) => {
       const enter = i === 0 ? 1 : swapTs[i - 1]
       const exit = i === CALLOUTS.length - 1 ? 0 : swapTs[i]
-      const opacity = enter - exit
+      const opacity = (enter - exit) * calloutPanFade
       if (calloutRefs[i]) calloutRefs[i].style.opacity = opacity
     })
 
@@ -627,6 +768,7 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
       // live background colour, not a second copy of the dim/angry mix
       // logic that could drift from it.
       if (punchRef.current) punchRef.current.style.color = backgroundRef.current.getStyle()
+      if (examsPunchRef.current) examsPunchRef.current.style.color = backgroundRef.current.getStyle()
     }
 
     // The two lit squares' own colour, following the same mood as the
@@ -722,7 +864,13 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
             Us's own ambient grid squares, flat-filled and additively
             blended rather than radially falling off, so each reads as a
             lit-up cell rather than a soft glow. Sized to the cell itself
-            (cellSize), same as GRID_GLOWS's own cellWorldSize scale. */}
+            (cellSize), same as GRID_GLOWS's own cellWorldSize scale. Plain
+            children of gridGroupRef, not a nested group of their own — they
+            can never separate from the grid they sit on, reported directly
+            after an earlier pass gave them an independently-offset inner
+            group; panWorldDistance below moves this *whole* group instead,
+            grid and callouts included, so the squares stay exactly the
+            cells they've always been. */}
         {litSquareCenters.map((center, i) => (
           <mesh
             key={i}
@@ -738,33 +886,34 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
           </mesh>
         ))}
 
-        {/* The logo mark and "Simulations", stacked inside the lit squares'
-            own row — on top of them, not above — and punched through them:
-            same colour as the scene's live background (see punchRef above),
-            so wherever this sits over a lit square it reads as a hole cut
-            clean through it rather than text drawn on top. No transform
-            prop on this Html: like every other label in this canvas, it
-            stays a fixed screen size rather than scaling with the grid's
-            own zoom (see the callouts' own note on this) — close enough to
-            "fits the squares" at rest without needing to track the zoom
-            continuously.
+        {/* The logo mark and "Simulations", stacked inside the lit
+            squares' own row — on top of them, not above — and punched
+            through them: same colour as the scene's live background (see
+            punchRef above), so wherever this sits over a lit square it
+            reads as a hole cut clean through it rather than text drawn on
+            top. No transform prop on this Html: like every other label in
+            this canvas, it stays a fixed screen size rather than scaling
+            with the grid's own zoom — close enough to "fits the squares"
+            at rest without needing to track the zoom continuously.
+
+            Fades out (see punchRef's own opacity write in the frame loop)
+            as the whole group slides left, crossfading into the block
+            below rather than the two ever being swapped outright.
 
             The transform anchors this block's own right edge, at its own
-            vertical centre, to litSquareRightX/litSquareRowY — the top-right
-            corner of the two squares' combined footprint — then pulls it
-            TEXT_RIGHT_MARGIN_PX further left, off that corner, so there's a
-            real gap kept
-            between the text and the right-most square's own right edge
-            rather than the two sitting flush (see that constant's own
-            comment). whitespace-nowrap on each line (no fixed width — an
-            explicit width only matters for a shrink-to-fit *wrapping* box,
-            and neither line here wraps, sized instead to already fit — see
-            SIM_AVG_CHAR_EM/LOGO_AVG_CHAR_EM above) so each right-aligns off
-            its own natural content width. No default font-size here (unlike
-            an earlier version that started both lines at a large reference
-            size for a since-removed live measurement) — useFrame sets a
-            real size on the very first visible frame, well before paint is
-            likely to matter. */}
+            vertical centre, to litSquareRightX/litSquareRowY — the
+            top-right corner of the two squares' combined footprint — then
+            pulls it TEXT_RIGHT_MARGIN_PX further left, off that corner, so
+            there's a real gap kept between the text and the right-most
+            square's own right edge rather than the two sitting flush (see
+            that constant's own comment). whitespace-nowrap on each line
+            (no fixed width — an explicit width only matters for a
+            shrink-to-fit *wrapping* box, and neither line here wraps,
+            sized instead to already fit — see SIM_AVG_CHAR_EM/
+            LOGO_AVG_CHAR_EM above) so each right-aligns off its own
+            natural content width. No default font-size here — useFrame
+            sets a real size on the very first visible frame, well before
+            paint is likely to matter. */}
         <Html
           position={[litSquareRightX, litSquareRowY, GRID_Z + 0.02]}
           style={{ transform: `translate(calc(-100% - ${TEXT_RIGHT_MARGIN_PX}px), -50%)`, pointerEvents: 'none' }}
@@ -779,6 +928,40 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, dimRef
           </div>
         </Html>
 
+        {/* "Exams & Syllabi" — the same two squares' own incoming label,
+            left-justified this time: no translateX in the transform below
+            is what left-anchors it, the same convention the callouts
+            already use, with EXAMS_TEXT_LEFT_MARGIN_PX nudging it off the
+            squares' own left edge (edgeXB) the way TEXT_RIGHT_MARGIN_PX
+            nudges the outgoing block off the right — kept even once the
+            squares themselves sit flush against the true screen edge, so
+            the text itself never quite touches it. Starts at opacity 0
+            (see examsPunchRef's own write in the frame loop) — it isn't
+            there until the crossfade brings it in. */}
+        <Html
+          position={[edgeXB, litSquareRowY, GRID_Z + 0.02]}
+          style={{ transform: `translate(${EXAMS_TEXT_LEFT_MARGIN_PX}px, -50%)`, pointerEvents: 'none' }}
+        >
+          <div ref={examsPunchRef} className="flex flex-col items-start" style={{ opacity: 0 }}>
+            <span ref={examsLogoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
+              <XxentaWordmark />
+            </span>
+            <p ref={examsTextRef} className="leading-none font-semibold whitespace-nowrap">
+              {EXAMS_TEXT}
+            </p>
+          </div>
+        </Html>
+
+      </group>
+
+      {/* The callouts' own group — a sibling of gridGroupRef, not a child of
+          it, specifically so the squares' own slide to the screen's true
+          left edge (see panWorldDistance) doesn't carry them along too (see
+          calloutGroupRef's own comment). Mirrors gridGroupRef's own scale
+          and Y-drift every frame, so a callout still tracks the same zoom
+          and slow drift everything else does — it just never gets the X
+          pan. */}
+      <group ref={calloutGroupRef}>
         {CALLOUTS.map((callout, i) => {
           const geometry = calloutPositions[i]
           return (
@@ -827,7 +1010,22 @@ function SceneRenderGate({ isVisibleRef }) {
 // rest — CHAT_SCROLL_VH, derived from the script itself rather than picked —
 // is scroll spent standing still while the chat plays out.
 const INTRO_VH = 100
-const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH
+// Named pages, for anything below that has to talk about one or the other:
+// "Floren Showcase" is the chat itself (CHAT_SCROLL_VH's own scroll room,
+// SIM_TEXT's own "Simulations" lockup); "DRP Showcase" is what the pan below
+// reveals (EXAMS_SLIDE_VH's own scroll room, EXAMS_TEXT's own
+// "Exams & Syllabi" lockup). Not used as an identifier anywhere — plain
+// English in the comments is enough — so there's nothing to rename if
+// either ever gets called something else again.
+//
+// Extra scroll spent panning from Floren Showcase to DRP Showcase once the
+// chat itself is over — asked for directly, "as smooth as About Us to Meet
+// the Team," which is a continuous scroll-driven reveal rather than a
+// discrete open/close toggle, so this is scroll room added onto the same
+// sticky stage the chat already pins inside, not a second section of its
+// own.
+const EXAMS_SLIDE_VH = 70
+const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH
 
 // 0 the instant the sticky stage pins (this section's top reaching the top of
 // the screen, which is also the exact moment the grid zoom and the callout
@@ -849,7 +1047,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
   // reflow, and doing that on every scroll frame is exactly the main-thread
   // stall the page's wheel-gesture classifier reads event timing through
   // (see SiteFooter's dimsRef for the longer version of this same argument).
-  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0 })
+  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1 })
   useLayoutEffect(() => {
     const section = sectionRef.current
     if (!section) return
@@ -870,6 +1068,10 @@ function usePinnedProgress(sectionRef, carouselRef) {
         // ought to already be moving by the time any of it is on screen, not
         // only once it's fully arrived.
         arrivalStart: start - window.innerHeight,
+        // How much scroll the pan to the second showcase page (see
+        // panProgress below) spends, once the chat's own `distance` above
+        // has already been used up — see EXAMS_SLIDE_VH's own comment.
+        panDistance: Math.max(1, window.innerHeight * (EXAMS_SLIDE_VH / 100)),
       }
     }
     measure()
@@ -912,9 +1114,20 @@ function usePinnedProgress(sectionRef, carouselRef) {
     return MathUtils.clamp((latest - arrivalStart) / (start - arrivalStart), 0, 1)
   })
 
-  // The same number again, as a plain ref, for the WebGL side — useFrame runs
+  // 0 for the entire chat (progress hasn't reached 1 yet, so there's nothing
+  // to pan to), then 1 - 0 across panDistance once the chat's own scroll is
+  // spent — the second showcase page only ever starts revealing itself once
+  // the first one is actually finished, the same "arrives, then plays out,
+  // then hands off" shape the chat's own arrival→progress handoff already
+  // has.
+  const panProgress = useTransform(scrollY, (latest) => {
+    const { start, distance, panDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + distance)) / panDistance, 0, 1)
+  })
+
+  // The same numbers again, as plain refs, for the WebGL side — useFrame runs
   // outside React and wants a property read, not a subscription. One source,
-  // two readers, rather than two independent copies of the arithmetic.
+  // two readers each, rather than two independent copies of the arithmetic.
   const progressRef = useRef(0)
   useEffect(() => {
     progressRef.current = progress.get()
@@ -922,13 +1135,20 @@ function usePinnedProgress(sectionRef, carouselRef) {
       progressRef.current = value
     })
   }, [progress])
+  const panProgressRef = useRef(0)
+  useEffect(() => {
+    panProgressRef.current = panProgress.get()
+    return panProgress.on('change', (value) => {
+      panProgressRef.current = value
+    })
+  }, [panProgress])
 
-  return { progress, progressRef, arrival }
+  return { progress, progressRef, arrival, panProgress, panProgressRef }
 }
 
 export function BackgroundGlowSection({ carouselRef }) {
   const sectionRef = useRef(null)
-  const { progress, progressRef, arrival } = usePinnedProgress(sectionRef, carouselRef)
+  const { progress, progressRef, arrival, panProgress, panProgressRef } = usePinnedProgress(sectionRef, carouselRef)
 
   // How far into each of the chat's two moods the visitor currently is, on
   // the WebGL side. Derived from the same scroll progress and the same
@@ -985,6 +1205,14 @@ export function BackgroundGlowSection({ carouselRef }) {
   // CSS itself has no way to add to the catch.
   const stageScale = useSpring(useTransform(arrival, [0, 1], [STAGE_SETTLE_SCALE, 1]), STAGE_SETTLE_SPRING)
 
+  // The chat UI has no idea the pan exists — left alone, it would still be
+  // sitting fully opaque over the whole stage for the entire pan, hiding the
+  // second page it's supposed to be revealing. Faded out over the pan's own
+  // first third, well before the second lockup is meant to be the thing a
+  // visitor is actually looking at, and back in just as fast if they scroll
+  // back up into it.
+  const chatOpacity = useTransform(panProgress, [0, PAN_FADE_END], [1, 0])
+
   return (
     // No overflow-hidden here, unlike the h-screen version this replaces —
     // that would make this box a scrollport, and a sticky child sticks to its
@@ -1012,6 +1240,7 @@ export function BackgroundGlowSection({ carouselRef }) {
             carouselRef={carouselRef}
             isVisibleRef={isVisibleRef}
             pinnedProgressRef={progressRef}
+            panProgressRef={panProgressRef}
             dimRef={dimRef}
             angryRef={angryRef}
           />
@@ -1021,8 +1250,13 @@ export function BackgroundGlowSection({ carouselRef }) {
             text-heavy interface with real wrapping, masks and hairlines, and
             nothing about it wants to be in the 3D scene. It sits after the
             Canvas in tree order, so it paints over both the grid and the
-            callout's own Html without needing a z-index. */}
-        <ChatShowcase progress={progress} arrival={arrival} />
+            callout's own Html without needing a z-index. Wrapped here rather
+            than opacity going straight on ChatShowcase's own root, so this
+            component doesn't need to know the pan exists at all — see
+            chatOpacity's own comment. */}
+        <motion.div style={{ opacity: chatOpacity }}>
+          <ChatShowcase progress={progress} arrival={arrival} />
+        </motion.div>
       </motion.div>
     </section>
   )
