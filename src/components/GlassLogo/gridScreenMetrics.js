@@ -45,7 +45,21 @@ export function gridScreenMetrics({ width, height, scale, screenOffset }) {
     height * (1 - screenOffset * scale) + scale * (TARGET_CELL_PX / 2 - height / 2)
 
   const wrap = (value) => ((value % cell) + cell) % cell
-  return { cell, phaseX: wrap(firstX), phaseY: wrap(firstY) }
+  // firstX/firstY are returned unwrapped too, alongside the wrapped phase —
+  // added for content that has to track a *specific* cell continuously
+  // through a scale change (see AboutUsGridGlow in AboutUsSection.jsx).
+  // phaseX/phaseY are firstX/firstY folded into [0, cell) by a whole number
+  // of cells, and that fold count depends on cell, so as scale sweeps
+  // continuously the wrapped phase can jump by a whole cell at the instant
+  // the fold count changes — invisible for the grid pattern itself (an
+  // infinite repeating pattern looks identical after a one-cell phase
+  // shift), but a square tied to one fixed cell index jumps right along
+  // with it, since "index 5 counted from a phase that just jumped" is
+  // suddenly a different physical cell than a moment before. firstX/firstY
+  // have no fold at all, so an index measured against them stays attached
+  // to the same physical cell for every value of scale, not just the one it
+  // was measured at.
+  return { cell, phaseX: wrap(firstX), phaseY: wrap(firstY), firstX, firstY }
 }
 
 // Nudge needed to move `edge` onto the nearest boundary — the whole point of

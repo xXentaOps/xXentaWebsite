@@ -13,6 +13,7 @@ import ClientLogoCarousel from './ClientLogoCarousel'
 import FrameRateMeter from './FrameRateMeter'
 import GlassLogoHero from './GlassLogoHero'
 import { createGestureClassifier, GESTURE_END_MS } from './scrollGestureClassifier'
+import SiteFooter from './SiteFooter'
 import SiteNavbar from './SiteNavbar'
 
 // Read once, at module scope: it never changes for the life of the page, and
@@ -730,7 +731,11 @@ export default function GlassLogoPreview() {
         gestureEndedSinceDismiss = true
         releaseIfCloseFinished()
       }
-      const { fresh, deliberate } = classifier.classify(delta, absDelta, now)
+      // `deliberate` is deliberately not destructured any more — the open
+      // path below used to accept it as an override for pageStillSettling
+      // and must not (see that condition's own comment). classify() still
+      // returns it; nothing here has any business acting on it.
+      const { fresh } = classifier.classify(delta, absDelta, now)
 
       classifier.lastEventAt = now
       if (absDelta >= MIN_DELTA) {
@@ -836,29 +841,38 @@ export default function GlassLogoPreview() {
       // spent itself scrolling, so it isn't asking for anything more), and
       // the page's own motion — while it's still visibly easing to a stop,
       // an upward event is assumed to belong to whatever is already in
-      // flight. Only a `deliberate` event overrides the second one, since a
-      // reversal or a fresh shove is something momentum cannot produce. A
-      // plain gap can't, deliberately: that's the signal a stalled frame
-      // can imitate, and trusting it here is what would let a stutter
-      // reveal About Us mid-flick.
+      // flight.
+      //
+      // This used to accept a `deliberate` event (a reversal, or a confirmed
+      // fresh push) as an override for the second guard, on the reasoning
+      // that momentum alone can't produce either — true of a *single*
+      // gesture's own tail, but not of what the visitor actually does once
+      // the distance back to the hero got long enough that one swipe no
+      // longer covers it (see the reveal's own reach in SiteFooter.jsx):
+      // several separate, genuine swipes, each its own real gesture, with no
+      // pause anywhere near long enough to look deliberate about arriving.
+      // The classifier correctly reports each of those as a fresh, confirmed
+      // push — it has no way to know they're all still "get me to the hero,"
+      // not "and then past it" — so the override let the last one open About
+      // Us the instant it crossed the hero's threshold, mid-flight, with no
+      // stop the visitor could perceive at all. Reported directly, and this
+      // rule has no second line of defence behind it: the fix is to stop
+      // trusting the override here, not to retune it. The one thing it was
+      // added for — a gentle follow-up swipe landing while only Lenis's own
+      // residual easing is still finishing, the visitor's hand having
+      // already stopped — costs that visitor nothing but the same fraction
+      // of a second the page is visibly still doing anyway; that was always
+      // the tradeoff on offer, this just stops giving away the rule to get
+      // it.
+      //
       // "Nowhere left above to scroll to" is a question about the scroll
       // target, not about where the easing happens to have got to. Those two
       // are a long way apart after a flick up from the section below: the
       // target pins to 0 immediately, while the visible position takes about
       // 0.45s to ease from a screen away into the ARRIVING_EPSILON_PX the
-      // opening snap can swallow unseen.
-      //
-      // So the visible position decides *when* this is honoured, never
-      // whether it is. Requiring both at once (which is what this did) threw
-      // away every request landing in that 0.45s outright, and did it
-      // unevenly: a hard swipe's momentum tail is still firing after the
-      // page has arrived, so its late events qualified and it appeared to
-      // work, while a gentle swipe's shorter tail died first and every one of
-      // its events was discarded. Same request, and only the strength of it
-      // decided whether the site noticed — reported directly, as a quick
-      // gentle swipe up not registering. Holding it for the moment the page
-      // arrives costs a fraction of a second in which the page is visibly
-      // still moving anyway, which is nothing like the same thing as a wait.
+      // opening snap can swallow unseen. So the visible position decides
+      // *when* this is honoured, never whether it is — the wait is always at
+      // most that same fraction of a second, on every request, not a queue.
       //
       // Deliberately not a queue of one *gesture* — gestureUsed already makes
       // this at most one request per gesture, and the flag is dropped the
@@ -887,7 +901,7 @@ export default function GlassLogoPreview() {
         !gestureUsed &&
         committedToTop &&
         gestureStartedAtTop &&
-        (!pageStillSettling || deliberate)
+        !pageStillSettling
       ) {
         gestureUsed = true
         classifier.lastActionAt = now
@@ -966,14 +980,28 @@ export default function GlassLogoPreview() {
           }
         }}
       />
-      <GlassLogoHero
-        openScrollComp={openScrollComp}
-        aboutUsProgress={aboutUsProgress}
-        onScrollLockChange={setScrollLocked}
-        isForceScrollingRef={isForceScrollingRef}
-      />
-      <ClientLogoCarousel sectionRef={carouselRef} />
-      <BackgroundGlowSection carouselRef={carouselRef} />
+      {/* The page's own scrolling content, lifted onto its own layer so it
+          paints over SiteFooter below. The footer is fixed at z-0 and the
+          three sections here are all opaque navy, so this wrapper is what
+          keeps it hidden underneath them until the footer's own spacer
+          scrolls the page off the bottom of them and uncovers it. z-10
+          rather than a bare z-index-less `relative`: these sections are
+          positioned but z-index: auto, which paints in tree order against
+          the footer's own z-0 — and the footer, being last in the DOM,
+          would win that. AboutUsSection is also z-10 and stays a later
+          sibling than this, so it still covers the page when open, and the
+          navbar's z-20 still covers everything. */}
+      <div className="relative z-10">
+        <GlassLogoHero
+          openScrollComp={openScrollComp}
+          aboutUsProgress={aboutUsProgress}
+          onScrollLockChange={setScrollLocked}
+          isForceScrollingRef={isForceScrollingRef}
+        />
+        <ClientLogoCarousel sectionRef={carouselRef} />
+        <BackgroundGlowSection carouselRef={carouselRef} />
+      </div>
+      <SiteFooter />
       {SHOW_FRAME_RATE && <FrameRateMeter />}
       <AboutUsSection
         ref={aboutUsSectionRef}

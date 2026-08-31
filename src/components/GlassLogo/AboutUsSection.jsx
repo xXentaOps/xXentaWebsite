@@ -15,7 +15,14 @@ import {
   TEAM_SLIDE_TRANSITION,
   TEAM_SLIDE_Z,
 } from './teamTransition'
-import { AboutUsIntro, SLIDE_PHOTOS } from './AboutUsIntro'
+import { AboutUsIntro } from './AboutUsIntro'
+import { SLIDE_PHOTOS } from './aboutUsSlides'
+import {
+  aboutUsGridMetrics,
+  PHOTO_CELLS_Y,
+  photoOriginOffsets,
+  statsOriginOffsets,
+} from './aboutUsGridCells'
 import { GridPlane } from './BackgroundGrid'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, THROUGH_GLASS_STYLE } from './gridConstants'
 import GridAlignmentOverlay from './GridAlignmentOverlay'
@@ -24,7 +31,6 @@ import { GlassIcon } from './GlassIcon'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
 import { GlassCircle } from './GlassCircle'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
-import { GoogleCloudPartnerBadge } from './GoogleCloudPartnerBadge'
 import { GradientBlob } from './GradientBlob'
 import { computeLayout, MEMBERS, MeetTheTeamGrid, TEAM_MEMBER_COUNT } from './MeetTheTeamGrid'
 import {
@@ -354,6 +360,153 @@ function RandomGridGlow({ teamProgress }) {
               GRID_GLOW_Z,
             ]}
             scale={[cellWorldSize, cellWorldSize, 1]}
+            raycast={() => null}
+          >
+            <planeGeometry args={[1, 1]} />
+            <gridGlowMaterial transparent depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+    </SlideGroup>
+  )
+}
+
+// The same faint ambient squares RandomGridGlow puts around the Meet the
+// Team grid, asked for on About Us too — same GridGlowMaterial, same
+// additive blending, same low-opacity spread, just on this page's own grid
+// and at specific squares rather than a scattered set.
+//
+// Positions are given relative to one of two anchors — anchor: 'stats' or
+// 'photo' — rather than as absolute grid indices, because that is how they
+// were actually specified each time ("one on the 99.8% square... under
+// 12.4K", then later "the two squares to the bottom-left of the slideshow
+// pictures") and because both the stats' and the photo's own column/row
+// move with the viewport (see statsCellIndices/photoCellIndices), so
+// absolute indices would only be right at the size they were picked at.
+//
+// For anchor: 'stats', col is an offset from the stats' first square
+// (12.4K = 0, 99.8% = 1, 40+ = 2), row an offset from the stats' own row.
+// For anchor: 'photo', col/row are offsets from the photo window's own
+// top-left cell.
+//
+// Opacities sit in the same "all very faint, some more than others" band
+// GRID_GLOWS uses — deliberately not uniform, so squares sharing an anchor
+// don't read as one deliberate block.
+const ABOUT_US_GLOWS = [
+  // On the 99.8% square.
+  { anchor: 'stats', col: 1, row: 0, opacity: 0.03 },
+  // ...and its neighbour to the right, the 40+ square.
+  { anchor: 'stats', col: 2, row: 0, opacity: 0.018 },
+  // Under 12.4K.
+  { anchor: 'stats', col: 0, row: 1, opacity: 0.035 },
+  // ...and one further left again, off the stats' own span entirely.
+  { anchor: 'stats', col: -1, row: 1, opacity: 0.022 },
+  // Directly left of the photo's own bottom-left cell...
+  { anchor: 'photo', col: -1, row: PHOTO_CELLS_Y - 1, opacity: 0.019 },
+  // ...and one further left again — a horizontal pair on the same row now,
+  // not the L this started as (moved off row PHOTO_CELLS_Y, one row lower,
+  // to sit beside the other instead of under it).
+  { anchor: 'photo', col: -2, row: PHOTO_CELLS_Y - 1, opacity: 0.014 },
+]
+
+// Ambient squares on About Us's own grid, at the four cells above. The Meet
+// the Team twin (RandomGridGlow) fades *in* with teamProgress since it
+// belongs to that stage; this one is the mirror image — it belongs to About
+// Us, so it fades *out* as the team stage takes over (1 - p), and rides the
+// same mainSlidePx travel the rest of this page's content does rather than
+// teamContentSlidePx.
+//
+// Position and size are recomputed every frame from gridMetricsRef — the
+// *live* metrics SeamlessGridBackdrop publishes, zoom included — rather than
+// from the settled ones the DOM is laid out against. That difference is the
+// whole point: the grid zooms from scale 1 to ABOUT_US_GRID_ZOOM_SCALE over
+// the reveal, and a square placed once at its settled position sits still
+// while the squares around it grow into place underneath it, which reads as
+// it floating free of the grid. Asked for directly — these must be attached
+// to the grid, so if the grid zooms in, so do they. Tracking the live cell
+// means each square is glued to its own grid square through the whole zoom
+// and simply arrives where the stat is, since at progress 1 the live metrics
+// *are* the settled ones.
+//
+// Built from statsOriginOffsets (the unwrapped origin), not the wrapped
+// phase gridMetricsRef itself carries — see that function's own comment for
+// why: the wrapped phase's fold count depends on cell size, so a position
+// built from phaseX/phaseY + a fixed cell index (tried first) jumped by a
+// whole cell partway through the zoom, at the exact instant the fold count
+// changed. Reported directly, as the squares appearing on the wrong row and
+// then snapping. gridMetricsRef is still where cell/firstX/firstY themselves
+// come from each frame; only the index they're multiplied against changed.
+//
+// This is the opposite choice from AboutUsIntro's photo window, deliberately
+// (see its own long note): that one holds at the settled position because
+// tracking the live grid fed back into its own layout and made it jump. No
+// such loop exists here — nothing measures these, so there is nothing for
+// them to disturb.
+function AboutUsGridGlow({ teamProgress, gridMetricsRef }) {
+  const camera = useThree((state) => state.camera)
+  const viewport = useThree((state) => state.viewport)
+  const size = useThree((state) => state.size)
+  // The two anchors' own cells, each as a fixed offset from the grid's
+  // unwrapped origin — a fact about the layout, not about any one scale, so
+  // this only needs recomputing on resize (the viewport can genuinely move
+  // which cell either anchor lands on), never per frame. Both computed
+  // regardless of whether ABOUT_US_GLOWS currently uses each one, so adding
+  // a glow against either anchor later never needs a third state variable.
+  const [origins, setOrigins] = useState(() => ({
+    stats: statsOriginOffsets(window.innerWidth, window.innerHeight),
+    photo: photoOriginOffsets(window.innerWidth, window.innerHeight),
+  }))
+  useEffect(() => {
+    const relayout = () =>
+      setOrigins({
+        stats: statsOriginOffsets(window.innerWidth, window.innerHeight),
+        photo: photoOriginOffsets(window.innerWidth, window.innerHeight),
+      })
+    relayout()
+    window.addEventListener('resize', relayout)
+    return () => window.removeEventListener('resize', relayout)
+  }, [])
+
+  const meshRefs = useRef([])
+
+  const { width: viewWidth } = viewport.getCurrentViewport(camera, [0, 0, GRID_GLOW_Z])
+  const perPx = viewWidth / size.width
+
+  useFrame(() => {
+    // Falls back to the settled metrics only for the frame or two before
+    // SeamlessGridBackdrop has written its first live ones (it renders
+    // earlier in the same canvas, so its useFrame runs first from then on).
+    const metrics = gridMetricsRef?.current ?? aboutUsGridMetrics(size.width, size.height)
+    const { cell, firstX, firstY } = metrics
+    const cellWorldSize = cell * perPx
+    const p = teamProgress.get()
+    for (let i = 0; i < ABOUT_US_GLOWS.length; i++) {
+      const mesh = meshRefs.current[i]
+      if (!mesh) continue
+      const glow = ABOUT_US_GLOWS[i]
+      const origin = origins[glow.anchor]
+      const px = firstX + (origin.nX + glow.col + 0.5) * cell
+      const py = firstY + (origin.nY + glow.row + 0.5) * cell
+      mesh.position.x = (px - size.width / 2) * perPx
+      mesh.position.y = -(py - size.height / 2) * perPx
+      // Grows with the cell it sits on, so it stays exactly one square
+      // through the zoom rather than a fixed-size patch drifting over a
+      // grid that is changing size around it.
+      mesh.scale.set(cellWorldSize, cellWorldSize, 1)
+      mesh.material.uOpacity = glow.opacity * (1 - p)
+    }
+  })
+
+  return (
+    <SlideGroup progress={teamProgress} z={GRID_GLOW_Z}>
+      <group>
+        {ABOUT_US_GLOWS.map((glow, i) => (
+          <mesh
+            key={i}
+            ref={(el) => {
+              meshRefs.current[i] = el
+            }}
+            position={[0, 0, GRID_GLOW_Z]}
             raycast={() => null}
           >
             <planeGeometry args={[1, 1]} />
@@ -795,11 +948,6 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
   const tier = usePerformanceTier()
   const sectionRef = useRef(null)
   const badgeAnchorRef = useRef(null)
-  // The Google Cloud Partner plaque's own anchor — same handoff shape as
-  // badgeAnchorRef, but for GoogleCloudPartnerBadge, which lives in this
-  // section's main canvas (not the team-photo badge's own overlay one) since
-  // it sits over the grid in the copy column, not over the photo.
-  const partnerBadgeAnchorRef = useRef(null)
   // The photo window's own DOM node — owned here (not inside AboutUsIntro)
   // for the same reason badgeAnchorRef is: something outside the DOM needs
   // its real rect. This one feeds PhotoBackdropCapture, so the badge's
@@ -821,7 +969,6 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
   // it, so the photo can sit on whole grid squares rather than near them.
   const gridMetricsRef = useRef(null)
   const [badgeRect, remeasureBadgeRect] = useDomAnchorRect(badgeAnchorRef, sectionRef)
-  const [partnerBadgeRect, remeasurePartnerBadgeRect] = useDomAnchorRect(partnerBadgeAnchorRef, sectionRef)
   const [photoRect, remeasurePhotoRect] = useDomAnchorRect(photoWindowRef, sectionRef)
   // Which photo (if any) AboutUsIntro's own slideshow is currently showing —
   // reported up via onPhotoChange (see its own comment there) so
@@ -858,12 +1005,10 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
   // reported twice.
   const remeasureRef = useRef(() => {
     remeasureBadgeRect()
-    remeasurePartnerBadgeRect()
     remeasurePhotoRect()
   })
   remeasureRef.current = () => {
     remeasureBadgeRect()
-    remeasurePartnerBadgeRect()
     remeasurePhotoRect()
   }
   useEffect(
@@ -1063,15 +1208,6 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
           <SlideGroup progress={teamProgress} speed={ACCENT_SPEED}>
             {sceneReady && <GlassCircle domRect={circleRect} isOpen={isOpen} highQuality={tier === 'high'} />}
           </SlideGroup>
-          {/* Static plaque, same canvas as GlassCircle for the same reason
-              (see its own comment above) — sits over this canvas's own
-              grid/blob, so a plain unprioritized backdrop capture picks them
-              up with no extra capture rig needed. */}
-          {/* Main speed — this plaque belongs to the copy column it sits in,
-              not to the two glass objects that lead the slide. */}
-          <SlideGroup progress={teamProgress}>
-            {sceneReady && <GoogleCloudPartnerBadge domRect={partnerBadgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
-          </SlideGroup>
           {/* A glass icon beside whichever member's name is open in the Meet
               the Team detail view (see MEMBERS[...].nameIcon in teamData.js).
               In THIS canvas, deliberately — not the team-photo badge's
@@ -1133,8 +1269,8 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
               </SlideGroup>
             </Suspense>
           )}
-          {/* Unconditional on sceneReady alone — same as GlassCircle/
-              GoogleCloudPartnerBadge just above, never gated on isTeamOpen.
+          {/* Unconditional on sceneReady alone — same as GlassCircle just
+              above, never gated on isTeamOpen.
               Positioned purely analytically (computeLayout, no DOM rect to
               wait on), so unlike nameIcon there's no technical reason to
               mount/unmount this at all: SlideGroup's own teamContentSlidePx
@@ -1178,6 +1314,10 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
               own comment: mounting/unmounting with isTeamOpen prevented it
               from ever sliding with the grid at all. */}
           {sceneReady && <RandomGridGlow teamProgress={teamProgress} />}
+          {/* The same faint squares on About Us's own side of the slide —
+              mounted unconditionally for the identical reason, so it can
+              ride the slide out rather than popping. */}
+          {sceneReady && <AboutUsGridGlow teamProgress={teamProgress} gridMetricsRef={gridMetricsRef} />}
           {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
         <SceneRenderGate isVisibleRef={isVisibleRef} />
@@ -1200,8 +1340,8 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
       )}
       <AboutUsIntro
         isOpen={isOpen}
+        aboutUsProgress={aboutUsProgress}
         badgeAnchorRef={badgeAnchorRef}
-        partnerBadgeAnchorRef={partnerBadgeAnchorRef}
         windowRef={photoWindowRef}
         onPhotoChange={setCurrentPhoto}
         teamProgress={teamProgress}

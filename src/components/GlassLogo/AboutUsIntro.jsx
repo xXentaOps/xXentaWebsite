@@ -2,88 +2,21 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { AnimatePresence, motion, useTransform } from 'framer-motion'
 import { MAIN_SLIDE_VW, mainSlidePx } from './teamTransition'
 import { CornerBrackets } from './CornerBrackets'
-import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
-import { gridScreenMetrics } from './gridScreenMetrics'
-import { PAGE_MARGIN_VH, pageMarginPx } from './pageMargin'
+import { SLIDES } from './aboutUsSlides'
+import { AboutUsStats } from './AboutUsStats'
+// Which grid squares this page's content sits on — its own module now that
+// AboutUsSection's canvas needs the same answers to put its ambient squares
+// on the stats' own cells. See that file's own comment.
+import {
+  aboutUsGridMetrics,
+  photoCellIndices,
+  PHOTO_CELLS_X,
+  PHOTO_CELLS_Y,
+  statsCellIndices,
+  STATS_CELLS_X,
+  TEXT_ROW_OFFSET,
+} from './aboutUsGridCells'
 
-// teamLayout.js (which used to export this) was deleted along with the old
-// hover-based team scene — this is the only place that still needs the
-// photo's path, so it's a plain local constant rather than resurrecting
-// that file for one string.
-export const TEAM_PHOTO_SRC = '/team-photo-web.jpg'
-
-// The photo block is now a small slideshow rather than one fixed image —
-// the group photo (with its own "Meet the Team" CTA) always sits last, and
-// whatever comes before it exists to be browsed through, not landed on.
-// photo is null for the two slides ahead of it — left as plain gray filler
-// (see the placeholder block below) rather than borrowing real photos for
-// content that isn't decided yet, so nothing here could be mistaken for
-// finished. Headline/body follow the same obvious-placeholder bracket
-// convention as the rest of this page's still-unwritten copy.
-const SLIDES = [
-  {
-    photo: '/noordhuys-photo.jpg',
-    alt: 'Noordhuys',
-    headline: '[Our impact working with Noordhuys, to be added. ]',
-    body: "[ A paragraph on our team's expertise — to be added. ]",
-  },
-  {
-    photo: '/drp-photo.jpg',
-    alt: 'DRP',
-    headline: '[Our impact at De Rooi Pannen, to be added. ]',
-    body: '[ A paragraph on how we work together — to be added. ]',
-  },
-  {
-    photo: TEAM_PHOTO_SRC,
-    alt: 'The xXenta team',
-    headline: '[ A short, catchy line about xXenta — to be added. ]',
-    body: '[ A paragraph on our work as a small team, and on being a Google Cloud partner — to be added. ]',
-  },
-]
-
-// Every distinct photo a slide can show, for AboutUsSection to preload into
-// PhotoBackdropCapture's texture cache up front (see preloadPhotoTextures
-// there) — the badge's own crossfade can't start until its texture has
-// loaded, a separate GPU upload from the DOM photo's own load, and that gap
-// was the one thing tuning the fade's speed/duration alone could never
-// close. Warming the cache before it's needed closes it at the source
-// instead. filter(Boolean) drops the null placeholder slides above.
-export const SLIDE_PHOTOS = SLIDES.map((slide) => slide.photo).filter(Boolean)
-
-// The photo's window, in grid cells. Four across, up from three, by three
-// down, up from the original two (that one asked for directly, as "the row
-// above").
-//
-// A column was also asked for on the *right*, and isn't here: at some
-// realistic window widths, adding one there pushes the photo up to 142px
-// past the true right edge of the browser — not crowding it, past it, the
-// window clipped off entirely — because the right edge is already anchored
-// to the last cell that fits inside the page's own margin (see
-// photoCellIndices), and there's rarely a full further cell of slack beyond
-// that before the true edge of the screen. The left side had slack to give
-// (the copy column's own width, see its comment below) that a browser's
-// screen bounds do not.
-//
-// Centred fresh on the new height, not anchored to where the old 2-row
-// block's bottom edge used to be. Anchoring to the old bottom (tried first)
-// kept the badge below it pinned exactly in place, which sounds like the
-// safer choice and isn't: adding a full cell on top of an already
-// off-centre block pushed the *top* edge past the top of the viewport on
-// several common window heights, 900px included — the window is only 900px
-// tall there to begin with, and the old block already sat with just 162px
-// of headroom above it. Re-centring the taller block trades a fixed badge
-// position (it moves down by roughly a cell) for the window reliably
-// staying on screen, which is the one property that cannot be given up.
-const PHOTO_CELLS_X = 4
-const PHOTO_CELLS_Y = 3
-// Empty grid columns kept between the photo's right edge and the page's own
-// right-hand boundary (see photoCellIndices). The grid only offers this in
-// whole-cell steps — the window's own edges have to land on grid lines, so
-// there's no in-between position to try — and one full cell (200px) turned
-// out to be too coarse a lever: flush (0) read as crowding the true screen
-// edge, one cell in read as too far the other way. Back at 0 for now; the
-// real fix is a finer adjustment than this constant can express on its own.
-const PHOTO_COLUMN_INSET = 0
 // How far the photo runs past the window, in cells — how much there is to
 // reveal, in other words, and the reason the parallax is worth having.
 //
@@ -109,54 +42,6 @@ const PARALLAX_TRAVEL = 0.7
 // — this is a direct "I am pointing at that" response rather than the weight
 // of an object being pushed.
 const PARALLAX_LAMBDA = 6
-
-// Which squares the photo occupies, as whole cell indices off the grid's
-// own phase. Worked out from the *settled* geometry — the cell size the grid
-// rests at once About Us is open, which depends on nothing but the viewport
-// — rather than from the live one, and never from measuring the element.
-//
-// Both of those matter, and the second one caused a real bug. Snapping to
-// the nearest boundary means a rounding step, and a rounding step is
-// discontinuous: the first version sized the window from the live cell each
-// frame, which re-flowed the flex row it sat in, which moved the element,
-// which moved what "nearest" meant — so during the zoom the rounding kept
-// flipping and the photo jumped a whole cell at a time, repeatedly. Choosing
-// the indices from something the layout cannot influence removes the loop
-// rather than damping it. The position is then plain arithmetic on the same
-// settled metrics — see the layout pass below for why the live, mid-zoom
-// ones turned out to be the wrong thing to track.
-function photoCellIndices(width, height) {
-  const settled = gridScreenMetrics({
-    width,
-    height,
-    scale: ABOUT_US_GRID_ZOOM_SCALE,
-    screenOffset: -1,
-  })
-  const { cell, phaseX, phaseY } = settled
-  // Anchored to the page's own right-hand boundary (see pageMargin.js,
-  // mirrored from the left edge where the hero's title and the placeholder
-  // copy's blue cell edge both sit), then held PHOTO_COLUMN_INSET columns
-  // in from it rather than flush against it — flush read as crowding the
-  // true edge of the screen, reported directly. See PHOTO_COLUMN_INSET's own
-  // comment for why the inset is smaller than first asked for.
-  //
-  // The boundary itself is the last cell edge that still lands inside the
-  // margin, so the gap it and the inset together leave is somewhere between
-  // PHOTO_COLUMN_INSET cells plus the margin and PHOTO_COLUMN_INSET+1 cells
-  // plus the margin — never exactly one number, because the grid's phase
-  // falls where it falls and a window that sits on whole squares cannot also
-  // end on an arbitrary pixel. Staying on the grid is the thing worth
-  // keeping; the margin and the inset both just draw a line the photo may
-  // not cross.
-  const lastBoundary = Math.floor((width - pageMarginPx(height) - phaseX) / cell)
-  const column = lastBoundary - PHOTO_CELLS_X - PHOTO_COLUMN_INSET
-  // ...and vertically centred, to the nearest whole cell — see
-  // PHOTO_CELLS_Y's own comment for why this centres the current height
-  // directly rather than anchoring to where a shorter version of the window
-  // used to sit.
-  const row = Math.round((height / 2 - (PHOTO_CELLS_Y * cell) / 2 - phaseY) / cell)
-  return { column, row }
-}
 
 // The "Meet the Team" pill's own resting width, in px — a fixed target for
 // the right-arrow-slot morph's width animation (see its own comment), not
@@ -197,19 +82,25 @@ function SlideArrow({ direction, onClick, disabled }) {
 // underneath it (the badge itself is a separate WebGL element — see
 // GoogleCloudGlassBadge — positioned against badgeAnchorRef, a plain empty
 // div reserving its footprint in the DOM layout so the two stay in sync
-// without either side hardcoding the other's size), and the headline/body/
-// partner-badge block to the left of it. The Google Cloud Partner plaque
-// (see GoogleCloudPartnerBadge) sits in that left column the same way —
-// its own anchor, partnerBadgeAnchorRef, reserves its footprint here while
-// the actual glass mesh is drawn by the main canvas in AboutUsSection.
+// without either side hardcoding the other's size), and the stats/headline/
+// body block to the left of it.
 //
-// The photo block is placed against the grid rather than by flow, since
-// which squares it covers is the whole point of it; the copy is placed
-// against the viewport, and given the room the photo leaves.
+// That left column used to end in the Google Cloud Partner plaque (a second
+// glass mesh, anchored the same way the photo's badge still is), with the
+// copy centred on the viewport above it. Both are gone: the plaque was
+// removed outright, and the copy moved down onto the grid roughly where it
+// sat, with three animated figures (see AboutUsStats) taking the space above.
+//
+// The photo block, the stats, and now the copy are all placed against the
+// grid rather than by flow, since which squares they land on is the point of
+// them; the copy's own *width* is still whatever room the photo leaves.
 export function AboutUsIntro({
   isOpen,
+  // The reveal's own 0->1 progress — forwarded straight to AboutUsStats,
+  // which starts its counters when this actually *lands* rather than when
+  // isOpen flips (see its own comment for why those are a full 1.6s apart).
+  aboutUsProgress,
   badgeAnchorRef,
-  partnerBadgeAnchorRef,
   windowRef,
   onPhotoChange,
   teamProgress,
@@ -237,6 +128,10 @@ export function AboutUsIntro({
   // is never keyed and never remounts, so what it's given at mount/resize
   // stays applied to every slide's own heading without re-measuring.
   const textColumnRef = useRef(null)
+  // The three-square stats block — positioned entirely by the layout pass
+  // (see applyLayout), like the photo block, since which squares it lands
+  // on is the whole point of it.
+  const statsRef = useRef(null)
   // Where the pointer is asking the photo to sit, -1 (top of the overflow)
   // to 1, and where it has eased to so far.
   const pointerRef = useRef(0)
@@ -286,33 +181,29 @@ export function AboutUsIntro({
   // instead of a real arrow — see that slot's own render for the morph
   // between the two.
   const showMeetButton = !isTeamOpen && slideIndex === SLIDES.length - 1
-  // A frozen snapshot of whatever the window was showing right before the
-  // current transition started — src/alt plus the exact height/transform
-  // imageRef had at that instant, so it can be painted back in the same spot
-  // it was already sitting in rather than reflowing, plus an `id` used as
-  // its React key (see the window JSX below). Rendered as a second,
-  // absolutely-positioned layer on top of the (always-opaque) incoming image
-  // — so a slide change reads as the old photo dissolving to reveal the new
-  // one already there beneath it, never as a dip to the bare grid. null once
-  // there's nothing left to dissolve.
-  //
-  // Animated by framer-motion (mount at opacity 0.8, animate to 0, see the
-  // window JSX below) rather than a raw CSS transition — no waiting on the
-  // incoming photo's load event first, no two-frame "let the browser paint a
-  // from-state before it has anything to transition from" dance a plain
-  // style toggle needs. Framer drives the animation itself the instant it
-  // mounts, the same zero-latency plain-crossfade shape MeetTheTeamGrid's
-  // own photo swap already uses. The `id` key still matters for the same
-  // reason it always did: it guarantees every dissolve starts on a genuinely
-  // fresh node at a clean opacity 0.8, never a still-fading previous one
-  // caught mid-flight by a rapid run of clicks.
-  const [outgoing, setOutgoing] = useState(null)
-  // Mirrors outgoing for startTransition below (and the parallax loop
+  // Which SLIDES index (if any) is the outgoing photo dissolving away right
+  // now — that's *all* a dissolve needs to track. Every slide's own <img> is
+  // permanently mounted below (see the window JSX), src never changes on any
+  // of them, so there's nothing left to snapshot: the outgoing photo is
+  // already sitting on screen, already decoded, at whatever height/transform
+  // the shared wrapper below has (which is itself frozen for the whole
+  // dissolve — see the parallax loop's own outgoingRef gate). This replaces
+  // an earlier version that swapped `src` on one shared <img> and painted a
+  // frozen snapshot of the previous photo on top of it — reported as a
+  // flash of white on a photo's first-ever appearance in the session, since
+  // swapping `src` on an element that's already showing something blanks it
+  // until the new bitmap decodes, no matter how well-warmed the browser's
+  // network cache is. Never swapping `src` at all removes that gap
+  // entirely, the same way MeetTheTeamGrid's own detail-photo swap does (see
+  // that file's own SWAP_ENTER_TRANSITION/SWAP_EXIT_TRANSITION) — every
+  // photo there is mounted from the very first render too.
+  const [outgoingIndex, setOutgoingIndex] = useState(null)
+  // Mirrors outgoingIndex for startTransition below (and the parallax loop
   // further down), read off a ref rather than the state directly so both
   // always see whether a dissolve is *currently* playing without waiting on
   // a re-render to catch up.
   const outgoingRef = useRef(null)
-  outgoingRef.current = outgoing
+  outgoingRef.current = outgoingIndex
   // The authoritative current index for *scheduling* purposes. slideIndex
   // the state variable lags by a render, and worse, lags an entire queued
   // chain — goPrev/goNext computing off it meant a second rapid click could
@@ -326,16 +217,13 @@ export function AboutUsIntro({
   // playing — held here instead of starting a second one on top of the
   // first. The arrows are never disabled during a transition (people should
   // always be able to keep skipping ahead/back), but two overlapping
-  // transitions can't share one outgoing snapshot: a click landing mid-fade
-  // used to replace that snapshot outright, which popped straight to the new
+  // transitions can't share one outgoing index: a click landing mid-fade
+  // used to replace that index outright, which popped straight to the new
   // photo with nothing to transition from (reported as the previous picture
   // "flashing" mid-transition). Queuing means a fast run of clicks plays out
   // as a clean chain of full dissolves, landing wherever the *last* click
   // asked for.
   const pendingIndexRef = useRef(null)
-  // Unique React key for each outgoing snapshot — see the outgoing state's
-  // own comment above for why every dissolve needs a genuinely fresh node.
-  const snapshotIdRef = useRef(0)
 
   // Matches PhotoBackdropCapture's own CROSSFADE_MS and cubic-bezier(0.4,0,
   // 0.2,1) exactly (that file's own comment explains why the Google Cloud
@@ -344,6 +232,11 @@ export function AboutUsIntro({
   // control-point array directly, so there's no need for a hand-rolled
   // curve-sampler here the way that WebGL side still needs one.
   const CROSSFADE_TRANSITION = { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
+  // The incoming photo snaps straight to its resting opacity instead of
+  // fading in — there's nothing to see it fade in *against*, since the
+  // outgoing photo is still opaque on top of it (same reasoning as
+  // MeetTheTeamGrid's own SWAP_ENTER_TRANSITION).
+  const SNAP_TRANSITION = { duration: 0 }
 
   // Ends the current dissolve and immediately starts whatever queued up
   // during it. Called from the outgoing layer's own onAnimationComplete
@@ -352,35 +245,25 @@ export function AboutUsIntro({
   const finishTransition = () => {
     const pending = pendingIndexRef.current
     pendingIndexRef.current = null
-    setOutgoing(null)
+    setOutgoingIndex(null)
     if (pending != null && pending !== slideIndexRef.current) {
       beginTransition(pending)
     }
   }
 
-  // Snapshots the *current* slide and switches to the target. Unconditional
-  // — callers (startTransition, and finishTransition draining the queue) are
-  // what decide whether a transition should start at all. Reads the outgoing
-  // photo off slideIndexRef rather than the render's own `slide`, so a
-  // chained transition started from finishTransition snapshots what is
-  // actually on screen rather than whatever the closure happened to capture.
+  // Marks the *current* slide as the one now dissolving away and switches to
+  // the target. Unconditional — callers (startTransition, and
+  // finishTransition draining the queue) are what decide whether a
+  // transition should start at all.
   const beginTransition = (targetIndex) => {
-    const from = SLIDES[slideIndexRef.current]
-    const image = imageRef.current
-    setOutgoing({
-      photo: from.photo,
-      alt: from.alt,
-      height: image?.style.height,
-      transform: image?.style.transform,
-      id: ++snapshotIdRef.current,
-    })
+    setOutgoingIndex(slideIndexRef.current)
     setSlideIndex(targetIndex)
     slideIndexRef.current = targetIndex
   }
 
   const startTransition = (targetIndex) => {
     if (targetIndex === slideIndexRef.current) return
-    if (outgoingRef.current) {
+    if (outgoingRef.current != null) {
       pendingIndexRef.current = targetIndex
       return
     }
@@ -440,7 +323,34 @@ export function AboutUsIntro({
   // margin that looked fine at that width reads as barely any space at all
   // once everything else on screen has grown with it. 90 is a deliberately
   // bigger jump for that reason, not another small step.
-  const HEADING_RIGHT_GAP_PX = 90
+  // 130 — up from 90 — asked for directly, "a little bit shorter
+  // horizontally": this gap now shrinks the body copy too (see the JSX;
+  // both heading and paragraph fill textColumnRef's own max-width), so the
+  // same small nudge narrows the whole column rather than just the heading.
+  const HEADING_RIGHT_GAP_PX = 130
+
+  // How much further right than the stats' own grid square the text column
+  // starts. The stats block's own left edge (statsLeftPx below) is the
+  // *square's* edge, not where "12.4K" itself visually begins — that number
+  // is centred inside its square (see AboutUsStats' own items-center), so
+  // the actual gap between it and the screen's edge is the square's own
+  // gap plus however far the glyph sits in from that square's left edge.
+  // Asked for directly: the text column should start level with the
+  // digits, not the square. A hand-tuned constant rather than a measured
+  // one — the digits are mid-count for two seconds after the reveal lands
+  // (see AboutUsStats), so measuring the live rendered inset would shift
+  // this column sideways while the number is still counting, which is far
+  // worse than a fixed guess that's a few px off.
+  const TEXT_COLUMN_INSET_PX = 24
+  // A small nudge down from the row's own top edge — TEXT_ROW_OFFSET picks
+  // the row, this is what actually centres the block inside it. The column
+  // is top-anchored (its own content sits at whatever height the headline
+  // and body happen to wrap to, not stretched to fill the cell), so without
+  // this it reads as sitting in the upper part of the row rather than its
+  // middle. Asked for directly, "a tiny little bit" — a small hand-tuned
+  // value, not a real vertical-centring calculation against the column's
+  // own (variable, per-slide) height.
+  const TEXT_ROW_NUDGE_PX = 14
 
   // Everything about where the block sits and how big it is, from one set of
   // metrics. Its own function because it is called before the first paint and
@@ -467,16 +377,52 @@ export function AboutUsIntro({
     // always filled edge to edge whatever shape the photo is.
     const imageHeight = windowHeight + PHOTO_OVERFLOW_CELLS * cell
     image.style.height = `${imageHeight}px`
-    // The text column's own left edge sits at the page's shared margin (see
-    // PAGE_MARGIN_VH below, in the JSX) — same measurement pageMarginPx
-    // gives back here, just already known in px rather than vh. Whatever's
-    // left between there and the photo's own left edge, minus the gap above,
-    // is exactly how wide the heading (unconstrained by its own width now —
-    // see the JSX) can get without ever touching it. The body copy keeps its
-    // own, tighter width (see the JSX) regardless of how wide this column
-    // itself is allowed to grow.
+    // Where the stats' own left edge lands — the first cell boundary at or
+    // after the page's shared margin, rounded out to the grid (see
+    // statsCellIndices). Computed once here and used for both the stats
+    // block below and the text column just above it, so the two can share
+    // one left edge exactly rather than the text using the raw margin and
+    // the stats independently rounding out from it, which is what put a few
+    // px of daylight between "12.4K" and the headline above it.
+    const stats = statsCellIndices(window.innerWidth, window.innerHeight)
+    const statsLeftPx = phaseX + stats.column * cell
+    // The text column's own edge — TEXT_COLUMN_INSET_PX further right than
+    // the square itself, to land level with "12.4K" rather than with the
+    // square's own boundary. Only the text uses this; the stats block below
+    // still sits at the bare statsLeftPx, since it's the square that has to
+    // stay grid-aligned, not the column drawn on top of it.
+    const textLeftPx = statsLeftPx + TEXT_COLUMN_INSET_PX
     if (textColumnRef.current) {
-      textColumnRef.current.style.maxWidth = `${photoLeftPx - pageMarginPx(window.innerHeight) - HEADING_RIGHT_GAP_PX}px`
+      textColumnRef.current.style.left = `${textLeftPx}px`
+      // Whatever's left between the text column's own left edge and the
+      // photo's, minus the gap above, is exactly how wide the heading
+      // (unconstrained by its own width now — see the JSX) can get without
+      // ever touching it. The body copy keeps its own, tighter width (see
+      // the JSX) regardless of how wide this column itself is allowed to
+      // grow. Measured from textLeftPx, not the raw margin, now that the
+      // column starts there instead — the margin alone would overstate how
+      // much room is actually available past the new, further-right edge.
+      textColumnRef.current.style.maxWidth = `${photoLeftPx - textLeftPx - HEADING_RIGHT_GAP_PX}px`
+      // Placed on the grid now rather than vertically centred on the
+      // viewport, which is what it used to be (top-1/2 -translate-y-1/2).
+      // Centring put the copy in the upper-middle of the screen with the
+      // Google Cloud plaque filling the space beneath it; with that plaque
+      // gone the column was asked to sit lower, roughly where the plaque
+      // itself had been. Anchoring it to a whole row of the same grid the
+      // photo and the stats are on gets that without a hand-tuned pixel
+      // offset, and keeps all three agreeing about where "down" is at any
+      // viewport size.
+      textColumnRef.current.style.top = `${phaseY + (row + TEXT_ROW_OFFSET) * cell + TEXT_ROW_NUDGE_PX}px`
+    }
+    // The stats span STATS_CELLS_X whole squares from statsLeftPx, level
+    // with the row the photo begins on. Their cell indices come from the
+    // shared helper rather than being worked out here, since AboutUsSection's
+    // ambient squares have to land on these exact same cells.
+    if (statsRef.current) {
+      statsRef.current.style.left = `${statsLeftPx}px`
+      statsRef.current.style.top = `${phaseY + stats.row * cell}px`
+      statsRef.current.style.width = `${cell * STATS_CELLS_X}px`
+      statsRef.current.style.height = `${cell}px`
     }
     return imageHeight - windowHeight
   }, [])
@@ -510,12 +456,7 @@ export function AboutUsIntro({
   useLayoutEffect(() => {
     const layOut = () => {
       const overflow = applyLayout(
-        gridScreenMetrics({
-          width: window.innerWidth,
-          height: window.innerHeight,
-          scale: ABOUT_US_GRID_ZOOM_SCALE,
-          screenOffset: -1,
-        }),
+        aboutUsGridMetrics(window.innerWidth, window.innerHeight),
       )
       overflowRef.current = overflow ?? 0
       // Parked centred, so the photo is already showing its middle rather
@@ -541,18 +482,19 @@ export function AboutUsIntro({
       last = now
       const image = imageRef.current
       const overflow = overflowRef.current
-      // Paused for the duration of a crossfade (outgoingRef non-null) —
-      // the incoming image sits directly beneath the frozen outgoing
-      // snapshot (see startTransition/outgoing above), and letting parallax
-      // keep nudging it every frame while it's hidden meant it had drifted
-      // to a different offset than the snapshot by the time the dissolve
-      // revealed it, reading as a jump/jitter right as the swap landed —
-      // worse the more the pointer had moved during that half-second. Also
-      // skips the easing math itself, not just the write: catching easedRef
-      // up to the live pointer position while frozen would have made
-      // parallax resume with a snap the instant the transition ended,
-      // instead of continuing smoothly from wherever it left off.
-      if (image && overflow > 0 && !outgoingRef.current) {
+      // Paused for the duration of a crossfade (outgoingRef non-null; a
+      // loose-equality null check, not plain truthiness, since a slide-0
+      // outgoingIndex is falsy but very much an active dissolve) — every
+      // photo shares this one wrapper's height/transform now (see the window
+      // JSX below), so nudging it every frame while a dissolve plays would
+      // move the outgoing photo along with the incoming one mid-fade,
+      // reading as a jump/jitter right as the swap landed — worse the more
+      // the pointer had moved during that half-second. Also skips the easing
+      // math itself, not just the write: catching easedRef up to the live
+      // pointer position while frozen would have made parallax resume with a
+      // snap the instant the transition ended, instead of continuing
+      // smoothly from wherever it left off.
+      if (image && overflow > 0 && outgoingRef.current == null) {
         easedRef.current +=
           (pointerRef.current - easedRef.current) * (1 - Math.exp(-PARALLAX_LAMBDA * dt))
         // Positive pointer (lower on screen) pulls the photo up, revealing
@@ -592,22 +534,34 @@ export function AboutUsIntro({
       style={{ x: mainX }}
       className="pointer-events-none absolute inset-0 z-50"
     >
-      {/* Left: headline, body copy, Google Cloud partner badge. A fixed 280px
-          (tried first, for the whole column, then 300px for just the
-          heading) needed bumping every time it was asked to grow, because
-          the real available room isn't fixed at all — the photo's own left
-          edge moves with the viewport width (see photoCellIndices) while
-          this column's own left margin barely does, so a guessed constant
-          was either leaving real space unused on a wide window or already
-          too tight on a narrower one. textColumnRef's own max-width (set in
-          applyLayout, from the actual measured gap) replaces that guessing:
-          the heading below has no width of its own now and simply fills
-          whatever this column is genuinely allowed. Body copy keeps its own
-          tighter 280px regardless — sized for an actual paragraph, not a
-          single display line, so it shouldn't grow just because the heading
-          can. */}
-      <div ref={textColumnRef} className="absolute top-1/2 -translate-y-1/2"
-        style={{ left: `${PAGE_MARGIN_VH}vh` }}>
+      {/* Left: headline and body copy. A fixed 280px (tried first, for the
+          whole column, then 300px for just the heading, then kept for the
+          body alone once the heading moved off it) needed bumping every
+          time it was asked to grow, because the real available room isn't
+          fixed at all — the photo's own left edge moves with the viewport
+          width (see photoCellIndices) while this column's own left margin
+          barely does, so a guessed constant was either leaving real space
+          unused on a wide window or already too tight on a narrower one.
+          textColumnRef's own max-width (set in applyLayout, from the actual
+          measured gap) replaces that guessing for both now — asked for
+          directly, the body should get the same room as the heading rather
+          than a tighter width of its own. */}
+      {/* Three animated figures on three whole grid squares, level with the
+          row the photo starts on — left/top/width/height all written by the
+          layout pass above (see statsRef), never by flow, so they sit *on*
+          the grid's own squares the same way the photo window does rather
+          than merely near them. This replaced the Google Cloud Partner
+          plaque that used to sit at the bottom of the copy column. */}
+      <div ref={statsRef} className="pointer-events-none absolute">
+        <AboutUsStats aboutUsProgress={aboutUsProgress} slideIndex={slideIndex} />
+      </div>
+
+      {/* left/top/maxWidth all written by the layout pass above now — left
+          used to be a static PAGE_MARGIN_VH here, before the column was
+          asked to start at the stats' own left edge instead (see
+          statsLeftPx above), which only the layout pass can answer since it
+          depends on the grid's phase. */}
+      <div ref={textColumnRef} className="absolute">
         {/* Keyed on slideIndex so each slide's copy is its own mount —
             unlike imageRef, nothing outside this fade depends on the
             heading/paragraph nodes staying the same element across slides,
@@ -624,17 +578,27 @@ export function AboutUsIntro({
             <h1 className="text-[38px] leading-[1.25] font-light text-white/90 md:text-[46px]">
               {slide.headline}
             </h1>
-            <p className="mt-6 max-w-[280px] text-[13px] leading-[1.9] font-extralight text-white/60">
+            {/* No max-w of its own any more — asked for directly, the same
+                room the heading gets rather than a tighter fixed 280px.
+                Both now simply fill whatever textColumnRef's own maxWidth
+                (set imperatively, see applyLayout) allows. */}
+            <p className="mt-6 text-[13px] leading-[1.9] font-extralight text-white/60">
               {slide.body}
             </p>
+            {/* A second paragraph — its own block, a real line break from
+                the one above, not more sentences appended to it. Same
+                classes as the first (asked for directly, not a smaller/
+                dimmer secondary note, which an earlier version of this
+                wrongly read "shorter" as). Conditional on slide.bodySecondary
+                existing, so slides that don't have one yet don't render an
+                empty gap. */}
+            {slide.bodySecondary && (
+              <p className="mt-6 text-[13px] leading-[1.9] font-extralight text-white/60">
+                {slide.bodySecondary}
+              </p>
+            )}
           </motion.div>
         </AnimatePresence>
-        {/* Reserves the plaque's footprint in the DOM layout — the actual
-            glass mesh is drawn by GoogleCloudPartnerBadge in AboutUsSection's
-            main canvas, positioned against this rect (see useDomAnchorRect
-            there), the same handoff badgeAnchorRef already uses for the
-            team-photo badge. */}
-        <div ref={partnerBadgeAnchorRef} className="pointer-events-none mt-10 h-32 w-32" />
       </div>
 
       {/* Right: the team photo behind its twelve-square window, badge below.
@@ -660,76 +624,78 @@ export function AboutUsIntro({
               each frame, so nothing about the sizing logic above had to
               change, only which element the image sits inside. */}
           <div className="absolute inset-0 overflow-hidden">
-            {/* The incoming layer — always at its resting opacity, never
-                dipped, and never waits on anything: SLIDE_PHOTOS is preloaded
-                well before the slideshow's first click (see
-                preloadPhotoTextures in PhotoBackdropCapture), so by the time
-                a real slide change lands here the photo is already sitting
-                in the browser's own cache. Same ref/className/style/height/
-                transform contract on both branches (only the tag and src
-                differ) — the layout and parallax logic above sets
-                imageRef.current.style.height/.transform imperatively and
-                doesn't know or care which element currently holds the ref. */}
-            {slide.photo ? (
-              <img
-                ref={imageRef}
-                src={slide.photo}
-                alt={slide.alt}
-                draggable={false}
-                // Full window width, natural height — taller than the
-                // window, which is what leaves something to reveal.
-                // Positioned from the top and moved by transform only, so
-                // the overflow maths above has a single, predictable origin
-                // to work from.
-                className="w-full max-w-none object-cover"
-                style={{ opacity: 0.8 }}
-              />
-            ) : (
-              // No photo decided yet for this slide — flat gray rather than
-              // reusing a real photo for content that isn't real yet (see
-              // SLIDES above).
-              <div ref={imageRef} className="h-full w-full bg-gray-500" />
-            )}
-            {/* The outgoing layer — a frozen snapshot of the previous slide
-                (see outgoing/startTransition above), painted back at the
-                exact height/transform it had when the swap began so it
-                doesn't jump before it starts to dissolve. Sits on top of the
-                incoming layer in stacking order purely by coming later in
-                the DOM (both share the same non-positioned/positioned
-                stacking context), no z-index needed. Starts at the same
-                opacity 0.8 the incoming layer rests at — matching how it
-                already looked the instant before this render — and animates
-                straight to 0 the moment it mounts (framer-motion needs no
-                waiting or two-frame gate to do that; see the outgoing
-                state's own comment above for why a raw CSS transition did).
-                onAnimationComplete calls finishTransition once that fade
-                actually lands, which is what unmounts this. */}
-            {outgoing && (
-              outgoing.photo ? (
-                <motion.img
-                  key={outgoing.id}
-                  src={outgoing.photo}
-                  alt={outgoing.alt}
-                  draggable={false}
-                  initial={{ opacity: 0.8 }}
-                  animate={{ opacity: 0 }}
-                  transition={CROSSFADE_TRANSITION}
-                  onAnimationComplete={finishTransition}
-                  className="pointer-events-none absolute top-0 left-0 w-full max-w-none object-cover"
-                  style={{ height: outgoing.height, transform: outgoing.transform }}
-                />
-              ) : (
-                <motion.div
-                  key={outgoing.id}
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: 0 }}
-                  transition={CROSSFADE_TRANSITION}
-                  onAnimationComplete={finishTransition}
-                  className="pointer-events-none absolute top-0 left-0 h-full w-full bg-gray-500"
-                  style={{ height: outgoing.height, transform: outgoing.transform }}
-                />
-              )
-            )}
+            {/* imageRef now sits on this wrapper, not on any individual
+                photo — every slide's own <img> below is permanently
+                mounted, `src` never changes on any of them, so the
+                height/transform the layout and parallax logic above sets
+                imperatively has to live one level up, shared by all of them.
+                That's also what makes the crossfade below correct for free:
+                since this wrapper is the one thing frozen for a dissolve's
+                whole duration (see the parallax loop's own outgoingRef
+                gate), every photo inside it is already sitting at the exact
+                same position/size, with nothing to snapshot.
+                Full width, natural (taller-than-the-window) height —
+                positioned from the top and moved by transform only, so the
+                overflow maths above has a single, predictable origin to
+                work from. */}
+            <div ref={imageRef} className="relative w-full max-w-none">
+              {/* Every slide's photo, always mounted, `src` never changing —
+                  the same "nothing to swap, nothing to wait on" shape
+                  MeetTheTeamGrid's own detail photos use (see that file's
+                  MEMBERS.map: every member's tile exists from the very first
+                  render, whether selected or not). A version of this that
+                  swapped `src` on one shared node used to read as a flash of
+                  white on a photo's first-ever appearance in the session —
+                  changing `src` on an <img> that's already showing something
+                  blanks it until the new bitmap decodes, no matter how early
+                  the network request for that URL was warmed. Mounting every
+                  photo up front sidesteps that entirely: the browser decodes
+                  each one once, the first time this component renders, long
+                  before any of them are ever the one dissolving in.
+                  The current slide snaps straight to its resting opacity
+                  (SNAP_TRANSITION) — nothing to fade in against, since the
+                  outgoing photo is still opaque on top of it. The one
+                  dissolving away animates its opacity down over
+                  CROSSFADE_TRANSITION and calls finishTransition when that
+                  lands; every other photo just sits hidden at 0. */}
+              {SLIDES.map((s, index) => {
+                const isCurrent = index === slideIndex
+                const isOutgoing = index === outgoingIndex
+                return (
+                  // The opacity animation lives on this wrapper, not on the
+                  // <img> itself — exactly the split MeetTheTeamGrid's own
+                  // tiles use (motion.button owns the animated transform,
+                  // the plain <img> inside it never has an animate prop of
+                  // its own). The photo is then just static content the
+                  // browser rasterizes once and never touches again; only
+                  // the already-rasterized layer's alpha changes frame to
+                  // frame, the cheapest thing a compositor can do. Animating
+                  // opacity straight on the <img> instead (tried first) put
+                  // the image's own bitmap on the thing being faded, and
+                  // frame-1 of that layer read as blank/white before the
+                  // bitmap made it in.
+                  <motion.div
+                    key={s.photo}
+                    animate={{ opacity: isCurrent ? 0.8 : 0 }}
+                    transition={isOutgoing ? CROSSFADE_TRANSITION : SNAP_TRANSITION}
+                    onAnimationComplete={isOutgoing ? finishTransition : undefined}
+                    // Only the currently-outgoing photo needs to sit above
+                    // its siblings while it dissolves; the rest share the
+                    // same DOM order every render, so no other z-index is
+                    // needed to keep them visually stable.
+                    className="pointer-events-none absolute inset-0"
+                    style={{ zIndex: isOutgoing ? 1 : 0 }}
+                  >
+                    <img
+                      src={s.photo}
+                      alt={s.alt}
+                      draggable={false}
+                      className="h-full w-full object-cover"
+                    />
+                  </motion.div>
+                )
+              })}
+            </div>
           </div>
           {/* Bigger than CornerBrackets' own default (22px/2px, sized for
               TeamCarousel's ~460px square tiles) — this window is a settled
@@ -746,13 +712,19 @@ export function AboutUsIntro({
               can't grow blockRef's own box: badgeAnchorRef's bottom/right
               offsets are measured from that box, and this can't be the
               thing that moves them.
-              A small title about the image itself, on every slide now —
-              this used to be the "Meet the Team" button (showButton-gated,
-              only on the last/group-photo slide), moved to replace the
-              right arrow once the slideshow reaches its own last slide (see
-              that arrow's own comment below) since it's the more natural
-              "arrived at the end" cue there. key={slideIndex} is what
-              replays the entrance below on every slide — this is no longer
+              Context for the image itself, on every slide now — this used
+              to be the "Meet the Team" button (showButton-gated, only on
+              the last/group-photo slide), moved to replace the right arrow
+              once the slideshow reaches its own last slide (see that
+              arrow's own comment below) since it's the more natural
+              "arrived at the end" cue there. Holds the picture's actual
+              description now (event + context), not just a short label, so
+              no `uppercase`/wide `tracking` — both cost horizontal room per
+              character, working directly against fitting a real sentence
+              instead of one or two capitalized words. max-w wraps it into
+              a short block instead of one long line running past the
+              photo's own edge. key={slideIndex} is what replays the
+              entrance below on every slide — this is no longer
               conditionally mounted (the old && unmount/remount did that job
               before), so without it React would just update this element's
               text in place rather than treating each slide's caption as a
@@ -765,7 +737,7 @@ export function AboutUsIntro({
             initial={{ opacity: 0, y: -16, filter: 'blur(8px)' }}
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="pointer-events-none absolute top-full left-0 mt-6 text-xs font-extralight tracking-[0.25em] text-white/50 uppercase"
+            className="pointer-events-none absolute top-full left-0 mt-6 max-w-[420px] text-xs leading-[1.7] font-extralight text-white/50"
           >
             {slide.alt}
           </motion.p>

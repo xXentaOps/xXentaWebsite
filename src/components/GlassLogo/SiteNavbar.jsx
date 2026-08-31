@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { XxentaWordmark } from './XxentaWordmark'
 
 // Placeholder links with no page of their own yet — clicking one just
 // toggles the same grey a selected grid button uses (see BackgroundGrid's
@@ -51,34 +52,14 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
         // not inherited: the wrapping div above is pointer-events-none (so
         // its own empty margin doesn't block the canvas underneath), same
         // reasoning the nav links' own wrapper already opts back into.
-        className="pointer-events-auto cursor-pointer text-xs font-medium tracking-[0.25em] text-white/15 transition-colors duration-200 hover:text-white/40"
+        className="pointer-events-auto cursor-pointer text-xs font-medium text-white/15 transition-colors duration-200 hover:text-white/40"
       >
-        {/* A tiny nudge left, purely a hand-tuned visual balance
-            adjustment — barely perceptible on its own. */}
-        <span className="inline-block -translate-x-[0.03em]">x</span>
-        {/* The capital X, replaced with the actual logo mark (same path
-            as src/assets/logo-xxenta.svg) — fill="currentColor" rather
-            than the source file's own hardcoded white, so it automatically
-            matches this span's text-white/40, transparency included, and
-            stays in sync if that color ever changes. */}
-        <svg
-          viewBox="0 0 406.77 407"
-          fill="currentColor"
-          aria-hidden="true"
-          // align-baseline (not align-middle) so the mark's own bottom
-          // edge sits on the text baseline, flush with the bottom of the
-          // surrounding letters — none of "x"/"enta" have a descender, so
-          // baseline *is* their visual bottom. The parent's tracking-
-          // [0.25em] already adds trailing space after "x" itself (a real
-          // character), so the gap on this element's *left* is correct
-          // with no extra margin — only the right needed one, since
-          // tracking doesn't apply after this inline-block SVG itself,
-          // leaving "e" flush against it with no gap otherwise.
-          className="mr-[0.25em] inline-block h-[0.95em] w-[0.95em] align-baseline"
-        >
-          <path d="M295.54,19.1C308.26,6.37,324.94,0,341.61,0s33.35,6.37,46.08,19.1c25.44,25.46,25.44,66.73,0,92.2l-46.08,46.1-46.07,46.11c25.44-25.47,25.44-66.74,0-92.2-25.44-25.47-66.71-25.47-92.15,0l46.07-46.11,46.08-46.1h0ZM19.08,387.9c12.73,12.73,29.4,19.1,46.08,19.1s33.35-6.37,46.07-19.1,19.08-29.41,19.08-46.1-6.36-33.37-19.08-46.11c-12.72-12.72-29.39-19.09-46.07-19.09s-33.35,6.37-46.08,19.09c-25.44,25.47-25.44,66.74,0,92.2h0ZM387.69,295.7l-92.15-92.19c-25.44,25.46-38.17,58.83-38.17,92.2s12.73,66.73,38.17,92.19c12.72,12.73,29.39,19.1,46.07,19.1s33.35-6.37,46.08-19.1,19.08-29.41,19.08-46.1-6.35-33.37-19.08-46.11h0ZM111.24,149.48c33.35,0,66.7-12.72,92.15-38.18L111.24,19.1c-25.44-25.47-66.71-25.47-92.15,0C6.36,31.82,0,48.51,0,65.2s6.35,33.37,19.08,46.11c25.45,25.46,58.8,38.18,92.15,38.18h0Z" />
-        </svg>
-        enta
+        {/* The mark itself lives in XxentaWordmark now — shared verbatim
+            with the footer, which needs the identical construction (see
+            that file for why the spacing inside it can't be duplicated by
+            hand). Size, weight, color, and the click affordance above stay
+            here, where they differ between the two. */}
+        <XxentaWordmark />
       </motion.span>
 
       <motion.div
