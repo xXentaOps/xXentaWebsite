@@ -357,6 +357,14 @@ export function GridPlane({
   // and that fade is driven from scroll position every frame. Absent (every
   // other caller), the uniform keeps EDGE_STYLE's own opacity untouched.
   edgeOpacityRef,
+  // A ref holding { x, bottomUV, topUV }, for the same reason again: once
+  // pinned, BackgroundGlowSection swaps which cell the edge highlights (a
+  // second callout, in a different square) as the chat plays — a position
+  // that changes on scroll, not on mount, so it has to be a per-frame write
+  // like the other two rather than the plain edgeXUV/edgeBottomUV/edgeTopUV
+  // props below, which this overrides once present. Those props still set
+  // the *first* frame's geometry, before this ref's own effect has run.
+  edgeGeometryRef,
   buttonColumnLeftUV,
   buttonColumnRightUV,
   buttonBottomUV,
@@ -395,6 +403,13 @@ export function GridPlane({
 
     if (edgeOpacityRef) {
       material.uniforms.uEdgeOpacity.value = EDGE_STYLE.opacity * edgeOpacityRef.current
+    }
+
+    if (edgeGeometryRef) {
+      const geo = edgeGeometryRef.current
+      material.uniforms.uEdgeX.value = geo.x
+      material.uniforms.uEdgeBottomUV.value = geo.bottomUV
+      material.uniforms.uEdgeTopUV.value = geo.topUV
     }
 
     if (!buttonsEnabled) return

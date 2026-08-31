@@ -2,12 +2,12 @@
 // that still need real artwork are all in one file rather than scattered
 // through the layout.
 
-// The one icon that exists today, transcribed from the supplied SVG rather
-// than referenced as a file: currentColor instead of the baked #CAD5E2, so
-// the layout decides its colour the same way it does for text, and no
-// width/height attributes so the caller sizes it. Everything else — the
-// 20-unit viewBox, the 1.66667 stroke, the round caps/joins — is exactly as
-// drawn.
+// Transcribed from the supplied SVGs rather than referenced as files, with
+// two deliberate changes each: currentColor instead of the baked hex, so the
+// layout decides colour the same way it does for text, and no width/height
+// attributes, so the caller decides size. Everything else — viewBoxes,
+// stroke weights, round caps and joins — is exactly as drawn.
+
 export function MicrophoneIcon({ className, style }) {
   return (
     <svg viewBox="0 0 20 20" fill="none" aria-hidden className={className} style={style}>
@@ -27,6 +27,74 @@ export function MicrophoneIcon({ className, style }) {
       />
       <path d="M10 15.8334V18.3334" stroke="currentColor" strokeWidth="1.66667" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  )
+}
+
+// The room's own mark — the pulse trace from inside the Trauma Bay pill.
+//
+// The viewBox is the odd part and it's on purpose: the path was drawn at its
+// real position inside a 140x49 artboard, and its clip rect there is a 16x16
+// box at (17.6666, 15.5176). Re-origining the path would mean rewriting
+// thirty-odd coordinates by hand, which is thirty-odd chances to introduce a
+// wrong digit that nothing would catch; a viewBox with a non-zero min-x/min-y
+// crops to exactly that same box with the path left untouched.
+export function RoomPulseIcon({ className, style }) {
+  return (
+    <svg viewBox="17.6666 15.5176 16 16" fill="none" aria-hidden className={className} style={style}>
+      <path
+        d="M32.3333 23.5176H30.68C30.3886 23.517 30.1051 23.6118 29.8727 23.7876C29.6404 23.9634 29.472 24.2104 29.3933 24.491L27.8267 30.0643C27.8166 30.0989 27.7955 30.1293 27.7667 30.151C27.7378 30.1726 27.7027 30.1843 27.6667 30.1843C27.6306 30.1843 27.5955 30.1726 27.5667 30.151C27.5378 30.1293 27.5168 30.0989 27.5067 30.0643L23.8267 16.971C23.8166 16.9363 23.7955 16.9059 23.7667 16.8843C23.7378 16.8626 23.7027 16.851 23.6667 16.851C23.6306 16.851 23.5955 16.8626 23.5667 16.8843C23.5378 16.9059 23.5168 16.9363 23.5067 16.971L21.94 22.5443C21.8616 22.8237 21.6943 23.07 21.4632 23.2456C21.2322 23.4213 20.9502 23.5168 20.66 23.5176H19"
+        stroke="currentColor"
+        strokeWidth="1.66667"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+// The private channel's lock. Not from a supplied file — drawn here to the
+// same construction as the microphone above (20-unit box, 1.66667 stroke,
+// round caps and joins) so it reads as one family rather than an icon
+// borrowed from somewhere else.
+export function LockIcon({ className, style }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden className={className} style={style}>
+      <rect
+        x="3.75"
+        y="8.75"
+        width="12.5"
+        height="8.33333"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.66667"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.66675 8.75V5.83333C6.66675 4.94928 7.01794 4.10143 7.64306 3.47631C8.26818 2.85119 9.11603 2.5 10.0001 2.5C10.8841 2.5 11.732 2.85119 12.3571 3.47631C12.9822 4.10143 13.3334 4.94928 13.3334 5.83333V8.75"
+        stroke="currentColor"
+        strokeWidth="1.66667"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+// The red dot from the top-right of the supplied selection pill: a 10px core
+// in #FB2C36 inside a 17px halo of #FF6467 at 22%, both exactly as drawn.
+//
+// Nothing in the brief said what raises it, so it's wired to the one thing on
+// screen that genuinely needs to interrupt the visitor: a channel calling for
+// attention while they're reading a different one (see `alerts`/`clears` in
+// chatShowcaseScript.js). Delete the <AlertDot> from the header entry to drop
+// the idea entirely — nothing else depends on it.
+export function AlertDot({ className, style }) {
+  return (
+    <span aria-hidden className={className} style={style}>
+      <span className="absolute inset-0 rounded-full bg-[#FF6467] opacity-[0.222354]" />
+      <span className="absolute inset-[3.5px] rounded-full bg-[#FB2C36]" />
+    </span>
   )
 }
 
@@ -66,7 +134,9 @@ export function ChatAvatar({ src, alt, size = 34, className }) {
       alt={alt ?? ''}
       width={size}
       height={size}
-      style={{ width: size, height: size }}
+      // Brought back up from 30% opacity — that read as too faint against
+      // the header's own muted material once actually seen live.
+      style={{ width: size, height: size, opacity: 0.55 }}
       className={`${shared} object-cover ${className ?? ''}`}
     />
   )

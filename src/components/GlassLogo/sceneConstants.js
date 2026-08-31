@@ -21,3 +21,26 @@ export const BLOB_WIDTH_OVERSCALE = 1.9
 // mostly below the hero's own visible bottom edge, which is exactly why only
 // its upper portion shows there.
 export const BLOB_Y_FRACTION = 0.6
+
+// The page's own resting backdrop, and what it becomes while the chat
+// showcase is inside a segment with a mood attached (see chatMoodAt) — the
+// screen tinting and the glow above it shifting colour along with it. Two
+// moods exist today: the unconscious patient (near-black, grey glow) and
+// Carla, once pulled aside and angry (near-black red, red glow).
+//
+// Each _LIT/_DIM/_ANGRY pair is deliberately the same colour as its opposite
+// number: GradientBlob's own shader fades its glow out *to* uColorEdge, so
+// any difference between that and the scene's flat background would draw a
+// visible rectangle around the blob's plane. Kept here as pairs rather than
+// hex codes repeated in two files that have to agree.
+export const SCENE_BACKDROP = '#0F172B'
+export const SCENE_BACKDROP_DIM = '#05070D'
+export const SCENE_BACKDROP_ANGRY = '#1A0F0F'
+export const BLOB_CENTER = '#3B82F6'
+// Grey, given exactly. Red started at the same exact-hex treatment (#B91C1C)
+// but read as too intense once actually glowing on screen — brought down a
+// shade, to a deeper, less saturated red, rather than reducing its blend
+// weight against the lit colour, which would have just made the whole
+// transition weaker rather than making the red itself calmer.
+export const BLOB_CENTER_DIM = '#475569'
+export const BLOB_CENTER_ANGRY = '#991B1B'

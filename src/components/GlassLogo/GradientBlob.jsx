@@ -2,6 +2,14 @@ import { useRef } from 'react'
 import { shaderMaterial } from '@react-three/drei'
 import { extend, useFrame } from '@react-three/fiber'
 import { Color } from 'three'
+import {
+  BLOB_CENTER,
+  BLOB_CENTER_ANGRY,
+  BLOB_CENTER_DIM,
+  SCENE_BACKDROP,
+  SCENE_BACKDROP_ANGRY,
+  SCENE_BACKDROP_DIM,
+} from './sceneConstants'
 
 // Procedural — no CanvasTexture allocation, just a plane + a cheap fragment
 // shader. An irregular (non-circular) radius modulated by a few sine waves
@@ -9,8 +17,8 @@ import { Color } from 'three'
 const GradientBlobMaterial = shaderMaterial(
   {
     uTime: 0,
-    uColorCenter: new Color('#3B82F6'),
-    uColorEdge: new Color('#0F172B'),
+    uColorCenter: new Color(BLOB_CENTER),
+    uColorEdge: new Color(SCENE_BACKDROP),
     // First-load entrance (see ENTRANCE_DURATION in GradientBlob's
     // useFrame). This material is always fully opaque (no `transparent`
     // prop set below — alpha is always written as 1.0), so an entrance
@@ -90,7 +98,19 @@ function smoothstepEase(t) {
   return t * t * (3 - 2 * t)
 }
 
-export function GradientBlob({ position, scale }) {
+// Every mood's own colour, built once at module scope rather than per frame.
+// three.js colour-manages a hex string on construction, so these are already
+// in the working space the uniforms below expect — lerping between two of
+// them stays in that space, which lerping toward a raw hex parsed each frame
+// would not reliably do.
+const CENTER_LIT = new Color(BLOB_CENTER)
+const CENTER_DIM = new Color(BLOB_CENTER_DIM)
+const CENTER_ANGRY = new Color(BLOB_CENTER_ANGRY)
+const EDGE_LIT = new Color(SCENE_BACKDROP)
+const EDGE_DIM = new Color(SCENE_BACKDROP_DIM)
+const EDGE_ANGRY = new Color(SCENE_BACKDROP_ANGRY)
+
+export function GradientBlob({ position, scale, dimRef, angryRef }) {
   const materialRef = useRef(null)
   // Set on this blob's own first frame — same one-time-only entrance
   // pattern used throughout this piece (see GlassLogoGroup/HeroTitle/
@@ -105,6 +125,28 @@ export function GradientBlob({ position, scale }) {
     if (entranceStartRef.current === null) entranceStartRef.current = state.clock.elapsedTime
     const t = Math.min((state.clock.elapsedTime - entranceStartRef.current) / ENTRANCE_DURATION, 1)
     material.uEntranceProgress = smoothstepEase(t)
+
+    // Optional, and absent for every caller but the chat showcase's own
+    // backdrop: two independent 0..1 moods, each draining the glow and the
+    // ground it fades into toward its own colour — grey for the stretch the
+    // visitor spends in the unconscious patient's thread, red for Carla's
+    // own once she's pulled aside and angry. Refs rather than props because
+    // they change on every scroll frame — mutating the uniforms' own Colors
+    // in place, so there's nothing allocated per frame either.
+    //
+    // Applied one after the other rather than as a three-way weighted blend:
+    // the two moods never overlap in the script (there's exactly one open
+    // segment at a time), so lerping the *already-dimmed* result toward
+    // angry is equivalent to a true three-way mix here, and simpler. Either
+    // ref being 0 leaves its own lerp a no-op.
+    if (dimRef) {
+      material.uniforms.uColorCenter.value.lerpColors(CENTER_LIT, CENTER_DIM, dimRef.current)
+      material.uniforms.uColorEdge.value.lerpColors(EDGE_LIT, EDGE_DIM, dimRef.current)
+    }
+    if (angryRef) {
+      material.uniforms.uColorCenter.value.lerp(CENTER_ANGRY, angryRef.current)
+      material.uniforms.uColorEdge.value.lerp(EDGE_ANGRY, angryRef.current)
+    }
   })
 
   return (
