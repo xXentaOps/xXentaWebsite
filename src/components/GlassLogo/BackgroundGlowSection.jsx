@@ -23,6 +23,11 @@ import {
 } from './sceneConstants'
 import { useSeamlessGrid } from './useSeamlessGrid'
 
+function Updater({ updateFn }) {
+  useFrame(updateFn)
+  return null
+}
+
 // Grid-zoom-on-scroll: the grid grows as the carousel scrolls past overhead
 // (see progress in SeamlessBackdrop), landing at whatever size puts the
 // highlighted edge (see EDGE_COLUMN_FROM_LEFT) exactly finalZoomScale's own
@@ -873,7 +878,7 @@ function SeamlessBackdrop({
   // bottom edge reaches the *top* of the viewport (rect.bottom <= 0 — the
   // carousel has scrolled entirely away), so the zoom's full travel spans
   // the carousel's whole transit through the screen, start to finish.
-  useFrame((_, delta) => {
+  const updateFn = (_, delta) => {
     // Nothing below is worth doing for a section that isn't on screen, and
     // one part of it actively costs: measuring the carousel every frame
     // reads layout back out of the DOM. Safe to skip because the render that
@@ -1005,6 +1010,17 @@ function SeamlessBackdrop({
       revealOffsetRef.current = MathUtils.damp(revealOffsetRef.current, revealWorldDistance * revealT, PAN_LAMBDA, delta)
       revealGroupRef.current.position.x = group.position.x + revealOffsetRef.current
     }
+
+    // Force a synchronous matrix update for the DOM layers. Html elements
+    // use the world matrix to project themselves to the screen; left alone,
+    // they read the previous frame's matrix (since R3F doesn't update them
+    // until render time), causing a 1-frame lag behind WebGL elements
+    // (which read position.x directly, like drpClipPlaneRef below) and making
+    // the CSS clip-path visibly misaligned during fast scrolls.
+    group.updateMatrixWorld(true)
+    if (calloutGroupRef.current) calloutGroupRef.current.updateMatrixWorld(true)
+    if (revealGroupRef.current) revealGroupRef.current.updateMatrixWorld(true)
+
     // The clip boundary itself — group.position.x/nextScale here are
     // gridGroupRef's own *actual current* transform (already written
     // above this frame), so this tracks the grid's real position even
@@ -1167,10 +1183,11 @@ function SeamlessBackdrop({
     drpRef.current = panT
     // The grid lines' own boost — see lineOpacityBoostRef's own comment.
     lineOpacityBoostRef.current = MathUtils.lerp(1, DRP_LINE_OPACITY_BOOST, panT)
-  })
+  }
 
   return (
     <>
+      <Updater updateFn={updateFn} />
       <color ref={backgroundRef} attach="background" args={[SCENE_BACKDROP]} />
       <GradientBlob
         position={[0, blobY, PLANE_Z]}
