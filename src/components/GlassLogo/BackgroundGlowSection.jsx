@@ -10,6 +10,7 @@ import { DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYL
 import { pageMarginPx } from './pageMargin'
 import { GradientBlob } from './GradientBlob'
 import { COURSES, PANEL_DESIGN_WIDTH, SyllabusOverviewPanel } from './SyllabusOverviewPanel'
+import { AI_IMPACT_PANEL_DESIGN_WIDTH, AiImpactAnalysisPanel } from './AiImpactAnalysisPanel'
 import { XxentaWordmark } from './XxentaWordmark'
 import {
   BLOB_WIDTH_OVERSCALE,
@@ -585,6 +586,8 @@ function SeamlessBackdrop({
   // of DRP Showcase rather than sitting there at native size from the
   // start.
   const syllabusPanelRef = useRef(null)
+  // The "AI Impact Analysis" panel sitting directly on top of DRP_2
+  const aiImpactPanelRef = useRef(null)
   // The syllabus panel's own pills and title — driven during revealT to
   // stagger out from bottom to top so Entrepreneurial Management exits last.
   const pillRefs = useRef([])
@@ -1077,6 +1080,17 @@ function SeamlessBackdrop({
       // the boundary once the scale() transform above is applied on top.
       syllabusPanelRef.current.style.clipPath = `inset(0 0 0 ${hiddenFraction * PANEL_DESIGN_WIDTH}px)`
       syllabusPanelRef.current.style.opacity = `${panT}`
+    }
+
+    if (aiImpactPanelRef.current) {
+      const pxPerWorldUnit = size.width / gridWidth
+      const panelScale = (placeholderWidth * nextScale * pxPerWorldUnit) / AI_IMPACT_PANEL_DESIGN_WIDTH
+      aiImpactPanelRef.current.style.transform = `scale(${panelScale})`
+      const panelWorldWidth = drp2Width * nextScale
+      const panelWorldLeftEdge = revealGroupRef.current.position.x + drp2LeftX * nextScale
+      const hiddenFraction = MathUtils.clamp((boundaryWorldX - panelWorldLeftEdge) / panelWorldWidth, 0, 1)
+      aiImpactPanelRef.current.style.clipPath = `inset(0 0 0 ${hiddenFraction * AI_IMPACT_PANEL_DESIGN_WIDTH}px)`
+      aiImpactPanelRef.current.style.opacity = `${panT}`
     }
 
     // Staggered bottom-to-top exit cascade for Syllabus Overview during revealT:
@@ -1614,6 +1628,17 @@ function SeamlessBackdrop({
             cursorRef={cursorRef}
             cursorRippleRef={cursorRippleRef}
           />
+        </Html>
+
+        {/* "AI Impact Analysis" — centred on DRP_2 (drp2CenterX/Y) rather
+            than a fixed screen position, so it sits directly above DRP_2
+            and arrives synchronously with DRP_2 from right to left as
+            revealGroupRef pans. */}
+        <Html
+          position={[drp2CenterX, drp2CenterY, GRID_Z + 0.01]}
+          style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}
+        >
+          <AiImpactAnalysisPanel ref={aiImpactPanelRef} />
         </Html>
       </group>
 
