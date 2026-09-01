@@ -51,6 +51,20 @@ function EditPenIcon() {
   )
 }
 
+function NavChevron() {
+  return (
+    <svg width="5" height="9" viewBox="0 0 5 9" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+      <path
+        d="M1 1.25L3.75 4.5L1 7.75"
+        stroke="rgba(250, 242, 239, 0.4)"
+        strokeWidth="1.33333"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
   return (
     <div
@@ -326,7 +340,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
           }}
         >
           {NAV_ITEMS.map((item, idx) => (
-            <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span
                 style={{
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
@@ -334,22 +348,14 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
                   fontSize: 10,
                   lineHeight: '20px',
                   textAlign: 'center',
-                  color: item === 'Production' ? 'rgba(150, 142, 139, 0.6)' : 'rgba(250, 242, 239, 0.8)',
+                  color: item === 'AI Analysis' ? '#968E8B' : 'rgba(250, 242, 239, 0.4)',
                   cursor: 'pointer',
                   userSelect: 'none',
                 }}
               >
                 {item}
               </span>
-              {idx < NAV_ITEMS.length - 1 && (
-                <div
-                  style={{
-                    width: 1,
-                    height: 11,
-                    background: 'rgba(150, 142, 139, 0.6)',
-                  }}
-                />
-              )}
+              {idx < NAV_ITEMS.length - 1 && <NavChevron />}
             </div>
           ))}
         </div>
