@@ -43,17 +43,16 @@ const GradientBlobMaterial = shaderMaterial(
   },
   /* glsl */ `
     varying vec2 vUv;
-    varying float vScreenY;
+    varying vec4 vClipPos;
     void main() {
       vUv = uv;
-      vec4 clipPos = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      vScreenY = (clipPos.y / clipPos.w) * 0.5 + 0.5;
-      gl_Position = clipPos;
+      vClipPos = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      gl_Position = vClipPos;
     }
   `,
   /* glsl */ `
     varying vec2 vUv;
-    varying float vScreenY;
+    varying vec4 vClipPos;
     uniform float uTime;
     uniform vec3 uColorCenter;
     uniform vec3 uColorEdge;
@@ -98,8 +97,9 @@ const GradientBlobMaterial = shaderMaterial(
       color = mix(uColorEdge, color, uEntranceProgress);
 
       // Bright DRP_2 reveal state: vertical linear gradient spanning grid space
-      // from #D9D7D7 on the top (vScreenY = 1.0) to #CBC7C6 on the bottom (vScreenY = 0.0)
-      vec3 brightGradient = mix(uColorBottomBright, uColorTopBright, clamp(vScreenY, 0.0, 1.0));
+      // from #D9D7D7 on the top (screenY = 1.0) to #CBC7C6 on the bottom (screenY = 0.0)
+      float screenY = clamp((vClipPos.y / vClipPos.w) * 0.5 + 0.5, 0.0, 1.0);
+      vec3 brightGradient = mix(uColorBottomBright, uColorTopBright, screenY);
       color = mix(color, brightGradient, uRevealProgress);
 
       gl_FragColor = vec4(color, 1.0);
