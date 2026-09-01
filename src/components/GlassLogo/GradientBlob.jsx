@@ -13,7 +13,12 @@ import {
   SCENE_BACKDROP_DIM,
   SCENE_BACKDROP_DRP,
   SCENE_BACKDROP_DRP_BRIGHT,
+  SCENE_BACKDROP_DRP_BRIGHT_TOP,
+  SCENE_BACKDROP_DRP_BRIGHT_BOTTOM,
 } from './sceneConstants'
+
+const CENTER_DRP_BRIGHT_TOP = new Color(SCENE_BACKDROP_DRP_BRIGHT_TOP)
+const CENTER_DRP_BRIGHT_BOTTOM = new Color(SCENE_BACKDROP_DRP_BRIGHT_BOTTOM)
 
 // Procedural — no CanvasTexture allocation, just a plane + a cheap fragment
 // shader. An irregular (non-circular) radius modulated by a few sine waves
@@ -23,6 +28,9 @@ const GradientBlobMaterial = shaderMaterial(
     uTime: 0,
     uColorCenter: new Color(BLOB_CENTER),
     uColorEdge: new Color(SCENE_BACKDROP),
+    uColorTopBright: CENTER_DRP_BRIGHT_TOP,
+    uColorBottomBright: CENTER_DRP_BRIGHT_BOTTOM,
+    uRevealProgress: 0,
     // First-load entrance (see ENTRANCE_DURATION in GradientBlob's
     // useFrame). This material is always fully opaque (no `transparent`
     // prop set below — alpha is always written as 1.0), so an entrance
@@ -35,16 +43,23 @@ const GradientBlobMaterial = shaderMaterial(
   },
   /* glsl */ `
     varying vec2 vUv;
+    varying float vScreenY;
     void main() {
       vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      vec4 clipPos = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      vScreenY = (clipPos.y / clipPos.w) * 0.5 + 0.5;
+      gl_Position = clipPos;
     }
   `,
   /* glsl */ `
     varying vec2 vUv;
+    varying float vScreenY;
     uniform float uTime;
     uniform vec3 uColorCenter;
     uniform vec3 uColorEdge;
+    uniform vec3 uColorTopBright;
+    uniform vec3 uColorBottomBright;
+    uniform float uRevealProgress;
     uniform float uEntranceProgress;
 
     void main() {
@@ -81,6 +96,12 @@ const GradientBlobMaterial = shaderMaterial(
       // what makes 0 read as flat background instead of a dimmer-but-still
       // visible glow shape.
       color = mix(uColorEdge, color, uEntranceProgress);
+
+      // Bright DRP_2 reveal state: vertical linear gradient spanning grid space
+      // from #D9D7D7 on the top (vScreenY = 1.0) to #D0CDCB on the bottom (vScreenY = 0.0)
+      vec3 brightGradient = mix(uColorBottomBright, uColorTopBright, clamp(vScreenY, 0.0, 1.0));
+      color = mix(color, brightGradient, uRevealProgress);
+
       gl_FragColor = vec4(color, 1.0);
       // uColorCenter/uColorEdge arrive linear (three.js color-manages hex
       // uniforms); convert back to the renderer's output space so this
@@ -111,7 +132,7 @@ const CENTER_LIT = new Color(BLOB_CENTER)
 const CENTER_DIM = new Color(BLOB_CENTER_DIM)
 const CENTER_ANGRY = new Color(BLOB_CENTER_ANGRY)
 const CENTER_DRP = new Color(BLOB_CENTER_DRP)
-const CENTER_DRP_BRIGHT = new Color(BLOB_CENTER_DRP_BRIGHT)
+const CENTER_DRP_BRIGHT = new Color(SCENE_BACKDROP_DRP_BRIGHT)
 const EDGE_LIT = new Color(SCENE_BACKDROP)
 const EDGE_DIM = new Color(SCENE_BACKDROP_DIM)
 const EDGE_ANGRY = new Color(SCENE_BACKDROP_ANGRY)
@@ -164,8 +185,7 @@ export function GradientBlob({ position, scale, dimRef, angryRef, drpRef, reveal
       material.uniforms.uColorEdge.value.lerp(EDGE_DRP, drpRef.current)
     }
     if (revealRef) {
-      material.uniforms.uColorCenter.value.lerp(CENTER_DRP_BRIGHT, revealRef.current)
-      material.uniforms.uColorEdge.value.lerp(EDGE_DRP_BRIGHT, revealRef.current)
+      material.uniforms.uRevealProgress.value = revealRef.current
     }
   })
 
