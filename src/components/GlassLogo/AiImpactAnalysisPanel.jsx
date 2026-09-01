@@ -3,47 +3,45 @@ import { forwardRef } from 'react'
 export const AI_IMPACT_PANEL_DESIGN_WIDTH = 883
 export const AI_IMPACT_PANEL_MARGIN = 40
 
-const TEXT_COLOR = '#645A57'
-const SUBTITLE_COLOR = 'rgba(100, 90, 87, 0.6)'
-const PLACEHOLDER_TEXT_COLOR = 'rgba(150, 142, 139, 0.6)'
 const CARD_BG = 'rgba(241, 245, 249, 0.3)'
-const INNER_CARD_BG = 'rgba(241, 245, 249, 0.35)'
+const INNER_CARD_BG = 'rgba(241, 245, 249, 0.45)'
 const BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'
-const DIVIDER_COLOR = 'rgba(147, 140, 137, 0.3)'
-const LEVEL_FONT = 'Inter, system-ui, sans-serif'
+const TEXT_COLOR = '#645A57'
+const SUBTITLE_COLOR = '#968E8B'
+const PLACEHOLDER_TEXT_COLOR = 'rgba(150, 142, 139, 0.6)'
+const DIVIDER_COLOR = 'rgba(150, 142, 139, 0.2)'
+const LEVEL_FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 
 const NAV_ITEMS = ['AI Analysis', 'Planning', 'Structure', 'Production']
 
 function ShieldAlertIcon() {
   return (
-    <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', flexShrink: 0 }}>
       <path
-        d="M8.5 1.75L3.25 3.75V8C3.25 11.6 5.5 14.3 8.5 15.25C11.5 14.3 13.75 11.6 13.75 8V3.75L8.5 1.75Z"
-        stroke="#CC0001"
-        strokeWidth="1.5"
+        d="M12 2L4 5V11C4 16.55 7.42 21.74 12 23C16.58 21.74 20 16.55 20 11V5L12 2Z"
+        stroke={TEXT_COLOR}
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M8.5 5.25V9.25" stroke="#CC0001" strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="8.5" cy="11.75" r="0.85" fill="#CC0001" />
+      <path
+        d="M12 8V12"
+        stroke={TEXT_COLOR}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="15.5" r="1" fill={TEXT_COLOR} />
     </svg>
   )
 }
 
 function EditPenIcon() {
   return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ opacity: 0.45 }}
-    >
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', opacity: 0.45, flexShrink: 0, cursor: 'pointer' }}>
       <path
-        d="M11.333 2.00004C11.5081 1.82494 11.716 1.68605 11.9448 1.59129C12.1736 1.49653 12.4188 1.44775 12.6663 1.44775C12.9139 1.44775 13.1591 1.49653 13.3879 1.59129C13.6167 1.68605 13.8246 1.82494 13.9997 2.00004C14.1748 2.17514 14.3137 2.38304 14.4084 2.61184C14.5032 2.84064 14.552 3.08584 14.552 3.33337C14.552 3.58091 14.5032 3.82611 14.4084 4.05491C14.3137 4.28371 14.1748 4.49161 13.9997 4.66671L5.33301 13.3334L1.99967 14.3334L2.99967 11.0001L11.333 2.00004Z"
-        stroke="#645A57"
-        strokeWidth="1.3"
+        d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+        stroke={TEXT_COLOR}
+        strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -53,10 +51,10 @@ function EditPenIcon() {
 
 function NavChevron() {
   return (
-    <svg width="5" height="9" viewBox="0 0 5 9" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+    <svg width="5" height="9" viewBox="0 0 5 9" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', flexShrink: 0 }}>
       <path
         d="M1 1.25L3.75 4.5L1 7.75"
-        stroke="rgba(250, 242, 239, 0.4)"
+        stroke="rgba(150, 142, 139, 0.6)"
         strokeWidth="1.33333"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -65,7 +63,76 @@ function NavChevron() {
   )
 }
 
-function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
+function MinimalCursor({ cursorRef, rippleRef }) {
+  return (
+    <div
+      ref={cursorRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        pointerEvents: 'none',
+        zIndex: 50,
+        opacity: 0,
+        transformOrigin: '0px 0px',
+        willChange: 'transform, opacity',
+      }}
+    >
+      <div
+        ref={rippleRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          border: '1.5px solid rgba(204, 0, 1, 0.8)',
+          background: 'rgba(204, 0, 1, 0.15)',
+          transform: 'translate(-50%, -50%) scale(0)',
+          opacity: 0,
+          pointerEvents: 'none',
+          transformOrigin: 'center center',
+          willChange: 'transform, opacity',
+        }}
+      />
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{
+          display: 'block',
+          filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35))',
+          transformOrigin: '0px 0px',
+        }}
+      >
+        <path
+          d="M0.5 0.5L7.5 19L10.5 12L17.5 9L0.5 0.5Z"
+          fill="#2D2826"
+          stroke="#FFFFFF"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  )
+}
+
+function ImpactCard({
+  title,
+  description,
+  sliderFillWidth,
+  thumbLeft,
+  sliderFillRef,
+  sliderThumbRef,
+  llmInputRef,
+  llmTextRef,
+  llmPlaceholderRef,
+  llmCaretRef,
+}) {
   return (
     <div
       style={{
@@ -78,81 +145,22 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
         width: '100%',
         background: INNER_CARD_BG,
         backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
         border: `0.666667px solid ${BORDER_COLOR}`,
-        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.08), 0px 1px 2px -1px rgba(0, 0, 0, 0.08)',
         borderRadius: 20,
       }}
     >
-      {/* Title & Description */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
-        <h3
-          style={{
-            margin: 0,
-            fontFamily: "'Plus Jakarta Sans', sans-serif",
-            fontWeight: 700,
-            fontSize: 17,
-            lineHeight: '24px',
-            color: TEXT_COLOR,
-          }}
-        >
-          {title}
-        </h3>
-        <p
-          style={{
-            margin: 0,
-            fontFamily: "'Plus Jakarta Sans', sans-serif",
-            fontWeight: 400,
-            fontSize: 12,
-            lineHeight: '18px',
-            color: SUBTITLE_COLOR,
-          }}
-        >
-          {description}
-        </p>
+        <h3 style={{ margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 17, color: TEXT_COLOR }}>{title}</h3>
+        <p style={{ margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 12, color: SUBTITLE_COLOR }}>{description}</p>
       </div>
 
-      {/* Body: Two columns */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'stretch',
-          width: '100%',
-          gap: 20,
-        }}
-      >
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', width: '100%', gap: 20 }}>
         {/* Left Column: AI Impact */}
-        <div
-          style={{
-            width: 270,
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              width: '100%',
-            }}
-          >
+        <div style={{ width: 270, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <ShieldAlertIcon />
-              <span
-                style={{
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  lineHeight: '18px',
-                  color: TEXT_COLOR,
-                }}
-              >
-                AI Impact
-              </span>
+              <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 14, color: TEXT_COLOR }}>AI Impact</span>
             </div>
             <EditPenIcon />
           </div>
@@ -230,6 +238,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
             >
               {/* Active Fill */}
               <div
+                ref={sliderFillRef}
                 style={{
                   width: sliderFillWidth,
                   height: 10.7,
@@ -237,10 +246,12 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
                   border: '0.666667px solid #CC0001',
                   borderRadius: 9999,
                   boxSizing: 'border-box',
+                  willChange: 'width',
                 }}
               />
               {/* Slider Thumb */}
               <div
+                ref={sliderThumbRef}
                 style={{
                   position: 'absolute',
                   left: thumbLeft,
@@ -253,6 +264,8 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
                     '0px 10px 15px -3px rgba(0, 0, 0, 0.1), 0px 4px 6px -4px rgba(0, 0, 0, 0.1)',
                   borderRadius: 9999,
                   boxSizing: 'border-box',
+                  willChange: 'left, transform',
+                  transformOrigin: 'center center',
                 }}
               />
             </div>
@@ -273,6 +286,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
 
           {/* LLM Focus Input */}
           <div
+            ref={llmInputRef}
             style={{
               boxSizing: 'border-box',
               display: 'flex',
@@ -284,19 +298,57 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
               background: CARD_BG,
               border: `0.67px solid ${BORDER_COLOR}`,
               borderRadius: 8,
+              position: 'relative',
+              transition: 'border-color 0.2s, box-shadow 0.2s',
             }}
           >
+            {/* Placeholder */}
             <span
+              ref={llmPlaceholderRef}
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 400,
                 fontSize: 11.5,
                 lineHeight: '15px',
                 color: PLACEHOLDER_TEXT_COLOR,
+                position: 'absolute',
+                left: 12,
+                userSelect: 'none',
+                pointerEvents: 'none',
+                transition: 'opacity 0.15s ease',
               }}
             >
               E.g. Gemini, GPT-4, Perplexity...
             </span>
+
+            {/* Typed Text in #645A57 */}
+            <span
+              ref={llmTextRef}
+              style={{
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 500,
+                fontSize: 11.5,
+                lineHeight: '15px',
+                color: '#645A57',
+                userSelect: 'none',
+                whiteSpace: 'pre',
+                zIndex: 2,
+              }}
+            />
+
+            {/* Blinking Caret */}
+            <span
+              ref={llmCaretRef}
+              style={{
+                display: 'inline-block',
+                width: 1.5,
+                height: 13,
+                background: '#645A57',
+                marginLeft: 1,
+                opacity: 0,
+                zIndex: 2,
+              }}
+            />
           </div>
         </div>
       </div>
@@ -304,11 +356,24 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
   )
 }
 
-export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(props, ref) {
+export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
+  {
+    cursorRef,
+    cursorRippleRef,
+    sliderFillRef,
+    sliderThumbRef,
+    llmInputRef,
+    llmTextRef,
+    llmPlaceholderRef,
+    llmCaretRef,
+  },
+  ref
+) {
   return (
     <div
       ref={ref}
       style={{
+        position: 'relative',
         width: AI_IMPACT_PANEL_DESIGN_WIDTH,
         boxSizing: 'border-box',
         paddingLeft: AI_IMPACT_PANEL_MARGIN,
@@ -320,6 +385,9 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
         gap: 21,
       }}
     >
+      {/* Minimal Cursor */}
+      <MinimalCursor cursorRef={cursorRef} rippleRef={cursorRippleRef} />
+
       {/* Top Navigation — aligned to top right */}
       <div
         style={{
@@ -542,8 +610,14 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
         <ImpactCard
           title="Development of an Entrepreneurial Concept"
           description="Manage reference materials that guide the AI's behavior and responses."
-          sliderFillWidth={140}
-          thumbLeft={130}
+          sliderFillWidth={68}
+          thumbLeft={60}
+          sliderFillRef={sliderFillRef}
+          sliderThumbRef={sliderThumbRef}
+          llmInputRef={llmInputRef}
+          llmTextRef={llmTextRef}
+          llmPlaceholderRef={llmPlaceholderRef}
+          llmCaretRef={llmCaretRef}
         />
 
         <ImpactCard

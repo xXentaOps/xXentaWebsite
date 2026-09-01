@@ -7,10 +7,12 @@ import {
   BLOB_CENTER_ANGRY,
   BLOB_CENTER_DIM,
   BLOB_CENTER_DRP,
+  BLOB_CENTER_DRP_BRIGHT,
   SCENE_BACKDROP,
   SCENE_BACKDROP_ANGRY,
   SCENE_BACKDROP_DIM,
   SCENE_BACKDROP_DRP,
+  SCENE_BACKDROP_DRP_BRIGHT,
 } from './sceneConstants'
 
 // Procedural — no CanvasTexture allocation, just a plane + a cheap fragment
@@ -109,12 +111,14 @@ const CENTER_LIT = new Color(BLOB_CENTER)
 const CENTER_DIM = new Color(BLOB_CENTER_DIM)
 const CENTER_ANGRY = new Color(BLOB_CENTER_ANGRY)
 const CENTER_DRP = new Color(BLOB_CENTER_DRP)
+const CENTER_DRP_BRIGHT = new Color(BLOB_CENTER_DRP_BRIGHT)
 const EDGE_LIT = new Color(SCENE_BACKDROP)
 const EDGE_DIM = new Color(SCENE_BACKDROP_DIM)
 const EDGE_ANGRY = new Color(SCENE_BACKDROP_ANGRY)
 const EDGE_DRP = new Color(SCENE_BACKDROP_DRP)
+const EDGE_DRP_BRIGHT = new Color(SCENE_BACKDROP_DRP_BRIGHT)
 
-export function GradientBlob({ position, scale, dimRef, angryRef, drpRef }) {
+export function GradientBlob({ position, scale, dimRef, angryRef, drpRef, revealRef }) {
   const materialRef = useRef(null)
   // Set on this blob's own first frame — same one-time-only entrance
   // pattern used throughout this piece (see GlassLogoGroup/HeroTitle/
@@ -158,6 +162,10 @@ export function GradientBlob({ position, scale, dimRef, angryRef, drpRef }) {
     if (drpRef) {
       material.uniforms.uColorCenter.value.lerp(CENTER_DRP, drpRef.current)
       material.uniforms.uColorEdge.value.lerp(EDGE_DRP, drpRef.current)
+    }
+    if (revealRef) {
+      material.uniforms.uColorCenter.value.lerp(CENTER_DRP_BRIGHT, revealRef.current)
+      material.uniforms.uColorEdge.value.lerp(EDGE_DRP_BRIGHT, revealRef.current)
     }
   })
 

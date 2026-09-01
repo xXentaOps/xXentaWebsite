@@ -21,6 +21,7 @@ import {
   SCENE_BACKDROP_ANGRY,
   SCENE_BACKDROP_DIM,
   SCENE_BACKDROP_DRP,
+  SCENE_BACKDROP_DRP_BRIGHT,
 } from './sceneConstants'
 import { useSeamlessGrid } from './useSeamlessGrid'
 
@@ -256,6 +257,7 @@ const SQUARE_ANGRY = new Color('#F87171')
 // R-G/G-B channel gaps kept intact so the hue itself doesn't shift, only
 // how light it reads.
 const SQUARE_DRP = new Color('#C0B9B6')
+const SQUARE_DRP_BRIGHT = new Color('#E2DCD9')
 // How opaque each square sits at rest — low, the same "ambient, ~2-4%"
 // register GRID_GLOWS itself uses, so these read as a faint accent beside
 // the callout rather than competing with it for attention.
@@ -276,6 +278,7 @@ const DRP_SQUARE_OPACITY = 0.5
 // bare 0.012 — even this brings it to a still-restrained ~0.1. Brought down
 // twice now (14, then 11), both times asked for directly.
 const DRP_LINE_OPACITY_BOOST = 8
+const DRP2_LINE_OPACITY_BOOST = 10
 
 // The logo/"Simulations" lockup over the lit squares is sized off these
 // per-character width estimates rather than a live DOM measurement — a
@@ -386,6 +389,7 @@ const PLACEHOLDER_COLUMN_GAP = 1
 // the same way BACKDROP_DIM/ANGRY already are, see panT's own use in the
 // frame loop.
 const BACKDROP_DRP = new Color(SCENE_BACKDROP_DRP)
+const BACKDROP_DRP_BRIGHT = new Color(SCENE_BACKDROP_DRP_BRIGHT)
 // A path into /public, same convention every image on this site uses (see
 // SPEAKERS' own avatar entries in chatShowcaseScript.js).
 const PLACEHOLDER_IMAGE_URL = '/DRP_1.png'
@@ -588,6 +592,14 @@ function SeamlessBackdrop({
   const syllabusPanelRef = useRef(null)
   // The "AI Impact Analysis" panel sitting directly on top of DRP_2
   const aiImpactPanelRef = useRef(null)
+  const aiCursorRef = useRef(null)
+  const aiCursorRippleRef = useRef(null)
+  const aiSliderFillRef = useRef(null)
+  const aiSliderThumbRef = useRef(null)
+  const aiLlmInputRef = useRef(null)
+  const aiLlmTextRef = useRef(null)
+  const aiLlmPlaceholderRef = useRef(null)
+  const aiLlmCaretRef = useRef(null)
   // The syllabus panel's own pills and title — driven during revealT to
   // stagger out from bottom to top so Entrepreneurial Management exits last.
   const pillRefs = useRef([])
@@ -640,6 +652,7 @@ function SeamlessBackdrop({
   // colours. Nothing outside this canvas needs DRP Showcase's own mood, so
   // it never has to leave it.
   const drpRef = useRef(0)
+  const revealSlideRef = useRef(0)
   // The grid lines' own multiplier once in DRP Showcase (see
   // lineOpacityBoostRef in GridPlane) — reported directly as not visible at
   // all against the taupe background, which checks out: style.lineOpacity/
@@ -1009,14 +1022,15 @@ function SeamlessBackdrop({
     // flick through this stretch still catches up smoothly rather than
     // snapping the instant scroll outruns a plain lerp.
     const panT = smoothstepEase(panProgressRef.current)
+    group.position.x = MathUtils.damp(group.position.x, panWorldDistance * panT, PAN_LAMBDA, delta)
     // The hover and reveal phases' own progress — see HOVER_VH/REVEAL_VH.
     // Both stay 0 for the entire chat and the pan into DRP Showcase (their
     // own useTransform windows don't open until panProgress/hoverProgress
     // respectively have already reached 1), the same chained "arrives, then
     // plays out, then hands off" shape panT itself follows from progress.
     const hoverT = smoothstepEase(hoverProgressRef.current)
-    const revealT = smoothstepEase(revealProgressRef.current)
-    group.position.x = MathUtils.damp(group.position.x, panWorldDistance * panT, PAN_LAMBDA, delta)
+    const rawReveal = revealProgressRef.current
+    const slideT = smoothstepEase(MathUtils.clamp(rawReveal / 0.20, 0, 1))
     // revealGroupRef's own position is built from gridGroupRef's actual
     // current one (group.position.x, just written above), not a second
     // independent damp of the same panWorldDistance × panT target — see
@@ -1025,7 +1039,7 @@ function SeamlessBackdrop({
     // the shared part is copied exactly, so the two groups can never
     // disagree about it.
     if (revealGroupRef.current) {
-      revealOffsetRef.current = MathUtils.damp(revealOffsetRef.current, revealWorldDistance * revealT, PAN_LAMBDA, delta)
+      revealOffsetRef.current = MathUtils.damp(revealOffsetRef.current, revealWorldDistance * slideT, PAN_LAMBDA, delta)
       revealGroupRef.current.position.x = group.position.x + revealOffsetRef.current
     }
 
@@ -1077,7 +1091,7 @@ function SeamlessBackdrop({
       // and is sized/centred to match DRP_1 exactly.
       const panelWorldWidth = placeholderWidth * nextScale
       const panelWorldLeftEdge = revealGroupRef.current.position.x + placeholderLeftX * nextScale
-      const hiddenFraction = MathUtils.clamp((boundaryWorldX - panelWorldLeftEdge) / panelWorldWidth, 0, 1)
+      const hiddenFraction = panelWorldWidth > 0 ? MathUtils.clamp((boundaryWorldX - panelWorldLeftEdge) / panelWorldWidth, 0, 1) : 0
       // The hard mask — this is the part that actually enforces "never
       // shows past the boundary, full stop," the same guarantee
       // drpClipPlaneRef gives DRP_1/DRP_2, since opacity alone (below)
@@ -1097,23 +1111,23 @@ function SeamlessBackdrop({
       aiImpactPanelRef.current.style.transform = `scale(${panelScale})`
       const panelWorldWidth = placeholderWidth * nextScale
       const panelWorldLeftEdge = revealGroupRef.current.position.x + drp2PanelLeftX * nextScale
-      const hiddenFraction = MathUtils.clamp((boundaryWorldX - panelWorldLeftEdge) / panelWorldWidth, 0, 1)
+      const hiddenFraction = panelWorldWidth > 0 ? MathUtils.clamp((boundaryWorldX - panelWorldLeftEdge) / panelWorldWidth, 0, 1) : 0
       aiImpactPanelRef.current.style.clipPath = `inset(0 0 0 ${hiddenFraction * AI_IMPACT_PANEL_DESIGN_WIDTH}px)`
       aiImpactPanelRef.current.style.opacity = `${panT}`
     }
 
-    // Staggered bottom-to-top exit cascade for Syllabus Overview during revealT:
+    // Staggered bottom-to-top exit cascade for Syllabus Overview during slideT:
     // The bottom-most pill (Retail Sales & Operations, index 6) begins moving first,
     // followed by index 5, 4, 3, 2, 1, and finally Entrepreneurial Management (index 0)
     // and the section title exit last.
     if (pillRefs.current) {
-      if (revealT > 0) {
+      if (rawReveal > 0) {
         for (let i = 0; i < COURSES.length; i++) {
           const pillEl = pillRefs.current[i]
           if (!pillEl) continue
           // Reverse index so bottom item (index 6) starts at startT = 0
           const startT = (6 - i) * 0.08
-          const rawT = MathUtils.clamp((revealT - startT) / 0.48, 0, 1)
+          const rawT = MathUtils.clamp((slideT - startT) / 0.48, 0, 1)
           const pillExitT = smoothstepEase(rawT)
           const baseOpacity = i === 0 ? 1 : COURSES[i].opacity
           const opacity = baseOpacity * (1 - pillExitT)
@@ -1122,7 +1136,7 @@ function SeamlessBackdrop({
           pillEl.style.opacity = `${opacity}`
         }
         if (titleRef.current) {
-          const rawTitleT = MathUtils.clamp((revealT - 0.50) / 0.48, 0, 1)
+          const rawTitleT = MathUtils.clamp((slideT - 0.50) / 0.48, 0, 1)
           const titleExitT = smoothstepEase(rawTitleT)
           titleRef.current.style.transform = titleExitT > 0 ? `translateX(${-360 * titleExitT}px)` : 'none'
           titleRef.current.style.opacity = `${1 - titleExitT}`
@@ -1164,6 +1178,7 @@ function SeamlessBackdrop({
       }
     }
 
+    // Syllabus Overview cursor (plays during hoverT)
     if (cursorRef.current) {
       if (hoverT <= 0.35 || hoverT >= 1) {
         cursorRef.current.style.opacity = '0'
@@ -1222,11 +1237,160 @@ function SeamlessBackdrop({
         }
       }
     }
+
+    // AI Impact Analysis cursor, slider tweaking, and LLM Focus typing choreography
+    const TARGET_SLIDER_START_X = 540
+    const TARGET_SLIDER_END_X = 655
+    const TARGET_SLIDER_Y = 291
+    const TARGET_LLM_X = 434
+    const TARGET_LLM_END_X = 502
+    const TARGET_LLM_Y = 332
+
+    // 1. Slider fill & thumb state
+    if (aiSliderThumbRef.current && aiSliderFillRef.current) {
+      if (rawReveal < 0.65) {
+        aiSliderThumbRef.current.style.left = '60px'
+        aiSliderFillRef.current.style.width = '68px'
+      } else if (rawReveal < 0.77) {
+        const dragProgress = (rawReveal - 0.65) / 0.12
+        const dragT = smoothstepEase(dragProgress)
+        const curLeft = MathUtils.lerp(60, 175, dragT)
+        const curFill = MathUtils.lerp(68, 183, dragT)
+        aiSliderThumbRef.current.style.left = `${curLeft}px`
+        aiSliderFillRef.current.style.width = `${curFill}px`
+      } else {
+        aiSliderThumbRef.current.style.left = '175px'
+        aiSliderFillRef.current.style.width = '183px'
+      }
+    }
+
+    // 2. LLM Focus input text and typing
+    if (aiLlmInputRef.current && aiLlmTextRef.current && aiLlmPlaceholderRef.current && aiLlmCaretRef.current) {
+      const FULL_LLM_TEXT = 'Gemini 3.7'
+      if (rawReveal < 0.83) {
+        aiLlmPlaceholderRef.current.style.opacity = '1'
+        aiLlmTextRef.current.textContent = ''
+        aiLlmCaretRef.current.style.opacity = '0'
+        aiLlmInputRef.current.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+        aiLlmInputRef.current.style.boxShadow = 'none'
+      } else if (rawReveal < 0.87) {
+        // Focus click
+        aiLlmPlaceholderRef.current.style.opacity = '0'
+        aiLlmTextRef.current.textContent = ''
+        aiLlmCaretRef.current.style.opacity = '1'
+        aiLlmInputRef.current.style.borderColor = 'rgba(204, 0, 1, 0.5)'
+        aiLlmInputRef.current.style.boxShadow = '0 0 0 2px rgba(204, 0, 1, 0.15)'
+      } else if (rawReveal < 0.95) {
+        // Typing character by character
+        const typeProgress = (rawReveal - 0.87) / 0.08
+        const charCount = Math.min(FULL_LLM_TEXT.length, Math.floor(typeProgress * (FULL_LLM_TEXT.length + 1)))
+        aiLlmPlaceholderRef.current.style.opacity = '0'
+        aiLlmTextRef.current.textContent = FULL_LLM_TEXT.slice(0, charCount)
+        aiLlmCaretRef.current.style.opacity = '1'
+        aiLlmInputRef.current.style.borderColor = 'rgba(204, 0, 1, 0.5)'
+        aiLlmInputRef.current.style.boxShadow = '0 0 0 2px rgba(204, 0, 1, 0.15)'
+      } else {
+        // Completed
+        aiLlmPlaceholderRef.current.style.opacity = '0'
+        aiLlmTextRef.current.textContent = FULL_LLM_TEXT
+        aiLlmCaretRef.current.style.opacity = (Math.floor(Date.now() / 500) % 2 === 0) ? '1' : '0'
+        aiLlmInputRef.current.style.borderColor = 'rgba(204, 0, 1, 0.35)'
+        aiLlmInputRef.current.style.boxShadow = 'none'
+      }
+    }
+
+    // 3. AI Cursor motion and interaction
+    if (aiCursorRef.current) {
+      if (rawReveal <= 0.46 || rawReveal >= 1) {
+        aiCursorRef.current.style.opacity = '0'
+        if (aiCursorRippleRef.current) aiCursorRippleRef.current.style.opacity = '0'
+      } else {
+        let posX = TARGET_SLIDER_START_X
+        let posY = TARGET_SLIDER_Y
+        let cursorOpacity = 1
+        let cursorScale = 1
+        let rippleOpacity = 0
+        let rippleScale = 0
+
+        if (rawReveal < 0.58) {
+          // Phase 1: Entrance glide towards slider thumb
+          const enterT = (rawReveal - 0.46) / 0.12
+          const eased = smoothstepEase(enterT)
+          posX = TARGET_SLIDER_START_X + 90 * (1 - eased)
+          posY = TARGET_SLIDER_Y + 70 * (1 - eased)
+          cursorOpacity = MathUtils.clamp(enterT * 2.5, 0, 1)
+          cursorScale = 1
+        } else if (rawReveal < 0.65) {
+          // Phase 1b: Resting & hovering on slider thumb before drag begins
+          posX = TARGET_SLIDER_START_X
+          posY = TARGET_SLIDER_Y
+          cursorOpacity = 1
+          cursorScale = 1
+        } else if (rawReveal < 0.77) {
+          // Phase 2: Click down & drag slider
+          const dragProgress = (rawReveal - 0.65) / 0.12
+          const dragT = smoothstepEase(dragProgress)
+          posX = MathUtils.lerp(TARGET_SLIDER_START_X, TARGET_SLIDER_END_X, dragT)
+          posY = TARGET_SLIDER_Y
+          cursorOpacity = 1
+          if (dragProgress < 0.15) {
+            cursorScale = MathUtils.lerp(1, 0.82, dragProgress / 0.15)
+            rippleOpacity = MathUtils.lerp(0.7, 0, dragProgress / 0.15)
+            rippleScale = MathUtils.lerp(0.3, 2.0, dragProgress / 0.15)
+          } else {
+            cursorScale = 0.85
+          }
+        } else if (rawReveal < 0.83) {
+          // Phase 3: Move from slider thumb to LLM Focus box
+          const moveT = smoothstepEase((rawReveal - 0.77) / 0.06)
+          posX = MathUtils.lerp(TARGET_SLIDER_END_X, TARGET_LLM_X, moveT)
+          posY = MathUtils.lerp(TARGET_SLIDER_Y, TARGET_LLM_Y, moveT)
+          cursorOpacity = 1
+          cursorScale = MathUtils.lerp(0.85, 1, moveT)
+        } else if (rawReveal < 0.87) {
+          // Phase 4: Click into LLM Focus box
+          const clickT = (rawReveal - 0.83) / 0.04
+          posX = TARGET_LLM_X
+          posY = TARGET_LLM_Y
+          cursorOpacity = 1
+          if (clickT < 0.5) {
+            const downT = smoothstepEase(clickT / 0.5)
+            cursorScale = MathUtils.lerp(1, 0.82, downT)
+          } else {
+            const upT = smoothstepEase((clickT - 0.5) / 0.5)
+            cursorScale = MathUtils.lerp(0.82, 1, upT)
+            rippleScale = MathUtils.lerp(0.3, 2.2, upT)
+            rippleOpacity = MathUtils.lerp(0.7, 0, upT)
+          }
+        } else if (rawReveal < 0.95) {
+          // Phase 5: Typing "Gemini 3.7", cursor rests beside text
+          const typeProgress = (rawReveal - 0.87) / 0.08
+          posX = MathUtils.lerp(TARGET_LLM_X, TARGET_LLM_END_X, typeProgress)
+          posY = TARGET_LLM_Y
+          cursorOpacity = 1
+          cursorScale = 1
+        } else {
+          // Phase 6: Exit drift & fadeout
+          const exitT = smoothstepEase((rawReveal - 0.95) / 0.05)
+          posX = TARGET_LLM_END_X + 25 * exitT
+          posY = TARGET_LLM_Y + 15 * exitT
+          cursorOpacity = 1 - exitT
+          cursorScale = 1
+        }
+
+        aiCursorRef.current.style.opacity = `${cursorOpacity}`
+        aiCursorRef.current.style.transform = `translate(${posX}px, ${posY}px) scale(${cursorScale})`
+        if (aiCursorRippleRef.current) {
+          aiCursorRippleRef.current.style.opacity = `${rippleOpacity}`
+          aiCursorRippleRef.current.style.transform = `translate(-50%, -50%) scale(${rippleScale})`
+        }
+      }
+    }
+
     // The hover phase's own guided message — fades in swiftly upon DRP arrival
     if (hoverCalloutRef.current) hoverCalloutRef.current.style.opacity = `${MathUtils.clamp(hoverT * 3, 0, 1)}`
 
     // ...and each callout crossing into the next, over the segment whose
-    // opening is the whole reason it exists to say what it says (see
     // CALLOUTS's own trigger field). swapTs[i] is how far the *transition
     // into* CALLOUTS[i + 1] has gotten — 0 before it starts, 1 once it's
     // fully taken over — smoothstepEase for the same reason the zoom above
@@ -1258,8 +1422,9 @@ function SeamlessBackdrop({
     CALLOUTS.forEach((callout, i) => {
       const enter = i === 0 ? 1 : swapTs[i - 1]
       const exit = i === CALLOUTS.length - 1 ? 0 : swapTs[i]
-      const opacity = (enter - exit) * calloutPanFade
-      if (calloutRefs[i]) calloutRefs[i].style.opacity = opacity
+      const rawOpacity = (enter - exit) * calloutPanFade
+      const opacity = Number.isFinite(rawOpacity) ? MathUtils.clamp(rawOpacity, 0, 1) : 0
+      if (calloutRefs[i]) calloutRefs[i].style.opacity = `${opacity}`
     })
 
     // The edge itself doesn't cross-fade — there's only one to draw (see
@@ -1298,6 +1463,7 @@ function SeamlessBackdrop({
       backgroundRef.current.lerpColors(BACKDROP_LIT, BACKDROP_DIM, dimRef.current)
       backgroundRef.current.lerp(BACKDROP_ANGRY, angryRef.current)
       backgroundRef.current.lerp(BACKDROP_DRP, panT)
+      backgroundRef.current.lerp(BACKDROP_DRP_BRIGHT, slideT)
       // Read back the same Color instance just written above — the exact
       // live background colour, not a second copy of the dim/angry mix
       // logic that could drift from it.
@@ -1313,14 +1479,16 @@ function SeamlessBackdrop({
       material.uColor.lerpColors(SQUARE_LIT, SQUARE_DIM, dimRef.current)
       material.uColor.lerp(SQUARE_ANGRY, angryRef.current)
       material.uColor.lerp(SQUARE_DRP, panT)
+      material.uColor.lerp(SQUARE_DRP_BRIGHT, slideT)
       material.uOpacity = MathUtils.lerp(LIT_SQUARE_OPACITY, DRP_SQUARE_OPACITY, panT)
     }
 
-    // The blob's own third mood — see drpRef's own comment where it's
-    // declared.
+    // The blob's own third mood and DRP_2 reveal brightening
     drpRef.current = panT
+    revealSlideRef.current = slideT
     // The grid lines' own boost — see lineOpacityBoostRef's own comment.
-    lineOpacityBoostRef.current = MathUtils.lerp(1, DRP_LINE_OPACITY_BOOST, panT)
+    const drpLineBoost = MathUtils.lerp(DRP_LINE_OPACITY_BOOST, DRP2_LINE_OPACITY_BOOST, slideT)
+    lineOpacityBoostRef.current = MathUtils.lerp(1, drpLineBoost, panT)
   }
 
   return (
@@ -1333,6 +1501,7 @@ function SeamlessBackdrop({
         dimRef={dimRef}
         angryRef={angryRef}
         drpRef={drpRef}
+        revealRef={revealSlideRef}
       />
       {/* Both on layer 0 (the default — this canvas has no glass logo, so
           there's no OVERLAY_LAYER/backdrop-capture split to worry about),
@@ -1648,7 +1817,17 @@ function SeamlessBackdrop({
           position={[drp2PanelCenterX, drp2PanelCenterY, GRID_Z + 0.01]}
           style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}
         >
-          <AiImpactAnalysisPanel ref={aiImpactPanelRef} />
+          <AiImpactAnalysisPanel
+            ref={aiImpactPanelRef}
+            cursorRef={aiCursorRef}
+            cursorRippleRef={aiCursorRippleRef}
+            sliderFillRef={aiSliderFillRef}
+            sliderThumbRef={aiSliderThumbRef}
+            llmInputRef={aiLlmInputRef}
+            llmTextRef={aiLlmTextRef}
+            llmPlaceholderRef={aiLlmPlaceholderRef}
+            llmCaretRef={aiLlmCaretRef}
+          />
         </Html>
       </group>
 
@@ -1765,7 +1944,7 @@ const HOVER_VH = 140
 // gridWidth is the right distance). Starts only once HOVER_VH's own beat has
 // played out, same sequential handoff CHAT_SCROLL_VH → EXAMS_SLIDE_VH
 // already uses.
-const REVEAL_VH = 220
+const REVEAL_VH = 560
 const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + HOVER_VH + REVEAL_VH
 
 // 0 the instant the sticky stage pins (this section's top reaching the top of
@@ -1786,7 +1965,6 @@ function usePinnedProgress(sectionRef, carouselRef) {
   // then read per-frame as a plain property — never measured inside the
   // transform below. getBoundingClientRect forces a synchronous layout
   // reflow, and doing that on every scroll frame is exactly the main-thread
-  // stall the page's wheel-gesture classifier reads event timing through
   // (see SiteFooter's dimsRef for the longer version of this same argument).
   const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1, hoverDistance: 1, revealDistance: 1 })
   useLayoutEffect(() => {
