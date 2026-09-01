@@ -14,10 +14,10 @@ const DIVIDER_COLOR = 'rgba(147, 140, 137, 0.3)'
 function AiIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2.5" y="1.5" width="12" height="14" rx="2" stroke="#EB0F24" strokeWidth="1.66667" />
-      <path d="M5.5 5.5H11.5" stroke="#EB0F24" strokeWidth="1.66667" strokeLinecap="round" />
-      <path d="M5.5 8.5H11.5" stroke="#EB0F24" strokeWidth="1.66667" strokeLinecap="round" />
-      <path d="M5.5 11.5H9" stroke="#EB0F24" strokeWidth="1.66667" strokeLinecap="round" />
+      <rect x="2.5" y="1.5" width="12" height="14" rx="2" stroke="#CC0001" strokeWidth="1.66667" />
+      <path d="M5.5 5.5H11.5" stroke="#CC0001" strokeWidth="1.66667" strokeLinecap="round" />
+      <path d="M5.5 8.5H11.5" stroke="#CC0001" strokeWidth="1.66667" strokeLinecap="round" />
+      <path d="M5.5 11.5H9" stroke="#CC0001" strokeWidth="1.66667" strokeLinecap="round" />
     </svg>
   )
 }
@@ -301,7 +301,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
               alignItems: 'center',
               width: 21,
               height: 22,
-              background: '#EB0F24',
+              background: '#CC0001',
               border: '0.666667px solid #AE0818',
               borderRadius: 9999,
               flexShrink: 0,
