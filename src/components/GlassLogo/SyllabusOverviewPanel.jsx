@@ -144,6 +144,7 @@ function CoursePill({ course, index, pillRef }) {
         boxSizing: 'border-box',
         boxShadow: '0 2px 5px rgba(100, 90, 87, 0.1)',
         opacity: course.opacity,
+        transformOrigin: 'center center',
       }}
     >
       <div style={{ marginLeft: 23, width: 11, height: 11, borderRadius: '50%', background: course.dotColor, flexShrink: 0 }} />
@@ -192,6 +193,67 @@ function CoursePill({ course, index, pillRef }) {
   )
 }
 
+// Minimalistic cursor simulating an interactive click on the first pill
+function MinimalCursor({ cursorRef, rippleRef }) {
+  return (
+    <div
+      ref={cursorRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        pointerEvents: 'none',
+        zIndex: 50,
+        opacity: 0,
+        transformOrigin: '0px 0px',
+        willChange: 'transform, opacity',
+      }}
+    >
+      {/* Click ripple ring */}
+      <div
+        ref={rippleRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          border: '1.5px solid rgba(204, 0, 1, 0.8)',
+          background: 'rgba(204, 0, 1, 0.15)',
+          transform: 'translate(-50%, -50%) scale(0)',
+          opacity: 0,
+          pointerEvents: 'none',
+          transformOrigin: 'center center',
+          willChange: 'transform, opacity',
+        }}
+      />
+      {/* Sleek vector cursor */}
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{
+          display: 'block',
+          filter: 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35))',
+          transformOrigin: '0px 0px',
+        }}
+      >
+        <path
+          d="M0.5 0.5L7.5 19L10.5 12L17.5 9L0.5 0.5Z"
+          fill="#2D2826"
+          stroke="#FFFFFF"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  )
+}
+
 // The ref forwards to this root div specifically so BackgroundGlowSection
 // can drive its scale/opacity imperatively, per frame, the same non-React
 // handoff every other DOM label in that canvas already uses (see
@@ -199,7 +261,10 @@ function CoursePill({ course, index, pillRef }) {
 // centred on the anchor drei's Html itself is placed at regardless of the
 // scale currently applied, since that anchor is what's centred, not this
 // element's own untransformed layout box.
-export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel({ firstPillRef }, ref) {
+export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
+  { firstPillRef, cursorRef, cursorRippleRef },
+  ref
+) {
   return (
     <div
       ref={ref}
@@ -218,10 +283,11 @@ export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel({
           is what gives each pill its own width here (the padding above,
           not a width restated on CoursePill itself) — see
           PANEL_HORIZONTAL_MARGIN's own comment. */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 17 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 17, position: 'relative' }}>
         {COURSES.map((course, index) => (
           <CoursePill key={course.title} course={course} index={index} pillRef={index === 0 ? firstPillRef : undefined} />
         ))}
+        <MinimalCursor cursorRef={cursorRef} rippleRef={cursorRippleRef} />
       </div>
     </div>
   )

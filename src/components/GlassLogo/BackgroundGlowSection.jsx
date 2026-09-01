@@ -588,8 +588,11 @@ function SeamlessBackdrop({
   // The syllabus panel's own first pill — see COURSES's own comment in
   // SyllabusOverviewPanel: its 90% resting opacity gets bumped to 100%
   // over the hover phase (see the frame loop), simulating it being
-  // hovered without an actual pointer.
+  // hovered and clicked.
   const firstPillRef = useRef(null)
+  // Minimalist guided cursor that points and clicks on the first pill
+  const cursorRef = useRef(null)
+  const cursorRippleRef = useRef(null)
   // The hover phase's own guided message — same visual treatment as
   // Floren Showcase's own first callout (see CALLOUTS), reusing that
   // callout's exact position (calloutPositions[0]) rather than a position
@@ -1078,10 +1081,81 @@ function SeamlessBackdrop({
       const panelFadeT = smoothstepEase(MathUtils.clamp((hiddenFraction - 0.25) / 0.75, 0, 1))
       syllabusPanelRef.current.style.opacity = `${panT * (1 - panelFadeT)}`
     }
-    // The first pill's own hover beat — 90% resting (see COURSES) up to a
-    // full 100% across hoverT, simulating a hover with nothing actually
-    // pointing at it.
-    if (firstPillRef.current) firstPillRef.current.style.opacity = `${MathUtils.lerp(0.9, 1, hoverT)}`
+    // The first pill's own hover & click beat + guided cursor:
+    // When DRP Showcase arrives and hoverProgress runs across hoverT (0 -> 1):
+    // 1) Cursor glides in towards the first pill (0.0 -> 0.35)
+    // 2) First pill smoothly reaches 100% opacity
+    // 3) Cursor clicks down on the pill with a scale press & ripple ring (0.35 -> 0.70)
+    // 4) Cursor releases and fades out smoothly (0.70 -> 1.0)
+    if (firstPillRef.current) {
+      firstPillRef.current.style.opacity = `${MathUtils.lerp(0.9, 1, Math.min(1, hoverT * 2))}`
+      if (hoverT > 0.35 && hoverT < 0.7) {
+        const clickT = (hoverT - 0.35) / 0.35
+        const pressDip = clickT < 0.4 ? clickT / 0.4 : (1 - clickT) / 0.6
+        firstPillRef.current.style.transform = `scale(${MathUtils.lerp(1, 0.992, smoothstepEase(pressDip))})`
+      } else {
+        firstPillRef.current.style.transform = 'none'
+      }
+    }
+
+    if (cursorRef.current) {
+      if (hoverT <= 0 || hoverT >= 1) {
+        cursorRef.current.style.opacity = '0'
+        if (cursorRippleRef.current) cursorRippleRef.current.style.opacity = '0'
+      } else {
+        const TARGET_X = 160
+        const TARGET_Y = 26.5
+        let posX = TARGET_X
+        let posY = TARGET_Y
+        let cursorOpacity = 1
+        let cursorScale = 1
+        let rippleOpacity = 0
+        let rippleScale = 0
+
+        if (hoverT < 0.35) {
+          // Phase 1: Entrance glide
+          const enterT = hoverT / 0.35
+          const eased = smoothstepEase(enterT)
+          posX = TARGET_X + 90 * (1 - eased)
+          posY = TARGET_Y + 65 * (1 - eased)
+          cursorOpacity = MathUtils.clamp(enterT * 2.5, 0, 1)
+          cursorScale = 1
+        } else if (hoverT < 0.70) {
+          // Phase 2: Click down and release + ripple
+          const clickT = (hoverT - 0.35) / 0.35
+          posX = TARGET_X
+          posY = TARGET_Y
+          cursorOpacity = 1
+          if (clickT < 0.4) {
+            // Dip down
+            const downT = smoothstepEase(clickT / 0.4)
+            cursorScale = MathUtils.lerp(1, 0.82, downT)
+          } else {
+            // Spring back
+            const upT = smoothstepEase((clickT - 0.4) / 0.6)
+            cursorScale = MathUtils.lerp(0.82, 1, upT)
+            // Ripple expands
+            rippleScale = MathUtils.lerp(0.3, 2.4, upT)
+            rippleOpacity = MathUtils.lerp(0.75, 0, upT)
+          }
+        } else {
+          // Phase 3: Exit drift & fadeout
+          const exitT = (hoverT - 0.70) / 0.30
+          const eased = smoothstepEase(exitT)
+          posX = TARGET_X + 20 * eased
+          posY = TARGET_Y + 15 * eased
+          cursorOpacity = 1 - eased
+          cursorScale = 1
+        }
+
+        cursorRef.current.style.opacity = `${cursorOpacity}`
+        cursorRef.current.style.transform = `translate(${posX}px, ${posY}px) scale(${cursorScale})`
+        if (cursorRippleRef.current) {
+          cursorRippleRef.current.style.opacity = `${rippleOpacity}`
+          cursorRippleRef.current.style.transform = `translate(-50%, -50%) scale(${rippleScale})`
+        }
+      }
+    }
     // The hover phase's own guided message — see hoverCalloutRef's own
     // comment for why this fades on hoverT alone rather than the CALLOUTS
     // crossfade machinery below.
@@ -1491,7 +1565,12 @@ function SeamlessBackdrop({
           position={[placeholderCenterX, placeholderCenterY, GRID_Z + 0.01]}
           style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}
         >
-          <SyllabusOverviewPanel ref={syllabusPanelRef} firstPillRef={firstPillRef} />
+          <SyllabusOverviewPanel
+            ref={syllabusPanelRef}
+            firstPillRef={firstPillRef}
+            cursorRef={cursorRef}
+            cursorRippleRef={cursorRippleRef}
+          />
         </Html>
       </group>
 
