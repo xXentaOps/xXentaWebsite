@@ -495,13 +495,15 @@ function SeamlessBackdrop({
   panProgressRef,
   hoverProgressRef,
   revealProgressRef,
+  plannerProgressRef,
   dimRef,
   angryRef,
 }) {
   // screenOffset 1 — this section continues the pattern one screen *below*
   // the hero (see useSeamlessGrid for the shared derivation of
   // yPhaseShiftCells/blobY this used to do inline).
-  const { size, blobWidth, gridWidth, gridHeight, cellSize, repeat, yPhaseShiftCells, blobY } = useSeamlessGrid(1)
+  const { size, blobWidth, blobHeight, gridWidth, gridHeight, cellSize, repeat, yPhaseShiftCells, blobY } = useSeamlessGrid(1)
+  const blobMeshHeight = Math.max(PLANE_SIZE * 1.6, blobHeight * 2.5)
   // Carries just the two grid planes (not the blob — the ask was for the
   // grid specifically to zoom, and leaving the blob's own much larger,
   // softer shape untouched keeps it reading as the stable backdrop the grid
@@ -600,6 +602,21 @@ function SeamlessBackdrop({
   const aiLlmTextRef = useRef(null)
   const aiLlmPlaceholderRef = useRef(null)
   const aiLlmCaretRef = useRef(null)
+  const aiImpactCardRef = useRef(null)
+  const macroPlannerViewRef = useRef(null)
+  const macroPlannerHeaderRef = useRef(null)
+  const macroPlannerContainerRef = useRef(null)
+  const plannerCursorRef = useRef(null)
+  const plannerRippleRef = useRef(null)
+  const draggedCardRef = useRef(null)
+  const dropPlaceholderRef = useRef(null)
+  const droppedCardRef = useRef(null)
+  const sidebarPreparingCardRef = useRef(null)
+  const sidebarGripRef = useRef(null)
+  const criteriaCountRef = useRef(null)
+  const p12CountRef = useRef(null)
+  const navAiAnalysisRef = useRef(null)
+  const navPlanningRef = useRef(null)
   // The syllabus panel's own pills and title — driven during revealT to
   // stagger out from bottom to top so Entrepreneurial Management exits last.
   const pillRefs = useRef([])
@@ -1392,6 +1409,326 @@ function SeamlessBackdrop({
       }
     }
 
+    // Slide transition from AI Impact Analysis to Macro Planner (Study Planner) & Interactive Drag-and-Drop
+    const plannerT = plannerProgressRef?.current ?? 0
+    if (aiImpactCardRef.current && macroPlannerViewRef.current) {
+      if (plannerT <= 0) {
+        aiImpactCardRef.current.style.transform = 'translateX(0px)'
+        aiImpactCardRef.current.style.opacity = '1'
+        macroPlannerViewRef.current.style.transform = 'translateX(1150px)'
+        macroPlannerViewRef.current.style.opacity = '0'
+        if (navAiAnalysisRef.current) {
+          navAiAnalysisRef.current.style.color = '#645A57'
+          navAiAnalysisRef.current.style.fontWeight = '700'
+        }
+        if (navPlanningRef.current) {
+          navPlanningRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+          navPlanningRef.current.style.fontWeight = '500'
+        }
+        if (plannerCursorRef.current) plannerCursorRef.current.style.opacity = '0'
+        if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
+        if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
+        if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
+        if (droppedCardRef.current) droppedCardRef.current.style.display = 'none'
+        if (sidebarPreparingCardRef.current) {
+          sidebarPreparingCardRef.current.style.opacity = '1'
+          sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.3)'
+          sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+        }
+        if (sidebarGripRef.current) sidebarGripRef.current.style.opacity = '0.25'
+        if (criteriaCountRef.current) {
+          criteriaCountRef.current.textContent = '2'
+          criteriaCountRef.current.style.color = '#645A57'
+        }
+        if (p12CountRef.current) {
+          p12CountRef.current.textContent = '3/5'
+          p12CountRef.current.style.color = '#645A57'
+          p12CountRef.current.style.fontWeight = '500'
+        }
+      } else {
+        // Slide transition between Step 1 and Step 2 during plannerT [0 -> 0.32]
+        const slideProgress = MathUtils.clamp(plannerT / 0.32, 0, 1)
+        const slideEased = smoothstepEase(slideProgress)
+        const SLIDE_PX = 1150
+        const slideX = -slideEased * SLIDE_PX
+        aiImpactCardRef.current.style.transform = `translateX(${slideX}px)`
+
+        // Fades out when it is 70% hidden (i.e. 70% of its width moved past the left)
+        const cardWidth = AI_IMPACT_PANEL_DESIGN_WIDTH
+        const hiddenFraction = -slideX / cardWidth
+        let cardOpacity = 1
+        if (hiddenFraction >= 0.7) {
+          cardOpacity = MathUtils.clamp(1 - (hiddenFraction - 0.7) / 0.3, 0, 1)
+        }
+        aiImpactCardRef.current.style.opacity = `${cardOpacity}`
+
+        // Incoming Macro Planner View from the right
+        const entryX = (1 - slideEased) * SLIDE_PX
+        macroPlannerViewRef.current.style.transform = `translateX(${entryX}px)`
+        macroPlannerViewRef.current.style.opacity = `${MathUtils.clamp(plannerT / 0.25, 0, 1)}`
+
+        // Navbar active indicator switches from 'AI Analysis' to 'Planning'
+        if (navAiAnalysisRef.current && navPlanningRef.current) {
+          if (plannerT > 0.30) {
+            navAiAnalysisRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+            navAiAnalysisRef.current.style.fontWeight = '500'
+            navPlanningRef.current.style.color = '#645A57'
+            navPlanningRef.current.style.fontWeight = '700'
+          } else {
+            navAiAnalysisRef.current.style.color = '#645A57'
+            navAiAnalysisRef.current.style.fontWeight = '700'
+            navPlanningRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+            navPlanningRef.current.style.fontWeight = '500'
+          }
+        }
+
+        // Planner Cursor Drag-and-Drop Interaction:
+        // Sidebar "Preparing for Entrepreneurship" (Grip at X: 43, Y: 150) -> Column P1.2 under "Product Sales" (X: 495, Y: 295)
+        const GRIP_X = 43
+        const GRIP_Y = 150
+        const DROP_X = 495
+        const DROP_Y = 295
+
+        if (plannerCursorRef.current) {
+          if (plannerT < 0.32) {
+            plannerCursorRef.current.style.opacity = '0'
+            if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
+            if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
+            if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
+            if (droppedCardRef.current) droppedCardRef.current.style.display = 'none'
+            if (sidebarPreparingCardRef.current) {
+              sidebarPreparingCardRef.current.style.display = 'flex'
+              sidebarPreparingCardRef.current.style.opacity = '0.5'
+              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.45)'
+              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.45)'
+            }
+            if (sidebarGripRef.current) {
+              sidebarGripRef.current.style.width = '0px'
+              sidebarGripRef.current.style.marginRight = '0px'
+              sidebarGripRef.current.style.opacity = '0'
+            }
+            if (criteriaCountRef.current) {
+              criteriaCountRef.current.textContent = '2'
+              criteriaCountRef.current.style.color = '#645A57'
+            }
+            if (p12CountRef.current) {
+              p12CountRef.current.textContent = '3/5'
+              p12CountRef.current.style.color = '#645A57'
+              p12CountRef.current.style.fontWeight = '500'
+            }
+          } else if (plannerT < 0.46) {
+            // Phase 1: Cursor approaches "Preparing for Entrepreneurship" card
+            const enterProgress = (plannerT - 0.32) / 0.14
+            const enterT = smoothstepEase(enterProgress)
+            const posX = MathUtils.lerp(180, GRIP_X, enterT)
+            const posY = MathUtils.lerp(290, GRIP_Y, enterT)
+            const cursorOpacity = MathUtils.clamp(enterProgress * 2.5, 0, 1)
+
+            plannerCursorRef.current.style.opacity = `${cursorOpacity}`
+            plannerCursorRef.current.style.transform = `translate(${posX}px, ${posY}px) scale(1)`
+
+            if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
+            if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
+            if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
+            if (droppedCardRef.current) droppedCardRef.current.style.display = 'none'
+
+            // When not clicked yet: exactly 0.5 opacity (same as "Development of an...")
+            if (sidebarPreparingCardRef.current) {
+              sidebarPreparingCardRef.current.style.display = 'flex'
+              sidebarPreparingCardRef.current.style.opacity = '0.5'
+              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.45)'
+              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.45)'
+            }
+            if (sidebarGripRef.current) {
+              // 6-dots symbol smoothly appears and text shifts right to accommodate it on hover
+              const hoverStrength = MathUtils.clamp((enterProgress - 0.2) / 0.8, 0, 1)
+              const hoverT = smoothstepEase(hoverStrength)
+              sidebarGripRef.current.style.width = `${hoverT * 8}px`
+              sidebarGripRef.current.style.marginRight = `${hoverT * 10}px`
+              sidebarGripRef.current.style.opacity = `${hoverT}`
+            }
+            if (criteriaCountRef.current) criteriaCountRef.current.textContent = '2'
+            if (p12CountRef.current) {
+              p12CountRef.current.textContent = '3/5'
+              p12CountRef.current.style.color = '#645A57'
+              p12CountRef.current.style.fontWeight = '500'
+            }
+          } else if (plannerT < 0.53) {
+            // Phase 2: Click down / Grab the card in place
+            const clickProgress = (plannerT - 0.46) / 0.07
+            let cursorScale = 1
+            let rippleOpacity = 0
+            let rippleScale = 0
+
+            if (clickProgress < 0.5) {
+              const downT = smoothstepEase(clickProgress / 0.5)
+              cursorScale = MathUtils.lerp(1, 0.82, downT)
+              rippleOpacity = MathUtils.lerp(0, 0.75, downT)
+              rippleScale = MathUtils.lerp(0.3, 1.3, downT)
+            } else {
+              cursorScale = 0.85
+              const upT = (clickProgress - 0.5) / 0.5
+              rippleOpacity = MathUtils.lerp(0.75, 0, upT)
+              rippleScale = MathUtils.lerp(1.3, 2.2, upT)
+            }
+
+            plannerCursorRef.current.style.opacity = '1'
+            plannerCursorRef.current.style.transform = `translate(${GRIP_X}px, ${GRIP_Y}px) scale(${cursorScale})`
+            if (plannerRippleRef.current) {
+              plannerRippleRef.current.style.opacity = `${rippleOpacity}`
+              plannerRippleRef.current.style.transform = `translate(-50%, -50%) scale(${rippleScale})`
+            }
+
+            // Clicked / grabbed: becomes solid as it's picked up
+            if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
+            if (sidebarPreparingCardRef.current) {
+              sidebarPreparingCardRef.current.style.display = 'flex'
+              sidebarPreparingCardRef.current.style.opacity = `${MathUtils.lerp(0.5, 1, clickProgress)}`
+              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.45)'
+              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.45)'
+            }
+            if (sidebarGripRef.current) {
+              sidebarGripRef.current.style.width = '8px'
+              sidebarGripRef.current.style.marginRight = '10px'
+              sidebarGripRef.current.style.opacity = '1'
+            }
+            if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
+            if (droppedCardRef.current) droppedCardRef.current.style.display = 'none'
+            if (criteriaCountRef.current) criteriaCountRef.current.textContent = '2'
+            if (p12CountRef.current) {
+              p12CountRef.current.textContent = '3/5'
+              p12CountRef.current.style.color = '#645A57'
+              p12CountRef.current.style.fontWeight = '500'
+            }
+          } else if (plannerT < 0.77) {
+            // Phase 3: Drag arc from left sidebar across to P1.2 under Product Sales
+            const dragProgress = (plannerT - 0.53) / 0.24
+            const dragT = smoothstepEase(dragProgress)
+            const arcY = -Math.sin(dragT * Math.PI) * 42
+            const posX = MathUtils.lerp(GRIP_X, DROP_X, dragT)
+            const posY = MathUtils.lerp(GRIP_Y, DROP_Y, dragT) + arcY
+
+            plannerCursorRef.current.style.opacity = '1'
+            plannerCursorRef.current.style.transform = `translate(${posX}px, ${posY}px) scale(0.85)`
+            if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
+
+            // Floating card follows cursor smoothly without any tilt or shape change
+            if (draggedCardRef.current) {
+              draggedCardRef.current.style.display = 'flex'
+              const cardX = posX - 14
+              const cardY = posY - 28
+              draggedCardRef.current.style.transform = `translate(${cardX}px, ${cardY}px)`
+              draggedCardRef.current.style.opacity = '1'
+            }
+
+            // Original sidebar card remains visible under Study Criteria while being dragged across
+            if (sidebarPreparingCardRef.current) {
+              sidebarPreparingCardRef.current.style.display = 'flex'
+              sidebarPreparingCardRef.current.style.opacity = '0.35'
+              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.45)'
+              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.45)'
+            }
+            if (sidebarGripRef.current) {
+              sidebarGripRef.current.style.width = '8px'
+              sidebarGripRef.current.style.marginRight = '10px'
+              sidebarGripRef.current.style.opacity = '0.4'
+            }
+
+            // Drop slot placeholder in P1.2 glows when approaching
+            if (dropPlaceholderRef.current) {
+              if (dragProgress >= 0.3) {
+                dropPlaceholderRef.current.style.display = 'block'
+                dropPlaceholderRef.current.style.opacity = `${MathUtils.clamp((dragProgress - 0.3) / 0.25, 0, 1)}`
+              } else {
+                dropPlaceholderRef.current.style.display = 'none'
+              }
+            }
+
+            if (droppedCardRef.current) droppedCardRef.current.style.display = 'none'
+            if (criteriaCountRef.current) criteriaCountRef.current.textContent = '2'
+            if (p12CountRef.current) {
+              p12CountRef.current.textContent = '3/5'
+              p12CountRef.current.style.color = '#645A57'
+              p12CountRef.current.style.fontWeight = '500'
+            }
+          } else if (plannerT < 0.86) {
+            // Phase 4: Drop snap into P1.2 under Product Sales & Count Updates
+            const dropProgress = (plannerT - 0.77) / 0.09
+            const dropT = smoothstepEase(dropProgress)
+            const cursorScale = MathUtils.lerp(0.85, 1, dropT)
+            const rippleOpacity = MathUtils.lerp(0.75, 0, dropT)
+            const rippleScale = MathUtils.lerp(0.4, 2.5, dropT)
+
+            plannerCursorRef.current.style.opacity = '1'
+            plannerCursorRef.current.style.transform = `translate(${DROP_X}px, ${DROP_Y}px) scale(${cursorScale})`
+            if (plannerRippleRef.current) {
+              plannerRippleRef.current.style.opacity = `${rippleOpacity}`
+              plannerRippleRef.current.style.transform = `translate(-50%, -50%) scale(${rippleScale})`
+            }
+
+            if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
+            if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
+            if (droppedCardRef.current) {
+              droppedCardRef.current.style.display = 'flex'
+              droppedCardRef.current.style.opacity = '1'
+            }
+
+            // The sidebar card fades out right as it drops into P1.2
+            if (sidebarPreparingCardRef.current) {
+              const sidebarOpacity = MathUtils.lerp(0.35, 0, dropT)
+              sidebarPreparingCardRef.current.style.opacity = `${sidebarOpacity}`
+              if (sidebarOpacity <= 0.01) {
+                sidebarPreparingCardRef.current.style.display = 'none'
+              } else {
+                sidebarPreparingCardRef.current.style.display = 'flex'
+              }
+            }
+            if (sidebarGripRef.current) sidebarGripRef.current.style.opacity = '0'
+
+            // Counters update: Criteria becomes 1, P1.2 becomes 4/5 (highlighted red)
+            if (criteriaCountRef.current) criteriaCountRef.current.textContent = dropProgress >= 0.4 ? '1' : '2'
+            if (p12CountRef.current) {
+              p12CountRef.current.textContent = dropProgress >= 0.4 ? '4/5' : '3/5'
+              p12CountRef.current.style.color = dropProgress >= 0.4 ? '#CC0001' : '#645A57'
+              p12CountRef.current.style.fontWeight = dropProgress >= 0.4 ? '700' : '500'
+            }
+          } else {
+            // Phase 5: Exit drift & resting finished state
+            const exitProgress = MathUtils.clamp((plannerT - 0.86) / 0.14, 0, 1)
+            const exitT = smoothstepEase(exitProgress)
+            const posX = DROP_X + 45 * exitT
+            const posY = DROP_Y + 30 * exitT
+            const cursorOpacity = 1 - exitT
+
+            plannerCursorRef.current.style.opacity = `${cursorOpacity}`
+            plannerCursorRef.current.style.transform = `translate(${posX}px, ${posY}px) scale(1)`
+            if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
+
+            if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
+            if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
+            if (droppedCardRef.current) {
+              droppedCardRef.current.style.display = 'flex'
+              droppedCardRef.current.style.opacity = '1'
+            }
+
+            // Card is completely gone from Study Criteria
+            if (sidebarPreparingCardRef.current) {
+              sidebarPreparingCardRef.current.style.display = 'none'
+              sidebarPreparingCardRef.current.style.opacity = '0'
+            }
+            if (sidebarGripRef.current) sidebarGripRef.current.style.opacity = '0'
+
+            if (criteriaCountRef.current) criteriaCountRef.current.textContent = '1'
+            if (p12CountRef.current) {
+              p12CountRef.current.textContent = '4/5'
+              p12CountRef.current.style.color = '#CC0001'
+              p12CountRef.current.style.fontWeight = '700'
+            }
+          }
+        }
+      }
+    }
+
     // The hover phase's own guided message — fades in swiftly upon DRP arrival
     if (hoverCalloutRef.current) hoverCalloutRef.current.style.opacity = `${MathUtils.clamp(hoverT * 3, 0, 1)}`
 
@@ -1464,6 +1801,7 @@ function SeamlessBackdrop({
     // the same three refs inside GradientBlob (see drpRef above), so none of
     // the three ever disagrees with the background about which mood (if any)
     // is currently active.
+    // The two lit squares' own colour, following the same mood as the
     if (backgroundRef.current) {
       backgroundRef.current.lerpColors(BACKDROP_LIT, BACKDROP_DIM, dimRef.current)
       backgroundRef.current.lerp(BACKDROP_ANGRY, angryRef.current)
@@ -1502,7 +1840,7 @@ function SeamlessBackdrop({
       <color ref={backgroundRef} attach="background" args={[SCENE_BACKDROP]} />
       <GradientBlob
         position={[0, blobY, PLANE_Z]}
-        scale={[blobWidth * BLOB_WIDTH_OVERSCALE, PLANE_SIZE, 1]}
+        scale={[blobWidth * BLOB_WIDTH_OVERSCALE, blobMeshHeight, 1]}
         dimRef={dimRef}
         angryRef={angryRef}
         drpRef={drpRef}
@@ -1832,6 +2170,21 @@ function SeamlessBackdrop({
             llmTextRef={aiLlmTextRef}
             llmPlaceholderRef={aiLlmPlaceholderRef}
             llmCaretRef={aiLlmCaretRef}
+            aiImpactCardRef={aiImpactCardRef}
+            macroPlannerViewRef={macroPlannerViewRef}
+            macroPlannerHeaderRef={macroPlannerHeaderRef}
+            macroPlannerContainerRef={macroPlannerContainerRef}
+            plannerCursorRef={plannerCursorRef}
+            plannerRippleRef={plannerRippleRef}
+            draggedCardRef={draggedCardRef}
+            dropPlaceholderRef={dropPlaceholderRef}
+            droppedCardRef={droppedCardRef}
+            sidebarPreparingCardRef={sidebarPreparingCardRef}
+            sidebarGripRef={sidebarGripRef}
+            criteriaCountRef={criteriaCountRef}
+            p12CountRef={p12CountRef}
+            navAiAnalysisRef={navAiAnalysisRef}
+            navPlanningRef={navPlanningRef}
           />
         </Html>
       </group>
@@ -1950,7 +2303,8 @@ const HOVER_VH = 140
 // played out, same sequential handoff CHAT_SCROLL_VH → EXAMS_SLIDE_VH
 // already uses.
 const REVEAL_VH = 560
-const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + HOVER_VH + REVEAL_VH
+const PLANNER_SLIDE_VH = 340
+const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + HOVER_VH + REVEAL_VH + PLANNER_SLIDE_VH
 
 // 0 the instant the sticky stage pins (this section's top reaching the top of
 // the screen, which is also the exact moment the grid zoom and the callout
@@ -1971,7 +2325,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
   // transform below. getBoundingClientRect forces a synchronous layout
   // reflow, and doing that on every scroll frame is exactly the main-thread
   // (see SiteFooter's dimsRef for the longer version of this same argument).
-  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1, hoverDistance: 1, revealDistance: 1 })
+  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1, hoverDistance: 1, revealDistance: 1, plannerDistance: 1 })
   useLayoutEffect(() => {
     const section = sectionRef.current
     if (!section) return
@@ -2002,6 +2356,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
         // panDistance itself already follows on from distance.
         hoverDistance: Math.max(1, window.innerHeight * (HOVER_VH / 100)),
         revealDistance: Math.max(1, window.innerHeight * (REVEAL_VH / 100)),
+        plannerDistance: Math.max(1, window.innerHeight * (PLANNER_SLIDE_VH / 100)),
       }
     }
     measure()
@@ -2071,6 +2426,13 @@ function usePinnedProgress(sectionRef, carouselRef) {
     return MathUtils.clamp((latest - (start + distance + panDistance + hoverDistance)) / revealDistance, 0, 1)
   })
 
+  // 0 until revealProgress itself has finished, then 1 - 0 across
+  // plannerDistance.
+  const plannerProgress = useTransform(scrollY, (latest) => {
+    const { start, distance, panDistance, hoverDistance, revealDistance, plannerDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + distance + panDistance + hoverDistance + revealDistance)) / plannerDistance, 0, 1)
+  })
+
   // The same numbers again, as plain refs, for the WebGL side — useFrame runs
   // outside React and wants a property read, not a subscription. One source,
   // two readers each, rather than two independent copies of the arithmetic.
@@ -2102,6 +2464,13 @@ function usePinnedProgress(sectionRef, carouselRef) {
       revealProgressRef.current = value
     })
   }, [revealProgress])
+  const plannerProgressRef = useRef(0)
+  useEffect(() => {
+    plannerProgressRef.current = plannerProgress.get()
+    return plannerProgress.on('change', (value) => {
+      plannerProgressRef.current = value
+    })
+  }, [plannerProgress])
 
   return {
     progress,
@@ -2111,12 +2480,13 @@ function usePinnedProgress(sectionRef, carouselRef) {
     panProgressRef,
     hoverProgressRef,
     revealProgressRef,
+    plannerProgressRef,
   }
 }
 
 export function BackgroundGlowSection({ carouselRef }) {
   const sectionRef = useRef(null)
-  const { progress, progressRef, arrival, panProgress, panProgressRef, hoverProgressRef, revealProgressRef } =
+  const { progress, progressRef, arrival, panProgress, panProgressRef, hoverProgressRef, revealProgressRef, plannerProgressRef } =
     usePinnedProgress(sectionRef, carouselRef)
 
   // How far into each of the chat's two moods the visitor currently is, on
@@ -2216,6 +2586,7 @@ export function BackgroundGlowSection({ carouselRef }) {
             panProgressRef={panProgressRef}
             hoverProgressRef={hoverProgressRef}
             revealProgressRef={revealProgressRef}
+            plannerProgressRef={plannerProgressRef}
             dimRef={dimRef}
             angryRef={angryRef}
           />

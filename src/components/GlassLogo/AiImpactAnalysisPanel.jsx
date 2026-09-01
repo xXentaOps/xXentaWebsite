@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { MacroPlannerHeader, MacroPlannerContainer, MacroPlannerView } from './MacroPlannerPanel'
 
 export const AI_IMPACT_PANEL_DESIGN_WIDTH = 883
 export const AI_IMPACT_PANEL_MARGIN = 40
@@ -318,35 +319,33 @@ function ImpactCard({
                 transition: 'opacity 0.15s ease',
               }}
             >
-              E.g. Gemini, GPT-4, Perplexity...
+              Specify focus for LLM
             </span>
 
-            {/* Typed Text in #645A57 */}
+            {/* Typed Text */}
             <span
               ref={llmTextRef}
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 500,
-                fontSize: 11.5,
-                lineHeight: '15px',
-                color: '#645A57',
+                fontSize: 12,
+                lineHeight: '16px',
+                color: TEXT_COLOR,
                 userSelect: 'none',
-                whiteSpace: 'pre',
-                zIndex: 2,
               }}
             />
 
-            {/* Blinking Caret */}
+            {/* Blinking Cursor */}
             <span
               ref={llmCaretRef}
               style={{
                 display: 'inline-block',
                 width: 1.5,
-                height: 13,
-                background: '#645A57',
-                marginLeft: 1,
+                height: 14,
+                background: '#CC0001',
+                marginLeft: 2,
                 opacity: 0,
-                zIndex: 2,
+                borderRadius: 1,
               }}
             />
           </div>
@@ -366,14 +365,28 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
     llmTextRef,
     llmPlaceholderRef,
     llmCaretRef,
+    aiImpactCardRef,
+    macroPlannerViewRef,
+    macroPlannerHeaderRef,
+    macroPlannerContainerRef,
+    plannerCursorRef,
+    plannerRippleRef,
+    draggedCardRef,
+    dropPlaceholderRef,
+    droppedCardRef,
+    sidebarPreparingCardRef,
+    sidebarGripRef,
+    criteriaCountRef,
+    p12CountRef,
+    navAiAnalysisRef,
+    navPlanningRef,
   },
-  ref
+  ref,
 ) {
   return (
     <div
       ref={ref}
       style={{
-        position: 'relative',
         width: AI_IMPACT_PANEL_DESIGN_WIDTH,
         boxSizing: 'border-box',
         paddingLeft: AI_IMPACT_PANEL_MARGIN,
@@ -383,12 +396,14 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
         display: 'flex',
         flexDirection: 'column',
         gap: 21,
+        position: 'relative',
+        overflow: 'visible',
       }}
     >
-      {/* Minimal Cursor */}
+      {/* Minimal Cursor for AI Impact Analysis */}
       <MinimalCursor cursorRef={cursorRef} rippleRef={cursorRippleRef} />
 
-      {/* Top Navigation — aligned to top right */}
+      {/* Top Navigation — aligned to top right (Persistent Header) */}
       <div
         style={{
           display: 'flex',
@@ -407,29 +422,36 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
             gap: 14,
           }}
         >
-          {NAV_ITEMS.map((item, idx) => (
-            <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span
-                style={{
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  fontWeight: 500,
-                  fontSize: 10,
-                  lineHeight: '20px',
-                  textAlign: 'center',
-                  color: item === 'AI Analysis' ? '#968E8B' : 'rgba(250, 242, 239, 0.4)',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                }}
-              >
-                {item}
-              </span>
-              {idx < NAV_ITEMS.length - 1 && <NavChevron />}
-            </div>
-          ))}
+          {NAV_ITEMS.map((item, idx) => {
+            const isAi = item === 'AI Analysis'
+            const isPlan = item === 'Planning'
+            const itemRef = isAi ? navAiAnalysisRef : isPlan ? navPlanningRef : null
+            return (
+              <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span
+                  ref={itemRef}
+                  style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontWeight: isAi ? 700 : 500,
+                    fontSize: 10,
+                    lineHeight: '20px',
+                    textAlign: 'center',
+                    color: isAi ? '#645A57' : 'rgba(150, 142, 139, 0.6)',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    transition: 'color 0.2s ease, font-weight 0.2s ease',
+                  }}
+                >
+                  {item}
+                </span>
+                {idx < NAV_ITEMS.length - 1 && <NavChevron />}
+              </div>
+            )
+          })}
         </div>
       </div>
 
-      {/* Course Title Header */}
+      {/* Course Title Header (Persistent Header) */}
       <div
         style={{
           display: 'flex',
@@ -452,7 +474,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
           Entrepreneurial Management
         </h1>
 
-        {/* Badges container — lowered slightly to align with the title */}
+        {/* Badges container */}
         <div
           style={{
             display: 'flex',
@@ -518,113 +540,151 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
         </div>
       </div>
 
-      {/* Main AI Impact Analysis Card (27px gap from Course Title) */}
+      {/* Sliding Content Container */}
       <div
         style={{
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          padding: '22px 24px',
-          gap: 18,
+          position: 'relative',
           width: '100%',
+          minHeight: 660,
           marginTop: 6,
-          background: CARD_BG,
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          border: `0.666667px solid ${BORDER_COLOR}`,
-          boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
-          borderRadius: 24,
+          overflow: 'visible',
         }}
       >
-        {/* Top Header */}
+        {/* Step 1: AI Impact Analysis Card (slides left and fades out when 70% hidden) */}
         <div
+          ref={aiImpactCardRef}
           style={{
+            boxSizing: 'border-box',
             display: 'flex',
-            flexDirection: 'row',
+            flexDirection: 'column',
             alignItems: 'flex-start',
-            gap: 12,
+            padding: '22px 24px',
+            gap: 18,
             width: '100%',
+            background: CARD_BG,
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: `0.666667px solid ${BORDER_COLOR}`,
+            boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
+            borderRadius: 24,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            willChange: 'transform, opacity',
           }}
         >
-          {/* Badge "1" — aligned with the 26px title */}
+          {/* Top Header */}
           <div
             style={{
-              boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'row',
-              justifyContent: 'center',
-              alignItems: 'center',
-              width: 21,
-              height: 22,
-              background: '#CC0001',
-              border: '0.666667px solid #AE0818',
-              borderRadius: 9999,
-              flexShrink: 0,
-              marginTop: 2,
+              alignItems: 'flex-start',
+              gap: 12,
+              width: '100%',
             }}
           >
-            <span
+            {/* Badge "1" — aligned with the 26px title */}
+            <div
               style={{
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontWeight: 700,
-                fontSize: 14,
-                lineHeight: '20px',
-                color: '#E0DDDC',
+                boxSizing: 'border-box',
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: 21,
+                height: 22,
+                background: '#CC0001',
+                border: '0.666667px solid #AE0818',
+                borderRadius: 9999,
+                flexShrink: 0,
+                marginTop: 2,
               }}
             >
-              1
-            </span>
+              <span
+                style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  lineHeight: '20px',
+                  color: '#E0DDDC',
+                }}
+              >
+                1
+              </span>
+            </div>
+
+            {/* Title & Subtitle */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 18,
+                  lineHeight: '26px',
+                  color: TEXT_COLOR,
+                }}
+              >
+                AI Impact Analysis
+              </h2>
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 400,
+                  fontSize: 12,
+                  lineHeight: '18px',
+                  color: TEXT_COLOR,
+                }}
+              >
+                Manage reference materials that guide the AI's behavior and responses.
+              </p>
+            </div>
           </div>
 
-          {/* Title & Subtitle */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontWeight: 700,
-                fontSize: 18,
-                lineHeight: '26px',
-                color: TEXT_COLOR,
-              }}
-            >
-              AI Impact Analysis
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontWeight: 400,
-                fontSize: 12,
-                lineHeight: '18px',
-                color: TEXT_COLOR,
-              }}
-            >
-              Manage reference materials that guide the AI's behavior and responses.
-            </p>
-          </div>
+          {/* Impact Cards */}
+          <ImpactCard
+            title="Development of an Entrepreneurial Concept"
+            description="Manage reference materials that guide the AI's behavior and responses."
+            sliderFillWidth={26}
+            thumbLeft={18}
+            sliderFillRef={sliderFillRef}
+            sliderThumbRef={sliderThumbRef}
+            llmInputRef={llmInputRef}
+            llmTextRef={llmTextRef}
+            llmPlaceholderRef={llmPlaceholderRef}
+            llmCaretRef={llmCaretRef}
+          />
+
+          <ImpactCard
+            title="Preparing for Entrepreneurship"
+            description="Manage reference materials that guide the AI's behavior and responses."
+            sliderFillWidth={65}
+            thumbLeft={55}
+          />
         </div>
 
-        {/* Impact Cards */}
-        <ImpactCard
-          title="Development of an Entrepreneurial Concept"
-          description="Manage reference materials that guide the AI's behavior and responses."
-          sliderFillWidth={26}
-          thumbLeft={18}
-          sliderFillRef={sliderFillRef}
-          sliderThumbRef={sliderThumbRef}
-          llmInputRef={llmInputRef}
-          llmTextRef={llmTextRef}
-          llmPlaceholderRef={llmPlaceholderRef}
-          llmCaretRef={llmCaretRef}
-        />
-
-        <ImpactCard
-          title="Preparing for Entrepreneurship"
-          description="Manage reference materials that guide the AI's behavior and responses."
-          sliderFillWidth={65}
-          thumbLeft={55}
+        {/* Step 2: Macro Planner / Study Planner View (slides in from the right) */}
+        <MacroPlannerView
+          ref={macroPlannerViewRef}
+          headerRef={macroPlannerHeaderRef}
+          containerRef={macroPlannerContainerRef}
+          plannerCursorRef={plannerCursorRef}
+          plannerRippleRef={plannerRippleRef}
+          draggedCardRef={draggedCardRef}
+          dropPlaceholderRef={dropPlaceholderRef}
+          droppedCardRef={droppedCardRef}
+          sidebarPreparingCardRef={sidebarPreparingCardRef}
+          sidebarGripRef={sidebarGripRef}
+          criteriaCountRef={criteriaCountRef}
+          p12CountRef={p12CountRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            transform: 'translateX(1000px)',
+            opacity: 0,
+          }}
         />
       </div>
     </div>
