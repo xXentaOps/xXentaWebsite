@@ -103,9 +103,6 @@ const GradientBlobMaterial = shaderMaterial(
       color = mix(color, brightGradient, uRevealProgress);
 
       gl_FragColor = vec4(color, 1.0);
-      // uColorCenter/uColorEdge arrive linear (three.js color-manages hex
-      // uniforms); convert back to the renderer's output space so this
-      // matches the scene background exactly instead of crushing toward black.
       #include <colorspace_fragment>
     }
   `,
