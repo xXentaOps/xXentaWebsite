@@ -177,7 +177,7 @@ const CALLOUTS = [
 // beats, are the expected shape this grows into — not built out yet since
 // only the one exists to show right now.
 const HOVER_CALLOUT_TEXT =
-  'We also have a system for generating infinite, high-quality syllabi — a billion times easier and faster than before.'
+  'Every syllabus is built for real-world depth — structured dynamically, and updated with every case.'
 
 // How much of the grid plane's own spare overscan the slow drift below is
 // allowed to spend.
@@ -739,6 +739,9 @@ function SeamlessBackdrop({
     ...rowGeometryAt(callout.rowOffset),
   }))
 
+  // DRP Showcase's guided message row — placed one row down from the top
+  const hoverCalloutRow = rowGeometryAt(1)
+
   // The row the "Academic skill is only half of it" callout (the last one,
   // column B) sits on — reused below for the two lit squares and their own
   // logo/"Simulations" lockup, which sit "under" that specific callout's own
@@ -1103,15 +1106,23 @@ function SeamlessBackdrop({
         }
       } else {
         // Pre-reveal & hover phase:
-        // First pill (index 0) receives the guided cursor hover & click tactile feedback
+        // First pill (index 0) receives the guided cursor hover & click tactile feedback after initial resting pause
         const firstPillEl = pillRefs.current[0] || firstPillRef.current
         if (firstPillEl) {
-          firstPillEl.style.opacity = `${MathUtils.lerp(0.9, 1, Math.min(1, hoverT * 2))}`
-          if (hoverT > 0.35 && hoverT < 0.7) {
-            const clickT = (hoverT - 0.35) / 0.35
+          if (hoverT < 0.35) {
+            firstPillEl.style.opacity = '0.9'
+            firstPillEl.style.transform = 'none'
+          } else if (hoverT < 0.60) {
+            const enterT = (hoverT - 0.35) / 0.25
+            firstPillEl.style.opacity = `${MathUtils.lerp(0.9, 1, enterT)}`
+            firstPillEl.style.transform = 'none'
+          } else if (hoverT < 0.82) {
+            const clickT = (hoverT - 0.60) / 0.22
+            firstPillEl.style.opacity = '1'
             const pressDip = clickT < 0.4 ? clickT / 0.4 : (1 - clickT) / 0.6
             firstPillEl.style.transform = `scale(${MathUtils.lerp(1, 0.992, smoothstepEase(pressDip))})`
           } else {
+            firstPillEl.style.opacity = '1'
             firstPillEl.style.transform = 'none'
           }
         }
@@ -1131,7 +1142,7 @@ function SeamlessBackdrop({
     }
 
     if (cursorRef.current) {
-      if (hoverT <= 0 || hoverT >= 1) {
+      if (hoverT <= 0.35 || hoverT >= 1) {
         cursorRef.current.style.opacity = '0'
         if (cursorRippleRef.current) cursorRippleRef.current.style.opacity = '0'
       } else {
@@ -1144,17 +1155,17 @@ function SeamlessBackdrop({
         let rippleOpacity = 0
         let rippleScale = 0
 
-        if (hoverT < 0.35) {
-          // Phase 1: Entrance glide
-          const enterT = hoverT / 0.35
+        if (hoverT < 0.60) {
+          // Phase 1: Entrance glide (after resting pause)
+          const enterT = (hoverT - 0.35) / 0.25
           const eased = smoothstepEase(enterT)
           posX = TARGET_X + 90 * (1 - eased)
           posY = TARGET_Y + 65 * (1 - eased)
           cursorOpacity = MathUtils.clamp(enterT * 2.5, 0, 1)
           cursorScale = 1
-        } else if (hoverT < 0.70) {
+        } else if (hoverT < 0.82) {
           // Phase 2: Click down and release + ripple
-          const clickT = (hoverT - 0.35) / 0.35
+          const clickT = (hoverT - 0.60) / 0.22
           posX = TARGET_X
           posY = TARGET_Y
           cursorOpacity = 1
@@ -1172,7 +1183,7 @@ function SeamlessBackdrop({
           }
         } else {
           // Phase 3: Exit drift & fadeout
-          const exitT = (hoverT - 0.70) / 0.30
+          const exitT = (hoverT - 0.82) / 0.18
           const eased = smoothstepEase(exitT)
           posX = TARGET_X + 20 * eased
           posY = TARGET_Y + 15 * eased
@@ -1188,10 +1199,8 @@ function SeamlessBackdrop({
         }
       }
     }
-    // The hover phase's own guided message — see hoverCalloutRef's own
-    // comment for why this fades on hoverT alone rather than the CALLOUTS
-    // crossfade machinery below.
-    if (hoverCalloutRef.current) hoverCalloutRef.current.style.opacity = `${hoverT}`
+    // The hover phase's own guided message — fades in swiftly upon DRP arrival
+    if (hoverCalloutRef.current) hoverCalloutRef.current.style.opacity = `${MathUtils.clamp(hoverT * 3, 0, 1)}`
 
     // ...and each callout crossing into the next, over the segment whose
     // opening is the whole reason it exists to say what it says (see
@@ -1658,7 +1667,7 @@ function SeamlessBackdrop({
             the frame loop) does the fading in, not a CSS mount animation —
             this has to track scroll, not just play once on mount. */}
         <Html
-          position={[calloutPositions[0].x + cellSize * 0.3, (calloutPositions[0].bottomY + calloutPositions[0].topY) / 2, GRID_Z + 0.01]}
+          position={[calloutPositions[0].x + cellSize * 0.85, (hoverCalloutRow.bottomY + hoverCalloutRow.topY) / 2, GRID_Z + 0.01]}
           style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
         >
           <div ref={hoverCalloutRef} className="w-[280px]" style={{ opacity: 0 }}>
@@ -1714,7 +1723,7 @@ const EXAMS_SLIDE_VH = 120
 // its own phase, after EXAMS_SLIDE_VH rather than folded into it — the pan
 // above is about arriving at DRP Showcase; this is a beat that happens once
 // the visitor is already looking at it.
-const HOVER_VH = 110
+const HOVER_VH = 140
 // Scroll spent panning the whole DRP Showcase group — grid, squares, panel,
 // and DRP_1.png — one further screen-width to the left, sliding DRP_2.png
 // in behind it (see revealWorldDistance's own comment for why exactly one
