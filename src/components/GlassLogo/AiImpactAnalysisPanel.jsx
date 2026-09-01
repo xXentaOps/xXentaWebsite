@@ -18,19 +18,19 @@ function ShieldAlertIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', flexShrink: 0 }}>
       <path
-        d="M12 2L4 5V11C4 16.55 7.42 21.74 12 23C16.58 21.74 20 16.55 20 11V5L12 2Z"
+        d="M12 3.5L4 6.5V11.5C4 16 7.5 19.8 12 21C16.5 19.8 20 16 20 11.5V6.5L12 3.5Z"
         stroke={TEXT_COLOR}
         strokeWidth="1.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M12 8V12"
+        d="M12 8V11.5"
         stroke={TEXT_COLOR}
         strokeWidth="1.8"
         strokeLinecap="round"
       />
-      <circle cx="12" cy="15.5" r="1" fill={TEXT_COLOR} />
+      <circle cx="12" cy="14.8" r="0.95" fill={TEXT_COLOR} />
     </svg>
   )
 }
