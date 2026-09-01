@@ -1239,28 +1239,33 @@ function SeamlessBackdrop({
     }
 
     // AI Impact Analysis cursor, slider tweaking, and LLM Focus typing choreography
-    const TARGET_SLIDER_START_X = 540
-    const TARGET_SLIDER_END_X = 655
-    const TARGET_SLIDER_Y = 291
+    const SLIDER_START_LEFT = 18
+    const SLIDER_END_LEFT = 210
+    const SLIDER_START_FILL = 26
+    const SLIDER_END_FILL = 218
+
+    const TARGET_SLIDER_START_X = 480 + SLIDER_START_LEFT
+    const TARGET_SLIDER_END_X = 480 + SLIDER_END_LEFT
+    const TARGET_SLIDER_Y = 300
     const TARGET_LLM_X = 434
     const TARGET_LLM_END_X = 502
-    const TARGET_LLM_Y = 332
+    const TARGET_LLM_Y = 338
 
     // 1. Slider fill & thumb state
     if (aiSliderThumbRef.current && aiSliderFillRef.current) {
       if (rawReveal < 0.65) {
-        aiSliderThumbRef.current.style.left = '60px'
-        aiSliderFillRef.current.style.width = '68px'
+        aiSliderThumbRef.current.style.left = `${SLIDER_START_LEFT}px`
+        aiSliderFillRef.current.style.width = `${SLIDER_START_FILL}px`
       } else if (rawReveal < 0.77) {
         const dragProgress = (rawReveal - 0.65) / 0.12
         const dragT = smoothstepEase(dragProgress)
-        const curLeft = MathUtils.lerp(60, 175, dragT)
-        const curFill = MathUtils.lerp(68, 183, dragT)
+        const curLeft = MathUtils.lerp(SLIDER_START_LEFT, SLIDER_END_LEFT, dragT)
+        const curFill = MathUtils.lerp(SLIDER_START_FILL, SLIDER_END_FILL, dragT)
         aiSliderThumbRef.current.style.left = `${curLeft}px`
         aiSliderFillRef.current.style.width = `${curFill}px`
       } else {
-        aiSliderThumbRef.current.style.left = '175px'
-        aiSliderFillRef.current.style.width = '183px'
+        aiSliderThumbRef.current.style.left = `${SLIDER_END_LEFT}px`
+        aiSliderFillRef.current.style.width = `${SLIDER_END_FILL}px`
       }
     }
 

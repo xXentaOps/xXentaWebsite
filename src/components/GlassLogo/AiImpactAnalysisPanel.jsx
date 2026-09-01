@@ -610,8 +610,8 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
         <ImpactCard
           title="Development of an Entrepreneurial Concept"
           description="Manage reference materials that guide the AI's behavior and responses."
-          sliderFillWidth={68}
-          thumbLeft={60}
+          sliderFillWidth={26}
+          thumbLeft={18}
           sliderFillRef={sliderFillRef}
           sliderThumbRef={sliderThumbRef}
           llmInputRef={llmInputRef}
