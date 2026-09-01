@@ -39,7 +39,7 @@ const LEVEL_FONT = 'Inter, system-ui, sans-serif'
 // not a fixed one — BackgroundGlowSection's own scroll-driven "hover"
 // phase brings it up to 100% on top of this (see firstPillRef below),
 // simulating hovering it without an actual pointer involved.
-const COURSES = [
+export const COURSES = [
   { title: 'Entrepreneurial Management', area: 'Business', level: 4, version: 'v.2025-03-31', timeAgo: '4 hours ago', dotColor: '#CC0001', opacity: 0.9 },
   { title: 'International Business', area: 'Commerce', level: 4, version: 'v.2026-01-22', timeAgo: '11 hours ago', dotColor: '#CC0001', opacity: 0.9 },
   { title: 'Junior Account Management', area: 'Commerce', level: 3, version: 'v.2026-02-15', timeAgo: '12 hours ago', dotColor: 'rgba(250, 242, 239, 0.3)', opacity: 0.9 },
@@ -262,7 +262,7 @@ function MinimalCursor({ cursorRef, rippleRef }) {
 // scale currently applied, since that anchor is what's centred, not this
 // element's own untransformed layout box.
 export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
-  { firstPillRef, cursorRef, cursorRippleRef },
+  { pillRefs, titleRef, firstPillRef, cursorRef, cursorRippleRef },
   ref
 ) {
   return (
@@ -276,7 +276,19 @@ export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
         transformOrigin: 'center center',
       }}
     >
-      <div style={{ fontSize: 25, lineHeight: '30px', fontWeight: 500, color: TEXT_COLOR, marginBottom: 22, textAlign: 'left' }}>
+      <div
+        ref={titleRef}
+        style={{
+          fontSize: 25,
+          lineHeight: '30px',
+          fontWeight: 500,
+          color: TEXT_COLOR,
+          marginBottom: 22,
+          textAlign: 'left',
+          transformOrigin: 'center left',
+          willChange: 'transform, opacity',
+        }}
+      >
         Syllabus Overview
       </div>
       {/* align-items defaults to stretch on a column flex container, which
@@ -285,7 +297,20 @@ export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
           PANEL_HORIZONTAL_MARGIN's own comment. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 17, position: 'relative' }}>
         {COURSES.map((course, index) => (
-          <CoursePill key={course.title} course={course} index={index} pillRef={index === 0 ? firstPillRef : undefined} />
+          <CoursePill
+            key={course.title}
+            course={course}
+            index={index}
+            pillRef={(el) => {
+              if (index === 0 && firstPillRef) {
+                if (typeof firstPillRef === 'function') firstPillRef(el)
+                else firstPillRef.current = el
+              }
+              if (pillRefs && pillRefs.current) {
+                pillRefs.current[index] = el
+              }
+            }}
+          />
         ))}
         <MinimalCursor cursorRef={cursorRef} rippleRef={cursorRippleRef} />
       </div>

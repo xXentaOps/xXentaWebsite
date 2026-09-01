@@ -9,7 +9,7 @@ import { ChatShowcase } from './ChatShowcase'
 import { DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
 import { pageMarginPx } from './pageMargin'
 import { GradientBlob } from './GradientBlob'
-import { PANEL_DESIGN_WIDTH, SyllabusOverviewPanel } from './SyllabusOverviewPanel'
+import { COURSES, PANEL_DESIGN_WIDTH, SyllabusOverviewPanel } from './SyllabusOverviewPanel'
 import { XxentaWordmark } from './XxentaWordmark'
 import {
   BLOB_WIDTH_OVERSCALE,
@@ -585,10 +585,10 @@ function SeamlessBackdrop({
   // of DRP Showcase rather than sitting there at native size from the
   // start.
   const syllabusPanelRef = useRef(null)
-  // The syllabus panel's own first pill — see COURSES's own comment in
-  // SyllabusOverviewPanel: its 90% resting opacity gets bumped to 100%
-  // over the hover phase (see the frame loop), simulating it being
-  // hovered and clicked.
+  // The syllabus panel's own pills and title — driven during revealT to
+  // stagger out from bottom to top so Entrepreneurial Management exits last.
+  const pillRefs = useRef([])
+  const titleRef = useRef(null)
   const firstPillRef = useRef(null)
   // Minimalist guided cursor that points and clicks on the first pill
   const cursorRef = useRef(null)
@@ -1073,28 +1073,60 @@ function SeamlessBackdrop({
       // not a screen-pixel amount — is what actually stays aligned with
       // the boundary once the scale() transform above is applied on top.
       syllabusPanelRef.current.style.clipPath = `inset(0 0 0 ${hiddenFraction * PANEL_DESIGN_WIDTH}px)`
-      // Opacity layered on top of that clip, not instead of it — travels
-      // with DRP_1 at full strength until a quarter of its own width has already
-      // been clipped away, then eases the remainder out over the rest,
-      // so what's left keeps shrinking *and* fading together
-      // rather than the clip alone giving it a hard, sudden edge.
-      const panelFadeT = smoothstepEase(MathUtils.clamp((hiddenFraction - 0.25) / 0.75, 0, 1))
-      syllabusPanelRef.current.style.opacity = `${panT * (1 - panelFadeT)}`
+      syllabusPanelRef.current.style.opacity = `${panT}`
     }
-    // The first pill's own hover & click beat + guided cursor:
-    // When DRP Showcase arrives and hoverProgress runs across hoverT (0 -> 1):
-    // 1) Cursor glides in towards the first pill (0.0 -> 0.35)
-    // 2) First pill smoothly reaches 100% opacity
-    // 3) Cursor clicks down on the pill with a scale press & ripple ring (0.35 -> 0.70)
-    // 4) Cursor releases and fades out smoothly (0.70 -> 1.0)
-    if (firstPillRef.current) {
-      firstPillRef.current.style.opacity = `${MathUtils.lerp(0.9, 1, Math.min(1, hoverT * 2))}`
-      if (hoverT > 0.35 && hoverT < 0.7) {
-        const clickT = (hoverT - 0.35) / 0.35
-        const pressDip = clickT < 0.4 ? clickT / 0.4 : (1 - clickT) / 0.6
-        firstPillRef.current.style.transform = `scale(${MathUtils.lerp(1, 0.992, smoothstepEase(pressDip))})`
+
+    // Staggered bottom-to-top exit cascade for Syllabus Overview during revealT:
+    // The bottom-most pill (Retail Sales & Operations, index 6) begins moving first,
+    // followed by index 5, 4, 3, 2, 1, and finally Entrepreneurial Management (index 0)
+    // and the section title exit last.
+    if (pillRefs.current) {
+      if (revealT > 0) {
+        for (let i = 0; i < COURSES.length; i++) {
+          const pillEl = pillRefs.current[i]
+          if (!pillEl) continue
+          // Reverse index so bottom item (index 6) starts at startT = 0
+          const startT = (6 - i) * 0.08
+          const rawT = MathUtils.clamp((revealT - startT) / 0.48, 0, 1)
+          const pillExitT = smoothstepEase(rawT)
+          const baseOpacity = i === 0 ? 1 : COURSES[i].opacity
+          const opacity = baseOpacity * (1 - pillExitT)
+          const slideX = -360 * pillExitT
+          pillEl.style.transform = pillExitT > 0 ? `translateX(${slideX}px)` : 'none'
+          pillEl.style.opacity = `${opacity}`
+        }
+        if (titleRef.current) {
+          const rawTitleT = MathUtils.clamp((revealT - 0.50) / 0.48, 0, 1)
+          const titleExitT = smoothstepEase(rawTitleT)
+          titleRef.current.style.transform = titleExitT > 0 ? `translateX(${-360 * titleExitT}px)` : 'none'
+          titleRef.current.style.opacity = `${1 - titleExitT}`
+        }
       } else {
-        firstPillRef.current.style.transform = 'none'
+        // Pre-reveal & hover phase:
+        // First pill (index 0) receives the guided cursor hover & click tactile feedback
+        const firstPillEl = pillRefs.current[0] || firstPillRef.current
+        if (firstPillEl) {
+          firstPillEl.style.opacity = `${MathUtils.lerp(0.9, 1, Math.min(1, hoverT * 2))}`
+          if (hoverT > 0.35 && hoverT < 0.7) {
+            const clickT = (hoverT - 0.35) / 0.35
+            const pressDip = clickT < 0.4 ? clickT / 0.4 : (1 - clickT) / 0.6
+            firstPillEl.style.transform = `scale(${MathUtils.lerp(1, 0.992, smoothstepEase(pressDip))})`
+          } else {
+            firstPillEl.style.transform = 'none'
+          }
+        }
+        // Other pills (indices 1 to 6) stay at their resting opacities and default transform
+        for (let i = 1; i < COURSES.length; i++) {
+          const pillEl = pillRefs.current[i]
+          if (pillEl) {
+            pillEl.style.opacity = `${COURSES[i].opacity}`
+            pillEl.style.transform = 'none'
+          }
+        }
+        if (titleRef.current) {
+          titleRef.current.style.opacity = '1'
+          titleRef.current.style.transform = 'none'
+        }
       }
     }
 
@@ -1567,6 +1599,8 @@ function SeamlessBackdrop({
         >
           <SyllabusOverviewPanel
             ref={syllabusPanelRef}
+            pillRefs={pillRefs}
+            titleRef={titleRef}
             firstPillRef={firstPillRef}
             cursorRef={cursorRef}
             cursorRippleRef={cursorRippleRef}
