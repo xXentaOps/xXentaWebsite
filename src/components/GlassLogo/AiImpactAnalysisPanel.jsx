@@ -10,6 +10,7 @@ const CARD_BG = 'rgba(241, 245, 249, 0.3)'
 const INNER_CARD_BG = 'rgba(241, 245, 249, 0.35)'
 const BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'
 const DIVIDER_COLOR = 'rgba(147, 140, 137, 0.3)'
+const LEVEL_FONT = 'Inter, system-ui, sans-serif'
 
 function ShieldAlertIcon() {
   return (
@@ -298,8 +299,93 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
         paddingRight: AI_IMPACT_PANEL_MARGIN,
         transformOrigin: 'center center',
         willChange: 'transform, opacity, clip-path',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 27,
       }}
     >
+      {/* Course Title Header — 27px above the AI Impact Analysis card */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          width: '100%',
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            fontWeight: 500,
+            fontSize: 25,
+            lineHeight: '32px',
+            color: TEXT_COLOR,
+          }}
+        >
+          Entrepreneurial Management
+        </h1>
+
+        {/* Badges container */}
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {/* lvl • 4 */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 17,
+              padding: '0 7px',
+              background: 'rgba(147, 140, 137, 0.3)',
+              borderRadius: 8,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: LEVEL_FONT,
+                fontWeight: 700,
+                fontSize: 9.5,
+                lineHeight: '14px',
+                letterSpacing: '0.45px',
+                textTransform: 'uppercase',
+                color: TEXT_COLOR,
+              }}
+            >
+              lvl • 4
+            </span>
+          </div>
+
+          {/* Draft */}
+          <div
+            style={{
+              boxSizing: 'border-box',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 17,
+              padding: '0 8px',
+              border: '0.666667px solid rgba(147, 140, 137, 0.3)',
+              borderRadius: 9999,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 700,
+                fontSize: 9.5,
+                lineHeight: '16px',
+                textAlign: 'center',
+                color: 'rgba(150, 142, 139, 0.6)',
+              }}
+            >
+              Draft
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main AI Impact Analysis Card */}
       <div
         style={{
           boxSizing: 'border-box',
@@ -322,12 +408,12 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             gap: 12,
             width: '100%',
           }}
         >
-          {/* Badge "1" */}
+          {/* Badge "1" — aligned with the 26px title */}
           <div
             style={{
               boxSizing: 'border-box',
@@ -341,6 +427,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
               border: '0.666667px solid #AE0818',
               borderRadius: 9999,
               flexShrink: 0,
+              marginTop: 2,
             }}
           >
             <span
