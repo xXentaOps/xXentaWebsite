@@ -1705,7 +1705,7 @@ const INTRO_VH = 100
 // discrete open/close toggle, so this is scroll room added onto the same
 // sticky stage the chat already pins inside, not a second section of its
 // own.
-const EXAMS_SLIDE_VH = 70
+const EXAMS_SLIDE_VH = 120
 // Scroll spent on the "hover" beat once DRP Showcase itself has arrived —
 // the first pill (see firstPillRef) settling from its own resting 90%
 // opacity up to a full 100%, "as if it was being hovered," while the
@@ -1714,14 +1714,14 @@ const EXAMS_SLIDE_VH = 70
 // its own phase, after EXAMS_SLIDE_VH rather than folded into it — the pan
 // above is about arriving at DRP Showcase; this is a beat that happens once
 // the visitor is already looking at it.
-const HOVER_VH = 45
+const HOVER_VH = 110
 // Scroll spent panning the whole DRP Showcase group — grid, squares, panel,
 // and DRP_1.png — one further screen-width to the left, sliding DRP_2.png
 // in behind it (see revealWorldDistance's own comment for why exactly one
 // gridWidth is the right distance). Starts only once HOVER_VH's own beat has
 // played out, same sequential handoff CHAT_SCROLL_VH → EXAMS_SLIDE_VH
 // already uses.
-const REVEAL_VH = 90
+const REVEAL_VH = 220
 const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + HOVER_VH + REVEAL_VH
 
 // 0 the instant the sticky stage pins (this section's top reaching the top of

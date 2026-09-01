@@ -214,13 +214,9 @@ const REVEAL_FRACTION = 0.22
 
 // How much page scroll one unit is worth. The one knob for the whole
 // section's length: everything else above is relative, so this alone decides
-// whether the sequence feels brisk or drawn out. Raised from 28 — tried
-// first as `holdUnits`, a one-off extra push on just the unconscious-patient
-// turn, which was reported back as the pace the *whole* case should move at,
-// not that one turn specifically. Since every turn's own weight is already
-// relative to every other, slowing all of them down together is just this
-// one number moving rather than each turn needing its own adjustment.
-const VH_PER_UNIT = 50
+// whether the sequence feels brisk or drawn out. Raised to 80 for a relaxed,
+// readable pace throughout the entire sequence.
+const VH_PER_UNIT = 80
 
 function turnUnits(entry, opensChannel) {
   const perChar = entry.from === 'user' ? USER_CHARS_PER_UNIT : REPLY_CHARS_PER_UNIT
