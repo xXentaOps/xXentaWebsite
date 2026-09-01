@@ -1071,11 +1071,11 @@ function SeamlessBackdrop({
       // the boundary once the scale() transform above is applied on top.
       syllabusPanelRef.current.style.clipPath = `inset(0 0 0 ${hiddenFraction * PANEL_DESIGN_WIDTH}px)`
       // Opacity layered on top of that clip, not instead of it — travels
-      // with DRP_1 at full strength until half its own width has already
-      // been clipped away, then eases the remainder out over the second
-      // half, so what's left keeps shrinking *and* fading together
+      // with DRP_1 at full strength until a quarter of its own width has already
+      // been clipped away, then eases the remainder out over the rest,
+      // so what's left keeps shrinking *and* fading together
       // rather than the clip alone giving it a hard, sudden edge.
-      const panelFadeT = smoothstepEase(MathUtils.clamp((hiddenFraction - 0.5) / 0.5, 0, 1))
+      const panelFadeT = smoothstepEase(MathUtils.clamp((hiddenFraction - 0.25) / 0.75, 0, 1))
       syllabusPanelRef.current.style.opacity = `${panT * (1 - panelFadeT)}`
     }
     // The first pill's own hover beat — 90% resting (see COURSES) up to a
