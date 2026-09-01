@@ -44,3 +44,25 @@ export const BLOB_CENTER = '#3B82F6'
 // transition weaker rather than making the red itself calmer.
 export const BLOB_CENTER_DIM = '#475569'
 export const BLOB_CENTER_ANGRY = '#991B1B'
+// A third mood, not tied to a character's own state this time — DRP
+// Showcase's own backdrop, a soft light taupe, exact hex asked for directly
+// (a distinct shade from the lit squares' own SQUARE_DRP, in
+// BackgroundGlowSection). "A little less strong" (tried as a step lighter
+// first, which turned out to be the wrong direction — "still too bright"
+// afterward) meant less bright, not more: darker than the original hex, not
+// past it — then nudged back up just slightly, asked for directly ("juuuustt
+// a little bit").
+export const SCENE_BACKDROP_DRP = '#AEA6A3'
+// The glow's own centre — set to exactly match SCENE_BACKDROP_DRP for now,
+// asked for directly ("remove the glow altogether... just to test
+// something"): with centre and edge identical, GradientBlobMaterial's own
+// mix(uColorEdge, uColorCenter, glow) has nothing left to mix between, so
+// the whole shape renders as flat, uniform background — there the whole
+// time, just visually a no-op. One line back to a real hex (several tried
+// below, still here in case any of them is actually the one wanted back)
+// undoes this the instant the glow's needed again.
+//
+// Earlier hexes, kept rather than deleted for exactly that: '#F7F1E4'
+// (bright warm cream), '#C3BCB9', '#AFB2B6' (cooled "too much"), '#B2B3B5'
+// (pulled back from that).
+export const BLOB_CENTER_DRP = SCENE_BACKDROP_DRP

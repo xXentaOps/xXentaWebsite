@@ -365,6 +365,14 @@ export function GridPlane({
   // props below, which this overrides once present. Those props still set
   // the *first* frame's geometry, before this ref's own effect has run.
   edgeGeometryRef,
+  // A multiplier on top of style.lineOpacity/plusOpacity, once again for the
+  // same reason edgeOpacityRef exists: BackgroundGlowSection needs this to
+  // ramp up on scroll (DRP Showcase's own lines, reported as unreadable
+  // against its lighter taupe background — style itself stays untouched, so
+  // every other caller of this exact style constant, hero and About Us
+  // included, is unaffected). Absent (every other caller), the uniforms
+  // keep style's own opacity exactly as given.
+  lineOpacityBoostRef,
   buttonColumnLeftUV,
   buttonColumnRightUV,
   buttonBottomUV,
@@ -403,6 +411,11 @@ export function GridPlane({
 
     if (edgeOpacityRef) {
       material.uniforms.uEdgeOpacity.value = EDGE_STYLE.opacity * edgeOpacityRef.current
+    }
+
+    if (lineOpacityBoostRef) {
+      material.uniforms.uLineOpacity.value = style.lineOpacity * lineOpacityBoostRef.current
+      material.uniforms.uPlusOpacity.value = style.plusOpacity * lineOpacityBoostRef.current
     }
 
     if (edgeGeometryRef) {

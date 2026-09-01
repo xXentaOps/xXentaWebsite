@@ -1,14 +1,15 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useRef } from 'react'
 import { Html, shaderMaterial } from '@react-three/drei'
-import { Canvas, extend, useFrame } from '@react-three/fiber'
+import { Canvas, extend, useFrame, useLoader } from '@react-three/fiber'
 import { motion, useScroll, useSpring, useTransform } from 'framer-motion'
-import { AdditiveBlending, Color, MathUtils } from 'three'
+import { Color, MathUtils, Plane, TextureLoader, Vector3 } from 'three'
 import { GridPlane } from './BackgroundGrid'
 import { CHAT_SCROLL_VH, CHAT_TIMELINE, chatAngryAt, chatDimAt } from './chatShowcaseScript'
 import { ChatShowcase } from './ChatShowcase'
 import { DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
 import { pageMarginPx } from './pageMargin'
 import { GradientBlob } from './GradientBlob'
+import { PANEL_DESIGN_WIDTH, SyllabusOverviewPanel } from './SyllabusOverviewPanel'
 import { XxentaWordmark } from './XxentaWordmark'
 import {
   BLOB_WIDTH_OVERSCALE,
@@ -18,6 +19,7 @@ import {
   SCENE_BACKDROP,
   SCENE_BACKDROP_ANGRY,
   SCENE_BACKDROP_DIM,
+  SCENE_BACKDROP_DRP,
 } from './sceneConstants'
 import { useSeamlessGrid } from './useSeamlessGrid'
 
@@ -162,6 +164,16 @@ const CALLOUTS = [
   },
 ]
 
+// DRP Showcase's own first guided message — same standing as CALLOUTS
+// above, just its own separate list rather than one more entry in it: it
+// belongs to the hover phase (see HOVER_VH), not the chat's own timeline,
+// so it has nothing to trigger off of CALLOUTS's own trigger field
+// expects. "The first" because more of these, timed to later DRP Showcase
+// beats, are the expected shape this grows into — not built out yet since
+// only the one exists to show right now.
+const HOVER_CALLOUT_TEXT =
+  'We also have a system for generating infinite, high-quality syllabi — a billion times easier and faster than before.'
+
 // How much of the grid plane's own spare overscan the slow drift below is
 // allowed to spend.
 //
@@ -226,14 +238,38 @@ extend({ GridGlowMaterial })
 // About Us, and the same dim/angry treatment the backdrop and blob already
 // carry (see BACKDROP_DIM/BACKDROP_ANGRY above) so these squares shift along
 // with the rest of the scene rather than staying blue through Peter's own
-// unconscious stretch or Carla's own anger.
+// unconscious stretch, Carla's own anger, or DRP Showcase's own taupe.
 const SQUARE_LIT = new Color('#6CA1F8')
 const SQUARE_DIM = new Color('#94A3B8')
 const SQUARE_ANGRY = new Color('#F87171')
+// Started out exactly matching SCENE_BACKDROP_DRP (the same taupe the
+// background itself is built from), then asked to be lighter than it — a
+// deliberately distinct, lighter shade of the same family now rather than
+// the identical value, so the squares still read as their own plate against
+// the background instead of blending into it. Brightened once more, same
+// R-G/G-B channel gaps kept intact so the hue itself doesn't shift, only
+// how light it reads.
+const SQUARE_DRP = new Color('#C0B9B6')
 // How opaque each square sits at rest — low, the same "ambient, ~2-4%"
 // register GRID_GLOWS itself uses, so these read as a faint accent beside
 // the callout rather than competing with it for attention.
 const LIT_SQUARE_OPACITY = 0.05
+// How opaque the squares get once in DRP Showcase — reported directly that
+// the xXenta mark/"Exams & Syllabi" punched through them wasn't reading at
+// all: at LIT_SQUARE_OPACITY's own ~5%, additively blended, the square was
+// never anything more than a faint wash a light background nearly
+// swallowed whole. Near-opaque instead, so the taupe genuinely reads as its
+// own solid plate — brought down four times now (0.92, 0.8, 0.68, 0.6),
+// each time asked for directly, so more of the grid underneath keeps
+// showing through.
+const DRP_SQUARE_OPACITY = 0.5
+// How much brighter the grid lines get once in DRP Showcase — reported
+// directly as not visible at all against the lighter background (see
+// lineOpacityBoostRef's own comment in BackgroundGlowSection for the actual
+// numbers this is multiplying). DIRECT_STYLE's own lineOpacity sits at a
+// bare 0.012 — even this brings it to a still-restrained ~0.1. Brought down
+// twice now (14, then 11), both times asked for directly.
+const DRP_LINE_OPACITY_BOOST = 8
 
 // The logo/"Simulations" lockup over the lit squares is sized off these
 // per-character width estimates rather than a live DOM measurement — a
@@ -288,8 +324,20 @@ const EXAMS_AVG_CHAR_EM = 0.6
 // else backing it up here once the squares sit flush against that edge
 // themselves, 6px alone read as the text glued right to it. Bumped up to
 // SCREEN_EDGE_MARGIN_PX's own register instead — a real, deliberate margin
-// off an edge, not a hairline gap off a neighbouring square.
-const EXAMS_TEXT_LEFT_MARGIN_PX = 24
+// off an edge, not a hairline gap off a neighbouring square — then nudged a
+// little further still, asked for directly.
+const EXAMS_TEXT_LEFT_MARGIN_PX = 32
+// A small correction on "xXenta" alone, not the whole lockup — asked for
+// directly, to line its own left edge up exactly with "Exams & Syllabi"'s
+// own E underneath it. A fraction of the line's own font-size rather than a
+// flat pixel count: the first attempt (a flat 1px, even once scaled by
+// nextScale) came out to only a couple of percent of the glyph's own
+// height once actually on screen — genuinely too small a fraction of an
+// "x" that size to read as a shift at all, which is what "nothing changed"
+// twice over actually was. Sized off the font-size itself (see the frame
+// loop) instead, so it's a fixed, visible proportion of the glyph
+// regardless of how large that glyph currently renders.
+const EXAMS_LOGO_NUDGE_EM = 0.05
 // How much world space the squares' own slide spends catching up to its
 // target each frame — gentler than the zoom's own lambda (8), appropriate
 // for a slower, more deliberate motion than the zoom's.
@@ -303,6 +351,80 @@ const PAN_LAMBDA = 6
 // squares finish landing on the second lockup, not still dissolving as it
 // arrives.
 const PAN_FADE_END = 0.3
+
+// DRP Showcase's own placeholder — a stand-in for whatever actual content
+// eventually goes there, asked for as "a massive beige rectangle for now"
+// covering "that side of the screen top to bottom". Counting the squares'
+// own two columns as DRP Showcase's first two, this starts on its fourth
+// (PLACEHOLDER_COLUMN_GAP=1 spare column between the squares and it, then
+// the placeholder itself) and reaches all the way to the screen's own true
+// right edge (see placeholderRightX below) — "it's all just placeholder
+// space" from there on, not a fixed-size block sitting somewhere in it.
+//
+// The same shared constant the scene's own flat background is built from
+// (see BACKDROP_DRP below and SCENE_BACKDROP_DRP in sceneConstants.js) —
+// one hex value, not two copies of it that could drift apart, so the
+// rectangle and the background it sits in front of always agree.
+const PLACEHOLDER_COLOR = SCENE_BACKDROP_DRP
+// The same muted warm brown SyllabusOverviewPanel's own TEXT_COLOR uses —
+// kept as its own copy here rather than imported, the same "these just
+// needed the same two numbers" case pageMargin.js's own module comment
+// already argues against duplicating, except this really is just the one
+// hex value a completely different DOM tree needs to visually match, not
+// shared layout logic. Used wherever DRP Showcase needs legible text over
+// its own light backdrop — CALLOUTS's own text-white/40 is tuned for
+// Floren Showcase's dark one and reads as close to invisible here.
+const DRP_TEXT_COLOR = '#645A57'
+const PLACEHOLDER_COLUMN_GAP = 1
+// The scene's own flat background, once in DRP Showcase — lerped toward
+// the same way BACKDROP_DIM/ANGRY already are, see panT's own use in the
+// frame loop.
+const BACKDROP_DRP = new Color(SCENE_BACKDROP_DRP)
+// A path into /public, same convention every image on this site uses (see
+// SPEAKERS' own avatar entries in chatShowcaseScript.js).
+const PLACEHOLDER_IMAGE_URL = '/DRP_1.png'
+
+// Loads DRP_1.png and hands back the material that actually shows it — its
+// own component, not inlined into the mesh below, specifically so only
+// *this* suspends while the texture loads rather than the whole canvas:
+// same "its own nested Suspense boundary" reasoning AboutUsSection's own
+// per-member nameIcon SVG load already documents (see that file's own
+// comment on why one shared boundary would be the wrong scope). useLoader
+// over drei's useTexture for the same reason PhotoBackdropCapture gives for
+// avoiding it elsewhere in this piece — the difference there was suspending
+// on *every* src change from repeated cycling through several photos, which
+// doesn't apply here: this loads exactly one URL, once, for the life of the
+// page.
+// clippingPlanes forwarded from SeamlessBackdrop (see drpClipPlaneRef) —
+// a real GPU clip against the grid's own fixed left boundary, not just an
+// opacity/render-order guess. renderOrder alone (see litSquareRefs) turned
+// out not to be enough on its own: reported directly, the grid was still
+// getting hidden behind both images after that fix — a clip plane can't
+// lose that fight the way a transparent-object paint order can, since
+// fragments past it are discarded outright rather than merely drawn
+// earlier or later.
+function PlaceholderImageMaterial({ clippingPlanes }) {
+  const texture = useLoader(TextureLoader, PLACEHOLDER_IMAGE_URL)
+  return <meshBasicMaterial map={texture} transparent opacity={0} toneMapped={false} clippingPlanes={clippingPlanes} />
+}
+
+// What the reveal phase pans in from off-screen right, behind DRP_1.png —
+// see drp2CenterX/drp2Width's own comments for where this actually sits.
+// Same convention, same per-file Suspense boundary, as PlaceholderImageMaterial
+// just above — except not transparent, and not faded in: reported directly
+// as a visible shadow where the two images met while this one was still
+// part-way through fading in, since a part-transparent plane blends toward
+// whatever's behind it (the grid/backdrop colour) rather than showing its
+// own real colour. Fully opaque from the moment it loads instead — it
+// isn't on screen at all until the reveal phase's own pan (see
+// revealWorldDistance) brings it into view, so there's nothing for an
+// entrance fade to actually soften here the way there was for DRP_1.
+const DRP2_IMAGE_URL = '/DRP_2.png'
+
+function Drp2ImageMaterial({ clippingPlanes }) {
+  const texture = useLoader(TextureLoader, DRP2_IMAGE_URL)
+  return <meshBasicMaterial map={texture} toneMapped={false} clippingPlanes={clippingPlanes} />
+}
 
 // Zero velocity at both ends — same reasoning as this piece's other
 // smoothstepEase duplicates (see BackgroundGrid/HeroTitle): a linear zoom
@@ -356,7 +478,16 @@ function safeCellsBelowCenter(preferredCells, safeFraction, gridHeight, finalZoo
 //    full screen, rather than each canvas centering its own content
 //    independently. See yPhaseShiftCells and blobY below for the actual
 //    derivation.
-function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panProgressRef, dimRef, angryRef }) {
+function SeamlessBackdrop({
+  carouselRef,
+  isVisibleRef,
+  pinnedProgressRef,
+  panProgressRef,
+  hoverProgressRef,
+  revealProgressRef,
+  dimRef,
+  angryRef,
+}) {
   // screenOffset 1 — this section continues the pattern one screen *below*
   // the hero (see useSeamlessGrid for the shared derivation of
   // yPhaseShiftCells/blobY this used to do inline).
@@ -374,6 +505,30 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
   // still reads as sitting on the same grid, at the same zoom, everywhere
   // else) but never receives the X pan gridGroupRef itself gets.
   const calloutGroupRef = useRef(null)
+  // A sibling of gridGroupRef too, for the opposite reason — see its own
+  // comment where it's rendered. Carries DRP_1.png, DRP_2.png, and the
+  // syllabus panel through everything gridGroupRef itself does during the
+  // pan phase (scale, Y-drift, panT-driven pan), plus its own further
+  // revealT-driven travel once the reveal phase starts, which gridGroupRef
+  // — and the grid/squares/lockup text still inside it — no longer gets.
+  const revealGroupRef = useRef(null)
+  // The reveal phase's own extra travel, damped on its own — but only
+  // *this* part, not the whole panWorldDistance + revealWorldDistance sum
+  // (see the frame loop). Two fully independent MathUtils.damp() calls
+  // (one for group.position.x, a second for the old version of this) share
+  // the same panWorldDistance × panT term but chase it from separate
+  // histories, so nothing guarantees they ever agree on it to the pixel —
+  // negligible at rest, but a fast scroll pushes both targets at once and
+  // lets the two smoothers drift apart from each other by a visible amount
+  // while catching up. Reported directly: fast scrolling in either
+  // direction showed the syllabus panel's own clip (see boundaryWorldX)
+  // misaligned with the grid, sometimes clipping too much, sometimes too
+  // little. Deriving revealGroupRef's position from gridGroupRef's own
+  // *actual* current position instead — group.position.x + this damped
+  // extra — makes the two agree exactly, always, since one is now
+  // arithmetically built from the other rather than independently chasing
+  // the same number.
+  const revealOffsetRef = useRef(0)
   // CALLOUTS.length plain DOM refs, one per callout, indexed the same way —
   // an array rather than a fixed calloutARef/calloutBRef pair, so the number
   // of callouts is a property of the CALLOUTS list alone and nothing below
@@ -412,6 +567,50 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
   const examsPunchRef = useRef(null)
   const examsLogoTextRef = useRef(null)
   const examsTextRef = useRef(null)
+  // DRP Showcase's own placeholder rectangle — faded in over the same
+  // panT the lockup crossfade already uses (see the frame loop), so it
+  // doesn't sit there fully opaque before the pan has even started. Simply
+  // absent that entirely at rest would work just as well visually, but
+  // fading it in reads as arriving deliberately rather than just always
+  // having been there, off past the edge of what was on screen.
+  const placeholderMeshRef = useRef(null)
+  // The "Syllabus Overview" list riding on top of the placeholder image —
+  // faded in and scaled the same panT/nextScale-driven way as the
+  // placeholder itself (see the frame loop), so it arrives with the rest
+  // of DRP Showcase rather than sitting there at native size from the
+  // start.
+  const syllabusPanelRef = useRef(null)
+  // The syllabus panel's own first pill — see COURSES's own comment in
+  // SyllabusOverviewPanel: its 90% resting opacity gets bumped to 100%
+  // over the hover phase (see the frame loop), simulating it being
+  // hovered without an actual pointer.
+  const firstPillRef = useRef(null)
+  // The hover phase's own guided message — same visual treatment as
+  // Floren Showcase's own first callout (see CALLOUTS), reusing that
+  // callout's exact position (calloutPositions[0]) rather than a position
+  // of its own, and living in the same calloutGroupRef, so it reads as
+  // "the same message slot, on to its next thing" rather than a new
+  // element appearing somewhere unrelated. Opacity driven by hoverT alone
+  // (see the frame loop) rather than the CALLOUTS crossfade machinery —
+  // there's only the one of these right now.
+  const hoverCalloutRef = useRef(null)
+  // DRP Showcase's own second placeholder image — see Drp2ImageMaterial
+  // and drp2CenterX's own comment for where it sits and why. Always fully
+  // opaque once loaded (see Drp2ImageMaterial's own comment) rather than
+  // fading in — it isn't visible at all until the reveal phase's pan
+  // brings it into view, so there's nothing an entrance fade would
+  // actually be softening.
+  const drp2MeshRef = useRef(null)
+  // A world-space clip plane, normal pointing +X, kept past the grid's own
+  // fixed left boundary (placeholderLeftX, see its own comment) — applied
+  // to DRP_1/DRP_2's own materials below so neither can ever render to the
+  // left of it, full stop, regardless of transparency/paint-order (see
+  // renderOrder's own comment on litSquareRefs, which alone wasn't enough).
+  // One shared Plane instance, its own .constant mutated per frame in the
+  // frame loop rather than a new Plane allocated every frame — the same
+  // "mutate the existing object, don't reallocate" convention this file's
+  // Color refs already use.
+  const drpClipPlaneRef = useRef(new Plane(new Vector3(1, 0, 0), 0))
   // The one highlighted edge this canvas can draw (see uEdgeX etc. in
   // GridPatternMaterial — there's a single set of uniforms, not a list),
   // written every frame with whichever callout's own geometry currently
@@ -423,6 +622,22 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
   // A ref on the <color> element hands back the THREE.Color three.js has
   // attached to scene.background, which can then be mutated in place.
   const backgroundRef = useRef(null)
+  // The blob's own third mood (see GradientBlob's own drpRef prop) — local
+  // to this component, unlike dimRef/angryRef, which arrive as props from
+  // BackgroundGlowSection because ChatShowcase (a DOM component, outside
+  // this canvas entirely) also needs them for the header's own accent
+  // colours. Nothing outside this canvas needs DRP Showcase's own mood, so
+  // it never has to leave it.
+  const drpRef = useRef(0)
+  // The grid lines' own multiplier once in DRP Showcase (see
+  // lineOpacityBoostRef in GridPlane) — reported directly as not visible at
+  // all against the taupe background, which checks out: style.lineOpacity/
+  // plusOpacity (DIRECT_STYLE/THROUGH_GLASS_STYLE, see gridConstants.js) are
+  // tuned to sit at a bare 0.4%-2.7% against the hero's own near-black navy,
+  // nowhere near enough contrast against a lighter, mid-toned background.
+  // Starts at 1 (no change from either style's own resting opacity, so the
+  // chat phase reads exactly as it always has) and ramps up with panT.
+  const lineOpacityBoostRef = useRef(1)
 
   // Left edge of column EDGE_COLUMN_FROM_LEFT — same formula BackgroundGrid
   // uses for its own buttons' left/right columns (buttonLeftX there), just
@@ -573,6 +788,80 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
   // finalZoomScale itself already uses for the highlighted edge.
   const panWorldDistance = trueScreenLeftX - edgeXB * finalZoomScale
 
+  // DRP Showcase's own placeholder rectangle — see PLACEHOLDER_COLOR's own
+  // comment for the column counting. Left edge: past the squares' own two
+  // columns (edgeXB to edgeXB + 2×cellSize) and PLACEHOLDER_COLUMN_GAP more.
+  // Right edge: solved the same backwards-from-the-destination way
+  // panWorldDistance itself is, just for the screen's *right* edge instead
+  // of its left — worldX = trueScreenLeftX + (localX - edgeXB)×finalZoomScale
+  // is what any local X inside this group lands on once fully panned (see
+  // panWorldDistance's own derivation), so setting that equal to the
+  // screen's true right edge (gridWidth/2, trueScreenLeftX's own mirror) and
+  // solving for localX gives the one local X that reaches exactly there —
+  // edgeXB + gridWidth/finalZoomScale, after trueScreenLeftX (-gridWidth/2)
+  // cancels out.
+  const placeholderLeftX = edgeXB + (2 + PLACEHOLDER_COLUMN_GAP) * cellSize
+  const placeholderRightX = edgeXB + gridWidth / finalZoomScale
+  const placeholderWidth = Math.max(cellSize, placeholderRightX - placeholderLeftX)
+  const placeholderCenterX = (placeholderLeftX + placeholderRightX) / 2
+  // Top to bottom, asked for directly — gridHeight is the screen's own real
+  // height in world units (unzoomed), so dividing it back down by
+  // finalZoomScale gives the *local* height that, once this group's own
+  // scale is applied to it like everything else inside gridGroupRef, comes
+  // out to exactly gridHeight again — the full screen, not a fraction of it.
+  const placeholderHeight = gridHeight / finalZoomScale
+  // A local Y offset canceling out this group's own slow upward drift
+  // (group.position.y = driftWorld × pinned — see driftWorld's own
+  // comment), which is what actually shrank this down to "only the
+  // top-right corner": pinned sits at exactly 1 for the entire time DRP
+  // Showcase can ever be on screen (panProgress only ever starts moving
+  // once it does — see panProgress's own comment), so the drift isn't
+  // partial here, it's already at its full, maximum height by then. A
+  // rectangle sized to exactly match the screen's own height had zero
+  // slack to absorb that with, so the group's own drift pushed nearly all
+  // of it above the top edge, leaving only a sliver of its own bottom
+  // showing near the top of the screen. Dividing driftWorld by
+  // finalZoomScale (the same "undo this group's own scale to find the
+  // local offset that cancels a known world one" step panWorldDistance
+  // itself already uses) is what keeps this rectangle's own centre sitting
+  // on the screen's true vertical centre regardless.
+  const placeholderCenterY = -driftWorld / finalZoomScale
+
+  // The reveal phase's own further travel, on top of panWorldDistance —
+  // exactly one more gridWidth (the screen's own full width, in world
+  // units) to the left. Solved the same backwards-from-the-destination way
+  // panWorldDistance itself is, for DRP_2's own left edge (drp2LeftX below,
+  // which sits flush against placeholderRightX — DRP_1's own right edge)
+  // reaching the screen's true left edge once revealT hits 1:
+  //   trueScreenLeftX = panWorldDistance + revealWorldDistance + placeholderRightX×finalZoomScale
+  // Substituting panWorldDistance's own definition and placeholderRightX's
+  // own (edgeXB + gridWidth/finalZoomScale) cancels every term but
+  // gridWidth itself, leaving revealWorldDistance = -gridWidth exactly —
+  // which also happens to be the one distance that guarantees DRP_1 and
+  // DRP_2 (flush against each other, combined wider than one screen) never
+  // open a gap between them during the slide: shifting a fully-zoomed
+  // scene left by exactly one screen-width just pans the viewport by
+  // exactly one whole screen of content, the same way panWorldDistance
+  // itself reveals what was off past the right edge without ever exposing
+  // the grid pattern underneath.
+  const revealWorldDistance = -gridWidth
+
+  // DRP Showcase's own second image — flush against DRP_1's own right
+  // edge (placeholderRightX), sized to exactly one screen-width the same
+  // way placeholderHeight solves for exactly one screen-height (gridWidth/
+  // finalZoomScale, this plane's own local units, becomes exactly gridWidth
+  // once this group's scale is applied) — so once the reveal phase
+  // finishes, DRP_2 fills the screen edge to edge rather than starting
+  // from some column in like DRP_1 does.
+  const drp2LeftX = placeholderRightX
+  const drp2Width = gridWidth / finalZoomScale
+  const drp2RightX = drp2LeftX + drp2Width
+  const drp2CenterX = (drp2LeftX + drp2RightX) / 2
+  // Same height, same drift cancellation as placeholderHeight/
+  // placeholderCenterY just above — both images sit on the same row.
+  const drp2Height = placeholderHeight
+  const drp2CenterY = placeholderCenterY
+
   // Scroll-driven zoom, X/Y only (see finalZoomScale) — reads the
   // carousel's own real position every frame (getBoundingClientRect, not
   // window.scrollY plus assumed constants) so it stays correct however
@@ -611,6 +900,8 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
     // Mirrored onto the callouts' own group too — same zoom, just never the
     // X pan (see calloutGroupRef's own comment).
     if (calloutGroupRef.current) calloutGroupRef.current.scale.set(nextScale, nextScale, 1)
+    // ...and onto revealGroupRef, same zoom again — see its own comment.
+    if (revealGroupRef.current) revealGroupRef.current.scale.set(nextScale, nextScale, 1)
 
     // The logo/"Simulations" lockup's own font sizes, tracking that same
     // scale — cellSize's own screen footprint is TARGET_CELL_PX at rest (see
@@ -651,7 +942,15 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
     if (examsLogoTextRef.current) {
       const heightPx = onScreenCellPx * 0.16
       const widthPx = widthBudgetPx / (LOGO_TEXT.length * (LOGO_AVG_CHAR_EM + LOGO_TRACKING_EM))
-      examsLogoTextRef.current.style.fontSize = `${Math.min(heightPx, widthPx)}px`
+      const logoFontPx = Math.min(heightPx, widthPx)
+      examsLogoTextRef.current.style.fontSize = `${logoFontPx}px`
+      // EXAMS_LOGO_NUDGE_EM as a fraction of this same line's own font-size
+      // (just computed above), not a flat pixel count — see that constant's
+      // own comment for why: a fixed em-fraction is guaranteed to read as
+      // the same *proportion* of the glyph regardless of how large it's
+      // currently rendering, where a flat px (even scaled by nextScale)
+      // came out too small to see once actually on screen.
+      examsLogoTextRef.current.style.marginLeft = `${logoFontPx * EXAMS_LOGO_NUDGE_EM}px`
     }
     if (examsTextRef.current) {
       const heightPx = onScreenCellPx * 0.58
@@ -670,6 +969,8 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
     // Mirrored onto the callouts' own group as well, same reason the scale
     // is — see calloutGroupRef's own comment.
     if (calloutGroupRef.current) calloutGroupRef.current.position.y = driftWorld * pinned
+    // ...and onto revealGroupRef too — see its own comment.
+    if (revealGroupRef.current) revealGroupRef.current.position.y = driftWorld * pinned
 
     // gridGroupRef's own slide to the screen's true left edge — the grid and
     // the squares moving together as one rigid unit (see panWorldDistance's
@@ -685,7 +986,34 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
     // flick through this stretch still catches up smoothly rather than
     // snapping the instant scroll outruns a plain lerp.
     const panT = smoothstepEase(panProgressRef.current)
+    // The hover and reveal phases' own progress — see HOVER_VH/REVEAL_VH.
+    // Both stay 0 for the entire chat and the pan into DRP Showcase (their
+    // own useTransform windows don't open until panProgress/hoverProgress
+    // respectively have already reached 1), the same chained "arrives, then
+    // plays out, then hands off" shape panT itself follows from progress.
+    const hoverT = smoothstepEase(hoverProgressRef.current)
+    const revealT = smoothstepEase(revealProgressRef.current)
     group.position.x = MathUtils.damp(group.position.x, panWorldDistance * panT, PAN_LAMBDA, delta)
+    // revealGroupRef's own position is built from gridGroupRef's actual
+    // current one (group.position.x, just written above), not a second
+    // independent damp of the same panWorldDistance × panT target — see
+    // revealOffsetRef's own comment for why that independence was the
+    // bug. Only the reveal-specific extra travel gets its own smoothing;
+    // the shared part is copied exactly, so the two groups can never
+    // disagree about it.
+    if (revealGroupRef.current) {
+      revealOffsetRef.current = MathUtils.damp(revealOffsetRef.current, revealWorldDistance * revealT, PAN_LAMBDA, delta)
+      revealGroupRef.current.position.x = group.position.x + revealOffsetRef.current
+    }
+    // The clip boundary itself — group.position.x/nextScale here are
+    // gridGroupRef's own *actual current* transform (already written
+    // above this frame), so this tracks the grid's real position even
+    // mid-damp rather than assuming it's already settled at its resting
+    // panWorldDistance. Plane.constant is defined as "keep whatever
+    // satisfies normal·point + constant >= 0" — normal is (1,0,0), so
+    // this keeps x >= boundaryWorldX, i.e. constant = -boundaryWorldX.
+    const boundaryWorldX = group.position.x + placeholderLeftX * nextScale
+    drpClipPlaneRef.current.constant = -boundaryWorldX
     // Crossfading, not a hard swap at some threshold — the outgoing block
     // is still right-justified and the incoming one is already left-
     // justified, so both are genuinely visible together for the width of
@@ -693,6 +1021,55 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
     // because the squares underneath are sliding at the same time.
     if (punchRef.current) punchRef.current.style.opacity = `${1 - panT}`
     if (examsPunchRef.current) examsPunchRef.current.style.opacity = `${panT}`
+    if (placeholderMeshRef.current) placeholderMeshRef.current.material.opacity = panT
+    // The panel's own on-screen scale — same "local width × the group's
+    // current scale × screen px per world unit" conversion placeholderWidth
+    // itself is measured in, divided by the panel's own design width so a
+    // CSS scale() of 1 lands it at exactly PANEL_DESIGN_WIDTH screen px
+    // (i.e. matching the placeholder rectangle's own current on-screen
+    // width one-for-one). Html doesn't scale its own DOM content with the
+    // group any more than the lockup text does (see onScreenCellPx above),
+    // so this is the same per-frame handoff, just driven off the
+    // placeholder's width instead of a cell.
+    if (syllabusPanelRef.current) {
+      const pxPerWorldUnit = size.width / gridWidth
+      const panelScale = (placeholderWidth * nextScale * pxPerWorldUnit) / PANEL_DESIGN_WIDTH
+      syllabusPanelRef.current.style.transform = `scale(${panelScale})`
+      // How much of the panel's own width has crossed to the left of
+      // boundaryWorldX (the same fixed grid boundary drpClipPlaneRef
+      // clips DRP_1/DRP_2 against) — placeholderLeftX/placeholderWidth
+      // again, just carried by revealGroupRef's own live position instead
+      // of read back from a mesh, since the panel rides that same group
+      // and is sized/centred to match DRP_1 exactly.
+      const panelWorldWidth = placeholderWidth * nextScale
+      const panelWorldLeftEdge = revealGroupRef.current.position.x + placeholderLeftX * nextScale
+      const hiddenFraction = MathUtils.clamp((boundaryWorldX - panelWorldLeftEdge) / panelWorldWidth, 0, 1)
+      // The hard mask — this is the part that actually enforces "never
+      // shows past the boundary, full stop," the same guarantee
+      // drpClipPlaneRef gives DRP_1/DRP_2, since opacity alone (below)
+      // only ever softens *what's already there*, it doesn't stop the
+      // panel's own pixels from painting past the line in the meantime.
+      // clip-path's inset is defined in this element's own local (pre-
+      // transform) pixel space, so hiddenFraction × PANEL_DESIGN_WIDTH —
+      // not a screen-pixel amount — is what actually stays aligned with
+      // the boundary once the scale() transform above is applied on top.
+      syllabusPanelRef.current.style.clipPath = `inset(0 0 0 ${hiddenFraction * PANEL_DESIGN_WIDTH}px)`
+      // Opacity layered on top of that clip, not instead of it — travels
+      // with DRP_1 at full strength until half its own width has already
+      // been clipped away, then eases the remainder out over the second
+      // half, so what's left keeps shrinking *and* fading together
+      // rather than the clip alone giving it a hard, sudden edge.
+      const panelFadeT = smoothstepEase(MathUtils.clamp((hiddenFraction - 0.5) / 0.5, 0, 1))
+      syllabusPanelRef.current.style.opacity = `${panT * (1 - panelFadeT)}`
+    }
+    // The first pill's own hover beat — 90% resting (see COURSES) up to a
+    // full 100% across hoverT, simulating a hover with nothing actually
+    // pointing at it.
+    if (firstPillRef.current) firstPillRef.current.style.opacity = `${MathUtils.lerp(0.9, 1, hoverT)}`
+    // The hover phase's own guided message — see hoverCalloutRef's own
+    // comment for why this fades on hoverT alone rather than the CALLOUTS
+    // crossfade machinery below.
+    if (hoverCalloutRef.current) hoverCalloutRef.current.style.opacity = `${hoverT}`
 
     // ...and each callout crossing into the next, over the segment whose
     // opening is the whole reason it exists to say what it says (see
@@ -758,12 +1135,15 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
     // ...and the screen itself changing colour for the stretches the chat
     // spends in a segment with a mood attached — near-black with a grey glow
     // for the unconscious patient, near-black red with a red glow for Carla's
-    // own once she's pulled aside. The blob's own colours are driven from the
-    // same two refs inside GradientBlob, so neither ever disagrees with the
-    // background about which mood (if either) is currently active.
+    // own once she's pulled aside, and DRP Showcase's own taupe once the pan
+    // past the chat has taken over. The blob's own colours are driven from
+    // the same three refs inside GradientBlob (see drpRef above), so none of
+    // the three ever disagrees with the background about which mood (if any)
+    // is currently active.
     if (backgroundRef.current) {
       backgroundRef.current.lerpColors(BACKDROP_LIT, BACKDROP_DIM, dimRef.current)
       backgroundRef.current.lerp(BACKDROP_ANGRY, angryRef.current)
+      backgroundRef.current.lerp(BACKDROP_DRP, panT)
       // Read back the same Color instance just written above — the exact
       // live background colour, not a second copy of the dim/angry mix
       // logic that could drift from it.
@@ -772,14 +1152,21 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
     }
 
     // The two lit squares' own colour, following the same mood as the
-    // backdrop and blob rather than staying blue through either mood.
+    // backdrop and blob rather than staying blue through any of the three.
     for (const mesh of litSquareRefs) {
       if (!mesh) continue
       const material = mesh.material
       material.uColor.lerpColors(SQUARE_LIT, SQUARE_DIM, dimRef.current)
       material.uColor.lerp(SQUARE_ANGRY, angryRef.current)
-      material.uOpacity = LIT_SQUARE_OPACITY
+      material.uColor.lerp(SQUARE_DRP, panT)
+      material.uOpacity = MathUtils.lerp(LIT_SQUARE_OPACITY, DRP_SQUARE_OPACITY, panT)
     }
+
+    // The blob's own third mood — see drpRef's own comment where it's
+    // declared.
+    drpRef.current = panT
+    // The grid lines' own boost — see lineOpacityBoostRef's own comment.
+    lineOpacityBoostRef.current = MathUtils.lerp(1, DRP_LINE_OPACITY_BOOST, panT)
   })
 
   return (
@@ -790,6 +1177,7 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
         scale={[blobWidth * BLOB_WIDTH_OVERSCALE, PLANE_SIZE, 1]}
         dimRef={dimRef}
         angryRef={angryRef}
+        drpRef={drpRef}
       />
       {/* Both on layer 0 (the default — this canvas has no glass logo, so
           there's no OVERLAY_LAYER/backdrop-capture split to worry about),
@@ -810,6 +1198,7 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
           style={THROUGH_GLASS_STYLE}
           layer={0}
           yPhaseShiftCells={yPhaseShiftCells}
+          lineOpacityBoostRef={lineOpacityBoostRef}
         />
         <GridPlane
           z={GRID_Z}
@@ -824,6 +1213,7 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
           edgeTopUV={edgeTopUV}
           edgeOpacityRef={edgeOpacityRef}
           edgeGeometryRef={edgeGeometryRef}
+          lineOpacityBoostRef={lineOpacityBoostRef}
         />
 
         {/* The callouts, sitting beside their own highlighted edge — inside
@@ -870,7 +1260,22 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
             after an earlier pass gave them an independently-offset inner
             group; panWorldDistance below moves this *whole* group instead,
             grid and callouts included, so the squares stay exactly the
-            cells they've always been. */}
+            cells they've always been.
+
+            renderOrder={2} (higher than DRP_1/DRP_2's own 1, see
+            placeholderMeshRef/drp2MeshRef) forces these to always paint on
+            top of them regardless of which is nearer the camera on a given
+            frame — reported directly, "the DRP_1 picture is sliding on top
+            of the grid [and hiding it]." Both this mesh and DRP_1/DRP_2's
+            own are transparent, and three.js draws transparent objects
+            back-to-front by camera distance rather than scene-graph
+            position — reliable enough while everything lived in one
+            gridGroupRef, but revealGroupRef now moves DRP_1/DRP_2
+            independently of these squares, so their relative camera
+            distance can cross over mid-slide and flip which one the
+            automatic sort draws last (i.e. on top). An explicit
+            renderOrder sidesteps that sort entirely rather than hoping the
+            distances never cross. */}
         {litSquareCenters.map((center, i) => (
           <mesh
             key={i}
@@ -879,10 +1284,21 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
             }}
             position={[center.x, center.y, GRID_Z + 0.01]}
             scale={[cellSize, cellSize, 1]}
+            renderOrder={2}
             raycast={() => null}
           >
             <planeGeometry args={[1, 1]} />
-            <gridGlowMaterial transparent depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+            {/* Normal blending, not additive — additive only ever *adds*
+                colour on top of whatever's behind it, which reads as a
+                faint wash at LIT_SQUARE_OPACITY's own ~5% regardless of the
+                mood (fine for a subtle blue accent on a dark backdrop), but
+                genuinely breaks DRP Showcase's own near-opaque taupe: added
+                on top of an already-lighter background, it only ever
+                pushes brighter, never actually shows the taupe itself.
+                Normal blending is a real cross-fade between the two
+                colours instead, so raising uOpacity toward DRP_SQUARE_
+                OPACITY actually shows SQUARE_DRP, not a washed-out blend. */}
+            <gridGlowMaterial transparent depthWrite={false} toneMapped={false} />
           </mesh>
         ))}
 
@@ -943,6 +1359,18 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
           style={{ transform: `translate(${EXAMS_TEXT_LEFT_MARGIN_PX}px, -50%)`, pointerEvents: 'none' }}
         >
           <div ref={examsPunchRef} className="flex flex-col items-start" style={{ opacity: 0 }}>
+            {/* Nudged right by EXAMS_LOGO_NUDGE_EM (see the frame loop,
+                where the actual per-frame value is written, as a fraction
+                of this line's own font-size — has to scale with the zoom
+                the same way the font-size does, so it can't just be a
+                static style prop here) — XxentaWordmark's own "x"
+                doesn't start flush with its own box's left edge (a normal
+                font-metrics gap, the same kind HeroTitle's own per-word
+                left-bearing correction exists for elsewhere), which read as
+                very slightly left of "Exams & Syllabi"'s own E underneath
+                it. Local to this one span, not a change to XxentaWordmark
+                itself — the navbar and footer's own copies of this mark are
+                flush already and shouldn't move. */}
             <span ref={examsLogoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
               <XxentaWordmark />
             </span>
@@ -952,6 +1380,102 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
           </div>
         </Html>
 
+      </group>
+
+      {/* DRP_1.png/DRP_2.png and the syllabus panel's own group — a sibling
+          of gridGroupRef, not a child of it, for the opposite reason
+          calloutGroupRef is: asked for directly, "do not move the left
+          side of the grid at all... the elements on the right are moving
+          and being showcased." The grid, the squares, and their own
+          lockup text (all still inside gridGroupRef) stop moving the
+          instant panT reaches 1 and stay exactly where the pan phase left
+          them; this group keeps going through the reveal phase on top of
+          that. Mirrors gridGroupRef's own scale, Y-drift, *and* panT-driven
+          pan every frame (see the frame loop) — everything gridGroupRef
+          itself carries during the pan phase, so DRP_1.png arrives at
+          exactly the same resting spot it always did — plus its own
+          further revealT-driven travel gridGroupRef no longer gets. */}
+      <group ref={revealGroupRef}>
+        {/* DRP Showcase's own placeholder — see PLACEHOLDER_COLOR's own
+            comment for where it starts and how far it reaches. Not
+            GridGlowMaterial's additive glow the lit squares use: this is
+            meant to read as a solid, opaque panel, not an accent sitting on
+            top of the grid. transparent + a per-frame opacity write (see
+            placeholderMeshRef in the frame loop) is what lets it fade in
+            with the rest of DRP Showcase rather than already being there at
+            full strength the instant it's technically in range — the
+            Suspense fallback below carries that same flat colour and
+            opacity while DRP_1.png is still loading, so there's no gap
+            where this reads as empty. */}
+        <mesh
+          ref={placeholderMeshRef}
+          position={[placeholderCenterX, placeholderCenterY, GRID_Z + 0.005]}
+          scale={[placeholderWidth, placeholderHeight, 1]}
+          renderOrder={1}
+          raycast={() => null}
+        >
+          <planeGeometry args={[1, 1]} />
+          <Suspense
+            fallback={
+              <meshBasicMaterial
+                color={PLACEHOLDER_COLOR}
+                transparent
+                opacity={0}
+                toneMapped={false}
+                clippingPlanes={[drpClipPlaneRef.current]}
+              />
+            }
+          >
+            <PlaceholderImageMaterial clippingPlanes={[drpClipPlaneRef.current]} />
+          </Suspense>
+        </mesh>
+
+        {/* DRP Showcase's own second image — flush against DRP_1's own
+            right edge (see drp2CenterX's own comment), off past the true
+            right edge of the screen until the reveal phase's own travel
+            (revealWorldDistance × revealT, see the frame loop) brings it
+            into view. Always fully opaque once loaded, deliberately not
+            fading in the way DRP_1 does — reported directly as a visible
+            shadow where the two images meet while DRP_2 was still
+            part-transparent, blending toward the grid/backdrop colour
+            behind it instead of showing its own real colour outright. */}
+        <mesh
+          ref={drp2MeshRef}
+          position={[drp2CenterX, drp2CenterY, GRID_Z + 0.005]}
+          scale={[drp2Width, drp2Height, 1]}
+          renderOrder={1}
+          raycast={() => null}
+        >
+          <planeGeometry args={[1, 1]} />
+          <Suspense
+            fallback={
+              <meshBasicMaterial
+                color={PLACEHOLDER_COLOR}
+                transparent
+                opacity={0}
+                toneMapped={false}
+                clippingPlanes={[drpClipPlaneRef.current]}
+              />
+            }
+          >
+            <Drp2ImageMaterial clippingPlanes={[drpClipPlaneRef.current]} />
+          </Suspense>
+        </mesh>
+
+        {/* "Syllabus Overview" — centred on the placeholder rectangle above
+            (same anchor point, placeholderCenterX/Y) rather than a fixed
+            screen position, so it stays centred on the image regardless of
+            viewport size. translate(-50%, -50%) centres Html's own wrapper
+            on that anchor; the panel's own per-frame scale (see
+            syllabusPanelRef in the frame loop) is applied inside that
+            already-centred wrapper, around its own transformOrigin center,
+            so the visual centre never moves as the scale animates in. */}
+        <Html
+          position={[placeholderCenterX, placeholderCenterY, GRID_Z + 0.01]}
+          style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}
+        >
+          <SyllabusOverviewPanel ref={syllabusPanelRef} firstPillRef={firstPillRef} />
+        </Html>
       </group>
 
       {/* The callouts' own group — a sibling of gridGroupRef, not a child of
@@ -986,6 +1510,33 @@ function SeamlessBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, panPro
             </Html>
           )
         })}
+
+        {/* DRP Showcase's own first guided message (see HOVER_CALLOUT_TEXT)
+            — the exact same slot Floren Showcase's own first callout used
+            (calloutPositions[0], same column-A/row-0 geometry, same
+            cellSize×0.3 nudge), on the reasoning that reusing it reads as
+            "the same message slot, on to its next thing" rather than a new
+            element appearing somewhere unrelated. By the time hoverT ever
+            moves, panT has long since carried CALLOUTS's own text out of
+            view (calloutPanFade), so nothing is actually sharing the spot
+            at once. Full-strength TEXT_COLOR rather than CALLOUTS's own
+            text-white/40 — that faint white reads fine on Floren
+            Showcase's own near-black backdrop and would be close to
+            invisible against DRP Showcase's light one, the same contrast
+            problem DRP_LINE_OPACITY_BOOST exists to fix for the grid
+            lines. Opacity alone (hoverCalloutRef, written from hoverT in
+            the frame loop) does the fading in, not a CSS mount animation —
+            this has to track scroll, not just play once on mount. */}
+        <Html
+          position={[calloutPositions[0].x + cellSize * 0.3, (calloutPositions[0].bottomY + calloutPositions[0].topY) / 2, GRID_Z + 0.01]}
+          style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+        >
+          <div ref={hoverCalloutRef} className="w-[280px]" style={{ opacity: 0 }}>
+            <p className="text-xs leading-loose font-extralight" style={{ color: DRP_TEXT_COLOR }}>
+              {HOVER_CALLOUT_TEXT}
+            </p>
+          </div>
+        </Html>
       </group>
     </>
   )
@@ -1025,7 +1576,23 @@ const INTRO_VH = 100
 // sticky stage the chat already pins inside, not a second section of its
 // own.
 const EXAMS_SLIDE_VH = 70
-const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH
+// Scroll spent on the "hover" beat once DRP Showcase itself has arrived —
+// the first pill (see firstPillRef) settling from its own resting 90%
+// opacity up to a full 100%, "as if it was being hovered," while the
+// syllabus-generation guided message (see hoverCalloutRef) fades in beside
+// the grid the same way Floren Showcase's own first callout did. Deliberately
+// its own phase, after EXAMS_SLIDE_VH rather than folded into it — the pan
+// above is about arriving at DRP Showcase; this is a beat that happens once
+// the visitor is already looking at it.
+const HOVER_VH = 45
+// Scroll spent panning the whole DRP Showcase group — grid, squares, panel,
+// and DRP_1.png — one further screen-width to the left, sliding DRP_2.png
+// in behind it (see revealWorldDistance's own comment for why exactly one
+// gridWidth is the right distance). Starts only once HOVER_VH's own beat has
+// played out, same sequential handoff CHAT_SCROLL_VH → EXAMS_SLIDE_VH
+// already uses.
+const REVEAL_VH = 90
+const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + HOVER_VH + REVEAL_VH
 
 // 0 the instant the sticky stage pins (this section's top reaching the top of
 // the screen, which is also the exact moment the grid zoom and the callout
@@ -1047,7 +1614,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
   // reflow, and doing that on every scroll frame is exactly the main-thread
   // stall the page's wheel-gesture classifier reads event timing through
   // (see SiteFooter's dimsRef for the longer version of this same argument).
-  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1 })
+  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1, hoverDistance: 1, revealDistance: 1 })
   useLayoutEffect(() => {
     const section = sectionRef.current
     if (!section) return
@@ -1072,6 +1639,12 @@ function usePinnedProgress(sectionRef, carouselRef) {
         // panProgress below) spends, once the chat's own `distance` above
         // has already been used up — see EXAMS_SLIDE_VH's own comment.
         panDistance: Math.max(1, window.innerHeight * (EXAMS_SLIDE_VH / 100)),
+        // hoverProgress/revealProgress's own windows — see HOVER_VH/REVEAL_VH
+        // and hoverProgress/revealProgress below, each starting exactly
+        // where the one before it finishes, same chained handoff
+        // panDistance itself already follows on from distance.
+        hoverDistance: Math.max(1, window.innerHeight * (HOVER_VH / 100)),
+        revealDistance: Math.max(1, window.innerHeight * (REVEAL_VH / 100)),
       }
     }
     measure()
@@ -1125,6 +1698,22 @@ function usePinnedProgress(sectionRef, carouselRef) {
     return MathUtils.clamp((latest - (start + distance)) / panDistance, 0, 1)
   })
 
+  // 0 until panProgress itself has finished (DRP Showcase has fully
+  // arrived), then 1 - 0 across hoverDistance — see HOVER_VH's own comment.
+  // Chained the same way panProgress chains off `distance`: each phase's
+  // window starts exactly where the one before it ends.
+  const hoverProgress = useTransform(scrollY, (latest) => {
+    const { start, distance, panDistance, hoverDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + distance + panDistance)) / hoverDistance, 0, 1)
+  })
+
+  // 0 until hoverProgress itself has finished, then 1 - 0 across
+  // revealDistance — see REVEAL_VH's own comment.
+  const revealProgress = useTransform(scrollY, (latest) => {
+    const { start, distance, panDistance, hoverDistance, revealDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + distance + panDistance + hoverDistance)) / revealDistance, 0, 1)
+  })
+
   // The same numbers again, as plain refs, for the WebGL side — useFrame runs
   // outside React and wants a property read, not a subscription. One source,
   // two readers each, rather than two independent copies of the arithmetic.
@@ -1142,13 +1731,36 @@ function usePinnedProgress(sectionRef, carouselRef) {
       panProgressRef.current = value
     })
   }, [panProgress])
+  const hoverProgressRef = useRef(0)
+  useEffect(() => {
+    hoverProgressRef.current = hoverProgress.get()
+    return hoverProgress.on('change', (value) => {
+      hoverProgressRef.current = value
+    })
+  }, [hoverProgress])
+  const revealProgressRef = useRef(0)
+  useEffect(() => {
+    revealProgressRef.current = revealProgress.get()
+    return revealProgress.on('change', (value) => {
+      revealProgressRef.current = value
+    })
+  }, [revealProgress])
 
-  return { progress, progressRef, arrival, panProgress, panProgressRef }
+  return {
+    progress,
+    progressRef,
+    arrival,
+    panProgress,
+    panProgressRef,
+    hoverProgressRef,
+    revealProgressRef,
+  }
 }
 
 export function BackgroundGlowSection({ carouselRef }) {
   const sectionRef = useRef(null)
-  const { progress, progressRef, arrival, panProgress, panProgressRef } = usePinnedProgress(sectionRef, carouselRef)
+  const { progress, progressRef, arrival, panProgress, panProgressRef, hoverProgressRef, revealProgressRef } =
+    usePinnedProgress(sectionRef, carouselRef)
 
   // How far into each of the chat's two moods the visitor currently is, on
   // the WebGL side. Derived from the same scroll progress and the same
@@ -1235,12 +1847,18 @@ export function BackgroundGlowSection({ carouselRef }) {
             this renders at the browser's raw devicePixelRatio, which on a 3x
             phone/laptop panel is a lot of extra fill rate for a plain grid +
             gradient with no fine detail that benefits from it. */}
-        <Canvas dpr={[1, 2]} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
+        <Canvas
+          dpr={[1, 2]}
+          camera={{ position: [0, 0, 8], fov: 35 }}
+          gl={{ antialias: true, alpha: false, localClippingEnabled: true }}
+        >
           <SeamlessBackdrop
             carouselRef={carouselRef}
             isVisibleRef={isVisibleRef}
             pinnedProgressRef={progressRef}
             panProgressRef={panProgressRef}
+            hoverProgressRef={hoverProgressRef}
+            revealProgressRef={revealProgressRef}
             dimRef={dimRef}
             angryRef={angryRef}
           />

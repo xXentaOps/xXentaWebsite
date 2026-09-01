@@ -6,9 +6,11 @@ import {
   BLOB_CENTER,
   BLOB_CENTER_ANGRY,
   BLOB_CENTER_DIM,
+  BLOB_CENTER_DRP,
   SCENE_BACKDROP,
   SCENE_BACKDROP_ANGRY,
   SCENE_BACKDROP_DIM,
+  SCENE_BACKDROP_DRP,
 } from './sceneConstants'
 
 // Procedural — no CanvasTexture allocation, just a plane + a cheap fragment
@@ -106,11 +108,13 @@ function smoothstepEase(t) {
 const CENTER_LIT = new Color(BLOB_CENTER)
 const CENTER_DIM = new Color(BLOB_CENTER_DIM)
 const CENTER_ANGRY = new Color(BLOB_CENTER_ANGRY)
+const CENTER_DRP = new Color(BLOB_CENTER_DRP)
 const EDGE_LIT = new Color(SCENE_BACKDROP)
 const EDGE_DIM = new Color(SCENE_BACKDROP_DIM)
 const EDGE_ANGRY = new Color(SCENE_BACKDROP_ANGRY)
+const EDGE_DRP = new Color(SCENE_BACKDROP_DRP)
 
-export function GradientBlob({ position, scale, dimRef, angryRef }) {
+export function GradientBlob({ position, scale, dimRef, angryRef, drpRef }) {
   const materialRef = useRef(null)
   // Set on this blob's own first frame — same one-time-only entrance
   // pattern used throughout this piece (see GlassLogoGroup/HeroTitle/
@@ -127,18 +131,22 @@ export function GradientBlob({ position, scale, dimRef, angryRef }) {
     material.uEntranceProgress = smoothstepEase(t)
 
     // Optional, and absent for every caller but the chat showcase's own
-    // backdrop: two independent 0..1 moods, each draining the glow and the
+    // backdrop: three independent 0..1 moods, each draining the glow and the
     // ground it fades into toward its own colour — grey for the stretch the
     // visitor spends in the unconscious patient's thread, red for Carla's
-    // own once she's pulled aside and angry. Refs rather than props because
-    // they change on every scroll frame — mutating the uniforms' own Colors
-    // in place, so there's nothing allocated per frame either.
+    // own once she's pulled aside and angry, DRP Showcase's own taupe once
+    // the case is over and the pan past it has taken over. Refs rather than
+    // props because they change on every scroll frame — mutating the
+    // uniforms' own Colors in place, so there's nothing allocated per frame
+    // either.
     //
-    // Applied one after the other rather than as a three-way weighted blend:
-    // the two moods never overlap in the script (there's exactly one open
-    // segment at a time), so lerping the *already-dimmed* result toward
-    // angry is equivalent to a true three-way mix here, and simpler. Either
-    // ref being 0 leaves its own lerp a no-op.
+    // Applied one after the other rather than as a weighted blend: dim/angry
+    // never overlap in the script (there's exactly one open segment at a
+    // time), and drpRef never overlaps either of them — it only ever starts
+    // moving once the chat itself is over, at which point dim/angry have
+    // always already resolved back to lit — so lerping each already-mixed
+    // result toward the next is equivalent to a true multi-way mix here, and
+    // simpler. Any ref being 0 leaves its own lerp a no-op.
     if (dimRef) {
       material.uniforms.uColorCenter.value.lerpColors(CENTER_LIT, CENTER_DIM, dimRef.current)
       material.uniforms.uColorEdge.value.lerpColors(EDGE_LIT, EDGE_DIM, dimRef.current)
@@ -146,6 +154,10 @@ export function GradientBlob({ position, scale, dimRef, angryRef }) {
     if (angryRef) {
       material.uniforms.uColorCenter.value.lerp(CENTER_ANGRY, angryRef.current)
       material.uniforms.uColorEdge.value.lerp(EDGE_ANGRY, angryRef.current)
+    }
+    if (drpRef) {
+      material.uniforms.uColorCenter.value.lerp(CENTER_DRP, drpRef.current)
+      material.uniforms.uColorEdge.value.lerp(EDGE_DRP, drpRef.current)
     }
   })
 
