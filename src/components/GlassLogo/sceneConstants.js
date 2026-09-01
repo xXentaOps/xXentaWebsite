@@ -53,8 +53,8 @@ export const BLOB_CENTER_ANGRY = '#991B1B'
 // past it — then nudged back up just slightly, asked for directly ("juuuustt
 // a little bit").
 export const SCENE_BACKDROP_DRP = '#AEA6A3'
-// Brighter grid backdrop once DRP_2 and AI Impact Analysis panel are revealed
-export const SCENE_BACKDROP_DRP_BRIGHT = '#DCD6D2'
+// Brighter, desaturated grid backdrop once DRP_2 and AI Impact Analysis panel are revealed
+export const SCENE_BACKDROP_DRP_BRIGHT = '#D8D8D8'
 // The glow's own centre — set to match SCENE_BACKDROP_DRP for uniform field
 export const BLOB_CENTER_DRP = SCENE_BACKDROP_DRP
 export const BLOB_CENTER_DRP_BRIGHT = SCENE_BACKDROP_DRP_BRIGHT

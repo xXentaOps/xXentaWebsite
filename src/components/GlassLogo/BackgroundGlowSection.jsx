@@ -257,7 +257,7 @@ const SQUARE_ANGRY = new Color('#F87171')
 // R-G/G-B channel gaps kept intact so the hue itself doesn't shift, only
 // how light it reads.
 const SQUARE_DRP = new Color('#C0B9B6')
-const SQUARE_DRP_BRIGHT = new Color('#E2DCD9')
+const SQUARE_DRP_BRIGHT = new Color('#DFDFDF')
 // How opaque each square sits at rest — low, the same "ambient, ~2-4%"
 // register GRID_GLOWS itself uses, so these read as a faint accent beside
 // the callout rather than competing with it for attention.
