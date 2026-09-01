@@ -876,6 +876,15 @@ function SeamlessBackdrop({
   const drp2Height = placeholderHeight
   const drp2CenterY = placeholderCenterY
 
+  // DRP Showcase's second overlay panel ("AI Impact Analysis") — sits at the
+  // exact corresponding showcase slot on DRP_2, offset by one full screen
+  // width (gridWidth / finalZoomScale), so that once revealGroupRef completes
+  // its slide to the left, this panel lands in the exact same on-screen position
+  // and width as the Syllabus Overview panel.
+  const drp2PanelLeftX = placeholderLeftX + gridWidth / finalZoomScale
+  const drp2PanelCenterX = placeholderCenterX + gridWidth / finalZoomScale
+  const drp2PanelCenterY = placeholderCenterY
+
   // Scroll-driven zoom, X/Y only (see finalZoomScale) — reads the
   // carousel's own real position every frame (getBoundingClientRect, not
   // window.scrollY plus assumed constants) so it stays correct however
@@ -1086,8 +1095,8 @@ function SeamlessBackdrop({
       const pxPerWorldUnit = size.width / gridWidth
       const panelScale = (placeholderWidth * nextScale * pxPerWorldUnit) / AI_IMPACT_PANEL_DESIGN_WIDTH
       aiImpactPanelRef.current.style.transform = `scale(${panelScale})`
-      const panelWorldWidth = drp2Width * nextScale
-      const panelWorldLeftEdge = revealGroupRef.current.position.x + drp2LeftX * nextScale
+      const panelWorldWidth = placeholderWidth * nextScale
+      const panelWorldLeftEdge = revealGroupRef.current.position.x + drp2PanelLeftX * nextScale
       const hiddenFraction = MathUtils.clamp((boundaryWorldX - panelWorldLeftEdge) / panelWorldWidth, 0, 1)
       aiImpactPanelRef.current.style.clipPath = `inset(0 0 0 ${hiddenFraction * AI_IMPACT_PANEL_DESIGN_WIDTH}px)`
       aiImpactPanelRef.current.style.opacity = `${panT}`
@@ -1630,12 +1639,13 @@ function SeamlessBackdrop({
           />
         </Html>
 
-        {/* "AI Impact Analysis" — centred on DRP_2 (drp2CenterX/Y) rather
+        {/* "AI Impact Analysis" — centred on drp2PanelCenterX/Y rather
             than a fixed screen position, so it sits directly above DRP_2
             and arrives synchronously with DRP_2 from right to left as
-            revealGroupRef pans. */}
+            revealGroupRef pans, matching the exact width and position of
+            the Syllabus Overview pills. */}
         <Html
-          position={[drp2CenterX, drp2CenterY, GRID_Z + 0.01]}
+          position={[drp2PanelCenterX, drp2PanelCenterY, GRID_Z + 0.01]}
           style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}
         >
           <AiImpactAnalysisPanel ref={aiImpactPanelRef} />

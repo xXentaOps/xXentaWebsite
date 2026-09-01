@@ -1,11 +1,13 @@
 import { forwardRef } from 'react'
 
-export const AI_IMPACT_PANEL_DESIGN_WIDTH = 882
+export const AI_IMPACT_PANEL_DESIGN_WIDTH = 883
+export const AI_IMPACT_PANEL_MARGIN = 40
 
 const TEXT_COLOR = '#645A57'
 const SUBTITLE_COLOR = 'rgba(100, 90, 87, 0.6)'
 const PLACEHOLDER_TEXT_COLOR = 'rgba(150, 142, 139, 0.6)'
 const CARD_BG = 'rgba(241, 245, 249, 0.3)'
+const INNER_CARD_BG = 'rgba(241, 245, 249, 0.35)'
 const BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'
 const DIVIDER_COLOR = 'rgba(147, 140, 137, 0.3)'
 
@@ -28,26 +30,26 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        padding: 25,
-        gap: 20,
+        padding: '20px 22px',
+        gap: 16,
         width: '100%',
-        background: CARD_BG,
+        background: INNER_CARD_BG,
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
         border: `0.666667px solid ${BORDER_COLOR}`,
-        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
-        borderRadius: 24,
+        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.08), 0px 1px 2px -1px rgba(0, 0, 0, 0.08)',
+        borderRadius: 20,
       }}
     >
       {/* Title & Description */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
         <h3
           style={{
             margin: 0,
             fontFamily: "'Plus Jakarta Sans', sans-serif",
             fontWeight: 700,
-            fontSize: 18,
-            lineHeight: '28px',
+            fontSize: 17,
+            lineHeight: '24px',
             color: TEXT_COLOR,
           }}
         >
@@ -59,7 +61,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
             fontFamily: "'Plus Jakarta Sans', sans-serif",
             fontWeight: 400,
             fontSize: 12,
-            lineHeight: '20px',
+            lineHeight: '18px',
             color: SUBTITLE_COLOR,
           }}
         >
@@ -74,27 +76,27 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
           flexDirection: 'row',
           alignItems: 'stretch',
           width: '100%',
-          gap: 24,
+          gap: 20,
         }}
       >
         {/* Left Column: AI Impact */}
         <div
           style={{
-            width: 292,
+            width: 270,
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
-            gap: 10,
+            gap: 8,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <AiIcon />
             <span
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 700,
-                fontSize: 14.6,
-                lineHeight: '20px',
+                fontSize: 14,
+                lineHeight: '18px',
                 color: TEXT_COLOR,
               }}
             >
@@ -106,8 +108,8 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
               margin: 0,
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               fontWeight: 400,
-              fontSize: 12,
-              lineHeight: '20px',
+              fontSize: 11.5,
+              lineHeight: '17px',
               color: TEXT_COLOR,
             }}
           >
@@ -133,7 +135,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
-            gap: 20,
+            gap: 16,
           }}
         >
           {/* Impact Slider */}
@@ -143,7 +145,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: 12,
+              gap: 10,
               width: '100%',
             }}
           >
@@ -151,7 +153,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 500,
-                fontSize: 12,
+                fontSize: 11.5,
                 lineHeight: '16px',
                 color: TEXT_COLOR,
                 whiteSpace: 'nowrap',
@@ -165,7 +167,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
               style={{
                 position: 'relative',
                 flex: 1,
-                maxWidth: 263,
+                maxWidth: 240,
                 height: 12,
                 background: CARD_BG,
                 borderRadius: 9999,
@@ -206,7 +208,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 500,
-                fontSize: 12,
+                fontSize: 11.5,
                 lineHeight: '16px',
                 color: TEXT_COLOR,
                 whiteSpace: 'nowrap',
@@ -225,7 +227,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
               alignItems: 'center',
               padding: '4px 12px',
               width: '100%',
-              height: 36,
+              height: 34,
               background: CARD_BG,
               border: `0.67px solid ${BORDER_COLOR}`,
               borderRadius: 8,
@@ -235,7 +237,7 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 400,
-                fontSize: 12,
+                fontSize: 11.5,
                 lineHeight: '15px',
                 color: PLACEHOLDER_TEXT_COLOR,
               }}
@@ -254,105 +256,114 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
     <div
       ref={ref}
       style={{
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        padding: '27px 27px 25px',
-        gap: 24,
         width: AI_IMPACT_PANEL_DESIGN_WIDTH,
-        background: CARD_BG,
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        border: `0.666667px solid ${BORDER_COLOR}`,
-        boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
-        borderRadius: 24,
+        boxSizing: 'border-box',
+        paddingLeft: AI_IMPACT_PANEL_MARGIN,
+        paddingRight: AI_IMPACT_PANEL_MARGIN,
         transformOrigin: 'center center',
         willChange: 'transform, opacity, clip-path',
       }}
     >
-      {/* Top Header */}
       <div
         style={{
+          boxSizing: 'border-box',
           display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 12,
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          padding: '22px 24px',
+          gap: 18,
           width: '100%',
+          background: CARD_BG,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: `0.666667px solid ${BORDER_COLOR}`,
+          boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
+          borderRadius: 24,
         }}
       >
-        {/* Badge "1" */}
+        {/* Top Header */}
         <div
           style={{
-            boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'row',
-            justifyContent: 'center',
             alignItems: 'center',
-            width: 21,
-            height: 22,
-            background: '#EB0F24',
-            border: '0.666667px solid #AE0818',
-            borderRadius: 9999,
-            flexShrink: 0,
+            gap: 12,
+            width: '100%',
           }}
         >
-          <span
+          {/* Badge "1" */}
+          <div
             style={{
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-              fontWeight: 700,
-              fontSize: 14,
-              lineHeight: '20px',
-              color: '#E0DDDC',
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: 21,
+              height: 22,
+              background: '#EB0F24',
+              border: '0.666667px solid #AE0818',
+              borderRadius: 9999,
+              flexShrink: 0,
             }}
           >
-            1
-          </span>
+            <span
+              style={{
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 700,
+                fontSize: 14,
+                lineHeight: '20px',
+                color: '#E0DDDC',
+              }}
+            >
+              1
+            </span>
+          </div>
+
+          {/* Title & Subtitle */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 700,
+                fontSize: 18,
+                lineHeight: '26px',
+                color: TEXT_COLOR,
+              }}
+            >
+              AI Impact Analysis
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 400,
+                fontSize: 12,
+                lineHeight: '18px',
+                color: TEXT_COLOR,
+              }}
+            >
+              Manage reference materials that guide the AI's behavior and responses.
+            </p>
+          </div>
         </div>
 
-        {/* Title & Subtitle */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-              fontWeight: 700,
-              fontSize: 18,
-              lineHeight: '28px',
-              color: TEXT_COLOR,
-            }}
-          >
-            AI Impact Analysis
-          </h2>
-          <p
-            style={{
-              margin: 0,
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-              fontWeight: 400,
-              fontSize: 12,
-              lineHeight: '20px',
-              color: TEXT_COLOR,
-            }}
-          >
-            Manage reference materials that guide the AI's behavior and responses.
-          </p>
-        </div>
+        {/* Impact Cards */}
+        <ImpactCard
+          title="Development of an Entrepreneurial Concept"
+          description="Manage reference materials that guide the AI's behavior and responses."
+          sliderFillWidth={140}
+          thumbLeft={130}
+        />
+
+        <ImpactCard
+          title="Preparing for Entrepreneurship"
+          description="Manage reference materials that guide the AI's behavior and responses."
+          sliderFillWidth={65}
+          thumbLeft={55}
+        />
       </div>
-
-      {/* Impact Cards */}
-      <ImpactCard
-        title="Development of an Entrepreneurial Concept"
-        description="Manage reference materials that guide the AI's behavior and responses."
-        sliderFillWidth={170}
-        thumbLeft={158}
-      />
-
-      <ImpactCard
-        title="Preparing for Entrepreneurship"
-        description="Manage reference materials that guide the AI's behavior and responses."
-        sliderFillWidth={71}
-        thumbLeft={58}
-      />
     </div>
   )
 })
