@@ -12,6 +12,8 @@ const BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'
 const DIVIDER_COLOR = 'rgba(147, 140, 137, 0.3)'
 const LEVEL_FONT = 'Inter, system-ui, sans-serif'
 
+const NAV_ITEMS = ['AI Analysis', 'Planning', 'Structure', 'Production']
+
 function ShieldAlertIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -301,10 +303,59 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
         willChange: 'transform, opacity, clip-path',
         display: 'flex',
         flexDirection: 'column',
-        gap: 27,
+        gap: 21,
       }}
     >
-      {/* Course Title Header — 27px above the AI Impact Analysis card */}
+      {/* Top Navigation — aligned to top right */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          width: '100%',
+          height: 36,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 14,
+          }}
+        >
+          {NAV_ITEMS.map((item, idx) => (
+            <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span
+                style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 500,
+                  fontSize: 10,
+                  lineHeight: '20px',
+                  textAlign: 'center',
+                  color: item === 'Production' ? 'rgba(150, 142, 139, 0.6)' : 'rgba(250, 242, 239, 0.8)',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+              >
+                {item}
+              </span>
+              {idx < NAV_ITEMS.length - 1 && (
+                <div
+                  style={{
+                    width: 1,
+                    height: 11,
+                    background: 'rgba(150, 142, 139, 0.6)',
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Course Title Header */}
       <div
         style={{
           display: 'flex',
@@ -327,8 +378,16 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
           Entrepreneurial Management
         </h1>
 
-        {/* Badges container */}
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {/* Badges container — lowered slightly to align with the title */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 4,
+          }}
+        >
           {/* lvl • 4 */}
           <div
             style={{
@@ -385,7 +444,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
         </div>
       </div>
 
-      {/* Main AI Impact Analysis Card */}
+      {/* Main AI Impact Analysis Card (27px gap from Course Title) */}
       <div
         style={{
           boxSizing: 'border-box',
@@ -395,6 +454,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(p
           padding: '22px 24px',
           gap: 18,
           width: '100%',
+          marginTop: 6,
           background: CARD_BG,
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
