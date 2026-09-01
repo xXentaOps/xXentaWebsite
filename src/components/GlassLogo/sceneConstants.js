@@ -54,10 +54,10 @@ export const BLOB_CENTER_ANGRY = '#991B1B'
 // a little bit").
 export const SCENE_BACKDROP_DRP = '#AEA6A3'
 // Brighter grid backdrop once DRP_2 and AI Impact Analysis panel are revealed:
-// Vertical linear gradient from top (#D9D7D7) to bottom (#D0CDCB)
+// Vertical linear gradient from top (#D9D7D7) to bottom (#CBC7C6)
 export const SCENE_BACKDROP_DRP_BRIGHT_TOP = '#D9D7D7'
-export const SCENE_BACKDROP_DRP_BRIGHT_BOTTOM = '#D0CDCB'
-export const SCENE_BACKDROP_DRP_BRIGHT = '#D5D2D1'
+export const SCENE_BACKDROP_DRP_BRIGHT_BOTTOM = '#CBC7C6'
+export const SCENE_BACKDROP_DRP_BRIGHT = '#D2CFCE'
 // The glow's own centre — set to match SCENE_BACKDROP_DRP for uniform field
 export const BLOB_CENTER_DRP = SCENE_BACKDROP_DRP
 export const BLOB_CENTER_DRP_BRIGHT = SCENE_BACKDROP_DRP_BRIGHT

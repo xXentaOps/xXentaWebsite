@@ -98,7 +98,7 @@ const GradientBlobMaterial = shaderMaterial(
       color = mix(uColorEdge, color, uEntranceProgress);
 
       // Bright DRP_2 reveal state: vertical linear gradient spanning grid space
-      // from #D9D7D7 on the top (vScreenY = 1.0) to #D0CDCB on the bottom (vScreenY = 0.0)
+      // from #D9D7D7 on the top (vScreenY = 1.0) to #CBC7C6 on the bottom (vScreenY = 0.0)
       vec3 brightGradient = mix(uColorBottomBright, uColorTopBright, clamp(vScreenY, 0.0, 1.0));
       color = mix(color, brightGradient, uRevealProgress);
 
