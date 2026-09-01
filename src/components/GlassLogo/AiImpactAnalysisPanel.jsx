@@ -11,13 +11,39 @@ const INNER_CARD_BG = 'rgba(241, 245, 249, 0.35)'
 const BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'
 const DIVIDER_COLOR = 'rgba(147, 140, 137, 0.3)'
 
-function AiIcon() {
+function ShieldAlertIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2.5" y="1.5" width="12" height="14" rx="2" stroke="#CC0001" strokeWidth="1.66667" />
-      <path d="M5.5 5.5H11.5" stroke="#CC0001" strokeWidth="1.66667" strokeLinecap="round" />
-      <path d="M5.5 8.5H11.5" stroke="#CC0001" strokeWidth="1.66667" strokeLinecap="round" />
-      <path d="M5.5 11.5H9" stroke="#CC0001" strokeWidth="1.66667" strokeLinecap="round" />
+      <path
+        d="M8.5 1.75L3.25 3.75V8C3.25 11.6 5.5 14.3 8.5 15.25C11.5 14.3 13.75 11.6 13.75 8V3.75L8.5 1.75Z"
+        stroke="#CC0001"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M8.5 5.25V9.25" stroke="#CC0001" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="8.5" cy="11.75" r="0.85" fill="#CC0001" />
+    </svg>
+  )
+}
+
+function EditPenIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ opacity: 0.45 }}
+    >
+      <path
+        d="M11.333 2.00004C11.5081 1.82494 11.716 1.68605 11.9448 1.59129C12.1736 1.49653 12.4188 1.44775 12.6663 1.44775C12.9139 1.44775 13.1591 1.49653 13.3879 1.59129C13.6167 1.68605 13.8246 1.82494 13.9997 2.00004C14.1748 2.17514 14.3137 2.38304 14.4084 2.61184C14.5032 2.84064 14.552 3.08584 14.552 3.33337C14.552 3.58091 14.5032 3.82611 14.4084 4.05491C14.3137 4.28371 14.1748 4.49161 13.9997 4.66671L5.33301 13.3334L1.99967 14.3334L2.99967 11.0001L11.333 2.00004Z"
+        stroke="#645A57"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -89,19 +115,29 @@ function ImpactCard({ title, description, sliderFillWidth, thumbLeft }) {
             gap: 8,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <AiIcon />
-            <span
-              style={{
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontWeight: 700,
-                fontSize: 14,
-                lineHeight: '18px',
-                color: TEXT_COLOR,
-              }}
-            >
-              AI Impact
-            </span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <ShieldAlertIcon />
+              <span
+                style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  lineHeight: '18px',
+                  color: TEXT_COLOR,
+                }}
+              >
+                AI Impact
+              </span>
+            </div>
+            <EditPenIcon />
           </div>
           <p
             style={{
