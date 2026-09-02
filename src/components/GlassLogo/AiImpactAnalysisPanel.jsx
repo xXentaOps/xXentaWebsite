@@ -1,11 +1,12 @@
 import { forwardRef } from 'react'
 import { MacroPlannerHeader, MacroPlannerContainer, MacroPlannerView } from './MacroPlannerPanel'
+import { SyllabusProductionPanel } from './SyllabusProductionPanel'
 
 export const AI_IMPACT_PANEL_DESIGN_WIDTH = 883
 export const AI_IMPACT_PANEL_MARGIN = 40
 
 const CARD_BG = 'rgba(241, 245, 249, 0.3)'
-const INNER_CARD_BG = 'rgba(241, 245, 249, 0.45)'
+const INNER_CARD_BG = 'rgba(255, 255, 255, 0.3)'
 const BORDER_COLOR = 'rgba(255, 255, 255, 0.3)'
 const TEXT_COLOR = '#645A57'
 const SUBTITLE_COLOR = '#968E8B'
@@ -145,7 +146,6 @@ function ImpactCard({
         gap: 16,
         width: '100%',
         background: INNER_CARD_BG,
-        backdropFilter: 'blur(8px)',
         border: `0.666667px solid ${BORDER_COLOR}`,
         borderRadius: 20,
       }}
@@ -378,8 +378,13 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
     sidebarGripRef,
     criteriaCountRef,
     p12CountRef,
+    p11FinancialCardRef,
+    p11FinancialTitleRef,
+    p11FinancialImpactRef,
     navAiAnalysisRef,
     navPlanningRef,
+    navProductionRef,
+    syllabusProductionViewRef,
   },
   ref,
 ) {
@@ -425,7 +430,8 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
           {NAV_ITEMS.map((item, idx) => {
             const isAi = item === 'AI Analysis'
             const isPlan = item === 'Planning'
-            const itemRef = isAi ? navAiAnalysisRef : isPlan ? navPlanningRef : null
+            const isProd = item === 'Production'
+            const itemRef = isAi ? navAiAnalysisRef : isPlan ? navPlanningRef : isProd ? navProductionRef : null
             return (
               <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span
@@ -545,7 +551,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
         style={{
           position: 'relative',
           width: '100%',
-          minHeight: 660,
+          minHeight: 580,
           marginTop: 6,
           overflow: 'visible',
         }}
@@ -678,11 +684,26 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
           sidebarGripRef={sidebarGripRef}
           criteriaCountRef={criteriaCountRef}
           p12CountRef={p12CountRef}
+          p11FinancialCardRef={p11FinancialCardRef}
+          p11FinancialTitleRef={p11FinancialTitleRef}
+          p11FinancialImpactRef={p11FinancialImpactRef}
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
-            transform: 'translateX(1000px)',
+            transform: 'translateX(1150px)',
+            opacity: 0,
+          }}
+        />
+
+        {/* Step 4: Syllabus Production View (slides in from the right) */}
+        <SyllabusProductionPanel
+          ref={syllabusProductionViewRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            transform: 'translateX(1150px)',
             opacity: 0,
           }}
         />

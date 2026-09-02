@@ -38,6 +38,7 @@ export default function GlassLogoPreview() {
   // slide-in are derived from directly, so they cannot be anywhere but one
   // screen apart — see the comments on each.
   const [isAboutUsOpen, setIsAboutUsOpen] = useState(false)
+  const [isDrpActive, setIsDrpActive] = useState(false)
   // Written by useLenis itself, for exactly as long as the forced
   // scroll-back-to-top animation (triggered by scrollLocked turning on) is
   // actually in flight — threaded back down to BackgroundGrid so it can
@@ -949,6 +950,7 @@ export default function GlassLogoPreview() {
     <>
       <SiteNavbar
         isAboutUsActive={isAboutUsOpen}
+        isDrpActive={isDrpActive}
         onAboutUsClick={() => {
           // Clicking "About Us" is only ever a way *in*, never a way out —
           // once inside, it backs out of Meet the Team to the last About Us
@@ -999,7 +1001,10 @@ export default function GlassLogoPreview() {
           isForceScrollingRef={isForceScrollingRef}
         />
         <ClientLogoCarousel sectionRef={carouselRef} />
-        <BackgroundGlowSection carouselRef={carouselRef} />
+        <BackgroundGlowSection
+          carouselRef={carouselRef}
+          onDrpActiveChange={setIsDrpActive}
+        />
       </div>
       <SiteFooter />
       {SHOW_FRAME_RATE && <FrameRateMeter />}

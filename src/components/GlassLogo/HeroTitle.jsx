@@ -643,9 +643,9 @@ const NEW_WAY_OF_FONT_FRACTION = 0.09
 const FONT_FRACTION_SCALE_BY_BREAKPOINT = { mobile: 0.62, tablet: 0.82, desktop: 1 }
 
 // Swaps in place of "Learning" to match whichever grid button (see
-// BackgroundGrid's BUTTON_LABELS, same order/index: Academia/Enterprises/
+// BackgroundGrid's BUTTON_LABELS, same order/index: Education/Enterprises/
 // Achievers) is currently hovered or selected — index 0 ("AI for
-// Academia") is the default, so "Learning" is what shows with nothing
+// Education") is the default, so "Learning" is what shows with nothing
 // hovered.
 const LEARNING_WORDS = ['Learning', 'Managing', 'Growing']
 
@@ -680,10 +680,10 @@ function useHeroTitleLines(activeIndex) {
   // re-measured against whichever word is currently showing — "Managing"
   // and "Growing" don't share "Learning"'s L bearing.
   const learningX = leftX + useLeftBearingCorrection(learningWord, learningFontSize, fontReady)
-  const newWayOfX = leftX + useLeftBearingCorrection('New Way of', newWayOfFontSize, fontReady)
+  const newWayOfX = leftX + useLeftBearingCorrection('New Ways of', newWayOfFontSize, fontReady)
 
   return [
-    { id: 'newWayOf', text: 'New Way of', x: newWayOfX, y: newWayOfY, fontSize: newWayOfFontSize },
+    { id: 'newWayOf', text: 'New Ways of', x: newWayOfX, y: newWayOfY, fontSize: newWayOfFontSize },
     { id: 'learning', text: learningWord, x: learningX, y: learningY, fontSize: learningFontSize },
   ]
 }

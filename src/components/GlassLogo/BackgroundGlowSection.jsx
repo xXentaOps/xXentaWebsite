@@ -217,6 +217,7 @@ const STAGE_SETTLE_SPRING = { stiffness: 140, damping: 26, mass: 0.6 }
 const BACKDROP_LIT = new Color(SCENE_BACKDROP)
 const BACKDROP_DIM = new Color(SCENE_BACKDROP_DIM)
 const BACKDROP_ANGRY = new Color(SCENE_BACKDROP_ANGRY)
+const PUNCH_TEXT_BASE_OPACITY = 0.8
 
 // A flat-fill glow quad for the two lit grid squares below — the same
 // GridGlowMaterial AboutUsSection's own RandomGridGlow uses (evenly filled,
@@ -615,8 +616,13 @@ function SeamlessBackdrop({
   const sidebarGripRef = useRef(null)
   const criteriaCountRef = useRef(null)
   const p12CountRef = useRef(null)
+  const p11FinancialCardRef = useRef(null)
+  const p11FinancialTitleRef = useRef(null)
+  const p11FinancialImpactRef = useRef(null)
   const navAiAnalysisRef = useRef(null)
   const navPlanningRef = useRef(null)
+  const navProductionRef = useRef(null)
+  const syllabusProductionViewRef = useRef(null)
   // The syllabus panel's own pills and title — driven during revealT to
   // stagger out from bottom to top so Entrepreneurial Management exits last.
   const pillRefs = useRef([])
@@ -1084,7 +1090,7 @@ function SeamlessBackdrop({
     // justified, so both are genuinely visible together for the width of
     // the transition, which only reads as one shape morphing into the other
     // because the squares underneath are sliding at the same time.
-    if (punchRef.current) punchRef.current.style.opacity = `${1 - panT}`
+    if (punchRef.current) punchRef.current.style.opacity = `${(1 - panT) * PUNCH_TEXT_BASE_OPACITY}`
     if (examsPunchRef.current) examsPunchRef.current.style.opacity = `${panT}`
     if (placeholderMeshRef.current) placeholderMeshRef.current.material.opacity = panT
     // The panel's own on-screen scale — same "local width × the group's
@@ -1409,14 +1415,16 @@ function SeamlessBackdrop({
       }
     }
 
-    // Slide transition from AI Impact Analysis to Macro Planner (Study Planner) & Interactive Drag-and-Drop
+    // Slide transition from AI Impact Analysis to Macro Planner (Study Planner) -> Interactive Drag-and-Drop -> Syllabus Production
     const plannerT = plannerProgressRef?.current ?? 0
-    if (aiImpactCardRef.current && macroPlannerViewRef.current) {
+    if (aiImpactCardRef.current && macroPlannerViewRef.current && syllabusProductionViewRef.current) {
       if (plannerT <= 0) {
         aiImpactCardRef.current.style.transform = 'translateX(0px)'
         aiImpactCardRef.current.style.opacity = '1'
         macroPlannerViewRef.current.style.transform = 'translateX(1150px)'
         macroPlannerViewRef.current.style.opacity = '0'
+        syllabusProductionViewRef.current.style.transform = 'translateX(1150px)'
+        syllabusProductionViewRef.current.style.opacity = '0'
         if (navAiAnalysisRef.current) {
           navAiAnalysisRef.current.style.color = '#645A57'
           navAiAnalysisRef.current.style.fontWeight = '700'
@@ -1424,6 +1432,10 @@ function SeamlessBackdrop({
         if (navPlanningRef.current) {
           navPlanningRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
           navPlanningRef.current.style.fontWeight = '500'
+        }
+        if (navProductionRef.current) {
+          navProductionRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+          navProductionRef.current.style.fontWeight = '500'
         }
         if (plannerCursorRef.current) plannerCursorRef.current.style.opacity = '0'
         if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
@@ -1445,15 +1457,26 @@ function SeamlessBackdrop({
           p12CountRef.current.style.color = '#645A57'
           p12CountRef.current.style.fontWeight = '500'
         }
-      } else {
-        // Slide transition between Step 1 and Step 2 during plannerT [0 -> 0.32]
-        const slideProgress = MathUtils.clamp(plannerT / 0.32, 0, 1)
+        if (p11FinancialCardRef.current) {
+          p11FinancialCardRef.current.style.background = 'rgba(204, 0, 1, 0.05)'
+          p11FinancialCardRef.current.style.borderColor = '#CC0001'
+        }
+        if (p11FinancialTitleRef.current) {
+          p11FinancialTitleRef.current.style.color = '#CC0001'
+        }
+        if (p11FinancialImpactRef.current) {
+          p11FinancialImpactRef.current.style.color = '#CC0001'
+          p11FinancialImpactRef.current.style.opacity = '0.8'
+        }
+      } else if (plannerT <= 0.20) {
+        // --- TRANSITION 1: AI Impact -> Study Planner (plannerT: 0 -> 0.20) ---
+        const slideProgress = MathUtils.clamp(plannerT / 0.20, 0, 1)
         const slideEased = smoothstepEase(slideProgress)
         const SLIDE_PX = 1150
         const slideX = -slideEased * SLIDE_PX
         aiImpactCardRef.current.style.transform = `translateX(${slideX}px)`
 
-        // Fades out when it is 70% hidden (i.e. 70% of its width moved past the left)
+        // AI Impact Card fades out when 70% hidden
         const cardWidth = AI_IMPACT_PANEL_DESIGN_WIDTH
         const hiddenFraction = -slideX / cardWidth
         let cardOpacity = 1
@@ -1462,85 +1485,113 @@ function SeamlessBackdrop({
         }
         aiImpactCardRef.current.style.opacity = `${cardOpacity}`
 
-        // Incoming Macro Planner View from the right
+        // Study Planner enters from the right
         const entryX = (1 - slideEased) * SLIDE_PX
         macroPlannerViewRef.current.style.transform = `translateX(${entryX}px)`
-        macroPlannerViewRef.current.style.opacity = `${MathUtils.clamp(plannerT / 0.25, 0, 1)}`
+        macroPlannerViewRef.current.style.opacity = `${MathUtils.clamp(plannerT / 0.16, 0, 1)}`
 
-        // Navbar active indicator switches from 'AI Analysis' to 'Planning'
-        if (navAiAnalysisRef.current && navPlanningRef.current) {
-          if (plannerT > 0.30) {
+        // Syllabus Production stays parked offscreen right
+        syllabusProductionViewRef.current.style.transform = 'translateX(1150px)'
+        syllabusProductionViewRef.current.style.opacity = '0'
+
+        // Navbar active indicator: AI Analysis -> Planning
+        if (navAiAnalysisRef.current && navPlanningRef.current && navProductionRef.current) {
+          if (plannerT > 0.16) {
             navAiAnalysisRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
             navAiAnalysisRef.current.style.fontWeight = '500'
             navPlanningRef.current.style.color = '#645A57'
             navPlanningRef.current.style.fontWeight = '700'
+            navProductionRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+            navProductionRef.current.style.fontWeight = '500'
           } else {
             navAiAnalysisRef.current.style.color = '#645A57'
             navAiAnalysisRef.current.style.fontWeight = '700'
             navPlanningRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
             navPlanningRef.current.style.fontWeight = '500'
+            navProductionRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+            navProductionRef.current.style.fontWeight = '500'
           }
         }
 
-        // Planner Cursor Drag-and-Drop Interaction:
-        // Sidebar "Preparing for Entrepreneurship" (Grip at X: 43, Y: 150) -> Column P1.2 under "Product Sales" (X: 495, Y: 295)
-        const GRIP_X = 43
-        const GRIP_Y = 150
-        const DROP_X = 495
-        const DROP_Y = 295
+        if (plannerCursorRef.current) plannerCursorRef.current.style.opacity = '0'
+        if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
+        if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
+        if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
+        if (droppedCardRef.current) droppedCardRef.current.style.display = 'none'
+        if (sidebarPreparingCardRef.current) {
+          sidebarPreparingCardRef.current.style.display = 'flex'
+          sidebarPreparingCardRef.current.style.opacity = '0.5'
+          sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.3)'
+          sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+        }
+        if (sidebarGripRef.current) {
+          sidebarGripRef.current.style.width = '0px'
+          sidebarGripRef.current.style.marginRight = '0px'
+          sidebarGripRef.current.style.opacity = '0'
+        }
+        if (criteriaCountRef.current) criteriaCountRef.current.textContent = '2'
+        if (p12CountRef.current) {
+          p12CountRef.current.textContent = '3/5'
+          p12CountRef.current.style.color = '#645A57'
+          p12CountRef.current.style.fontWeight = '500'
+        }
+        if (p11FinancialCardRef.current) {
+          p11FinancialCardRef.current.style.background = 'rgba(204, 0, 1, 0.05)'
+          p11FinancialCardRef.current.style.borderColor = '#CC0001'
+        }
+        if (p11FinancialTitleRef.current) {
+          p11FinancialTitleRef.current.style.color = '#CC0001'
+        }
+        if (p11FinancialImpactRef.current) {
+          p11FinancialImpactRef.current.style.color = '#CC0001'
+          p11FinancialImpactRef.current.style.opacity = '0.8'
+        }
+      } else if (plannerT <= 0.65) {
+        // --- STUDY PLANNER ACTIVE & DRAG-AND-DROP (plannerT: 0.20 -> 0.65) ---
+        aiImpactCardRef.current.style.transform = 'translateX(-1150px)'
+        aiImpactCardRef.current.style.opacity = '0'
+        macroPlannerViewRef.current.style.transform = 'translateX(0px)'
+        macroPlannerViewRef.current.style.opacity = '1'
+        syllabusProductionViewRef.current.style.transform = 'translateX(1150px)'
+        syllabusProductionViewRef.current.style.opacity = '0'
+
+        if (navAiAnalysisRef.current && navPlanningRef.current && navProductionRef.current) {
+          navAiAnalysisRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+          navAiAnalysisRef.current.style.fontWeight = '500'
+          navPlanningRef.current.style.color = '#645A57'
+          navPlanningRef.current.style.fontWeight = '700'
+          navProductionRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+          navProductionRef.current.style.fontWeight = '500'
+        }
+
+        const GRIP_X = 40
+        const GRIP_Y = 145
+        const DROP_X = 498
+        const DROP_Y = 314
 
         if (plannerCursorRef.current) {
-          if (plannerT < 0.32) {
-            plannerCursorRef.current.style.opacity = '0'
-            if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
-            if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
-            if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
-            if (droppedCardRef.current) droppedCardRef.current.style.display = 'none'
-            if (sidebarPreparingCardRef.current) {
-              sidebarPreparingCardRef.current.style.display = 'flex'
-              sidebarPreparingCardRef.current.style.opacity = '0.5'
-              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.45)'
-              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.45)'
-            }
-            if (sidebarGripRef.current) {
-              sidebarGripRef.current.style.width = '0px'
-              sidebarGripRef.current.style.marginRight = '0px'
-              sidebarGripRef.current.style.opacity = '0'
-            }
-            if (criteriaCountRef.current) {
-              criteriaCountRef.current.textContent = '2'
-              criteriaCountRef.current.style.color = '#645A57'
-            }
-            if (p12CountRef.current) {
-              p12CountRef.current.textContent = '3/5'
-              p12CountRef.current.style.color = '#645A57'
-              p12CountRef.current.style.fontWeight = '500'
-            }
-          } else if (plannerT < 0.46) {
-            // Phase 1: Cursor approaches "Preparing for Entrepreneurship" card
-            const enterProgress = (plannerT - 0.32) / 0.14
+          if (plannerT < 0.28) {
+            // Cursor enters and approaches Preparing for Entrepreneurship card
+            const enterProgress = (plannerT - 0.20) / 0.08
             const enterT = smoothstepEase(enterProgress)
             const posX = MathUtils.lerp(180, GRIP_X, enterT)
-            const posY = MathUtils.lerp(290, GRIP_Y, enterT)
+            const posY = MathUtils.lerp(240, GRIP_Y, enterT)
             const cursorOpacity = MathUtils.clamp(enterProgress * 2.5, 0, 1)
 
             plannerCursorRef.current.style.opacity = `${cursorOpacity}`
             plannerCursorRef.current.style.transform = `translate(${posX}px, ${posY}px) scale(1)`
-
             if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
             if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
             if (dropPlaceholderRef.current) dropPlaceholderRef.current.style.display = 'none'
             if (droppedCardRef.current) droppedCardRef.current.style.display = 'none'
 
-            // When not clicked yet: exactly 0.5 opacity (same as "Development of an...")
             if (sidebarPreparingCardRef.current) {
               sidebarPreparingCardRef.current.style.display = 'flex'
               sidebarPreparingCardRef.current.style.opacity = '0.5'
-              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.45)'
-              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.45)'
+              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.3)'
+              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.3)'
             }
             if (sidebarGripRef.current) {
-              // 6-dots symbol smoothly appears and text shifts right to accommodate it on hover
               const hoverStrength = MathUtils.clamp((enterProgress - 0.2) / 0.8, 0, 1)
               const hoverT = smoothstepEase(hoverStrength)
               sidebarGripRef.current.style.width = `${hoverT * 8}px`
@@ -1553,9 +1604,18 @@ function SeamlessBackdrop({
               p12CountRef.current.style.color = '#645A57'
               p12CountRef.current.style.fontWeight = '500'
             }
-          } else if (plannerT < 0.53) {
-            // Phase 2: Click down / Grab the card in place
-            const clickProgress = (plannerT - 0.46) / 0.07
+            if (p11FinancialCardRef.current) {
+              p11FinancialCardRef.current.style.background = 'rgba(204, 0, 1, 0.05)'
+              p11FinancialCardRef.current.style.borderColor = '#CC0001'
+            }
+            if (p11FinancialTitleRef.current) p11FinancialTitleRef.current.style.color = '#CC0001'
+            if (p11FinancialImpactRef.current) {
+              p11FinancialImpactRef.current.style.color = '#CC0001'
+              p11FinancialImpactRef.current.style.opacity = '0.8'
+            }
+          } else if (plannerT < 0.34) {
+            // Click / Grab
+            const clickProgress = (plannerT - 0.28) / 0.06
             let cursorScale = 1
             let rippleOpacity = 0
             let rippleScale = 0
@@ -1579,13 +1639,12 @@ function SeamlessBackdrop({
               plannerRippleRef.current.style.transform = `translate(-50%, -50%) scale(${rippleScale})`
             }
 
-            // Clicked / grabbed: becomes solid as it's picked up
             if (draggedCardRef.current) draggedCardRef.current.style.display = 'none'
             if (sidebarPreparingCardRef.current) {
               sidebarPreparingCardRef.current.style.display = 'flex'
               sidebarPreparingCardRef.current.style.opacity = `${MathUtils.lerp(0.5, 1, clickProgress)}`
-              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.45)'
-              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.45)'
+              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.3)'
+              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.3)'
             }
             if (sidebarGripRef.current) {
               sidebarGripRef.current.style.width = '8px'
@@ -1600,11 +1659,20 @@ function SeamlessBackdrop({
               p12CountRef.current.style.color = '#645A57'
               p12CountRef.current.style.fontWeight = '500'
             }
-          } else if (plannerT < 0.77) {
-            // Phase 3: Drag arc from left sidebar across to P1.2 under Product Sales
-            const dragProgress = (plannerT - 0.53) / 0.24
+            if (p11FinancialCardRef.current) {
+              p11FinancialCardRef.current.style.background = 'rgba(204, 0, 1, 0.05)'
+              p11FinancialCardRef.current.style.borderColor = '#CC0001'
+            }
+            if (p11FinancialTitleRef.current) p11FinancialTitleRef.current.style.color = '#CC0001'
+            if (p11FinancialImpactRef.current) {
+              p11FinancialImpactRef.current.style.color = '#CC0001'
+              p11FinancialImpactRef.current.style.opacity = '0.8'
+            }
+          } else if (plannerT < 0.50) {
+            // Drag Arc
+            const dragProgress = (plannerT - 0.34) / 0.16
             const dragT = smoothstepEase(dragProgress)
-            const arcY = -Math.sin(dragT * Math.PI) * 42
+            const arcY = -Math.sin(dragT * Math.PI) * 40
             const posX = MathUtils.lerp(GRIP_X, DROP_X, dragT)
             const posY = MathUtils.lerp(GRIP_Y, DROP_Y, dragT) + arcY
 
@@ -1612,21 +1680,19 @@ function SeamlessBackdrop({
             plannerCursorRef.current.style.transform = `translate(${posX}px, ${posY}px) scale(0.85)`
             if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
 
-            // Floating card follows cursor smoothly without any tilt or shape change
             if (draggedCardRef.current) {
               draggedCardRef.current.style.display = 'flex'
               const cardX = posX - 14
-              const cardY = posY - 28
+              const cardY = posY - 29
               draggedCardRef.current.style.transform = `translate(${cardX}px, ${cardY}px)`
               draggedCardRef.current.style.opacity = '1'
             }
 
-            // Original sidebar card remains visible under Study Criteria while being dragged across
             if (sidebarPreparingCardRef.current) {
               sidebarPreparingCardRef.current.style.display = 'flex'
               sidebarPreparingCardRef.current.style.opacity = '0.35'
-              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.45)'
-              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.45)'
+              sidebarPreparingCardRef.current.style.background = 'rgba(255, 255, 255, 0.3)'
+              sidebarPreparingCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.3)'
             }
             if (sidebarGripRef.current) {
               sidebarGripRef.current.style.width = '8px'
@@ -1634,7 +1700,6 @@ function SeamlessBackdrop({
               sidebarGripRef.current.style.opacity = '0.4'
             }
 
-            // Drop slot placeholder in P1.2 glows when approaching
             if (dropPlaceholderRef.current) {
               if (dragProgress >= 0.3) {
                 dropPlaceholderRef.current.style.display = 'block'
@@ -1651,9 +1716,18 @@ function SeamlessBackdrop({
               p12CountRef.current.style.color = '#645A57'
               p12CountRef.current.style.fontWeight = '500'
             }
-          } else if (plannerT < 0.86) {
-            // Phase 4: Drop snap into P1.2 under Product Sales & Count Updates
-            const dropProgress = (plannerT - 0.77) / 0.09
+            if (p11FinancialCardRef.current) {
+              p11FinancialCardRef.current.style.background = 'rgba(204, 0, 1, 0.05)'
+              p11FinancialCardRef.current.style.borderColor = '#CC0001'
+            }
+            if (p11FinancialTitleRef.current) p11FinancialTitleRef.current.style.color = '#CC0001'
+            if (p11FinancialImpactRef.current) {
+              p11FinancialImpactRef.current.style.color = '#CC0001'
+              p11FinancialImpactRef.current.style.opacity = '0.8'
+            }
+          } else if (plannerT < 0.58) {
+            // Drop Snap into P1.2
+            const dropProgress = (plannerT - 0.50) / 0.08
             const dropT = smoothstepEase(dropProgress)
             const cursorScale = MathUtils.lerp(0.85, 1, dropT)
             const rippleOpacity = MathUtils.lerp(0.75, 0, dropT)
@@ -1673,7 +1747,6 @@ function SeamlessBackdrop({
               droppedCardRef.current.style.opacity = '1'
             }
 
-            // The sidebar card fades out right as it drops into P1.2
             if (sidebarPreparingCardRef.current) {
               const sidebarOpacity = MathUtils.lerp(0.35, 0, dropT)
               sidebarPreparingCardRef.current.style.opacity = `${sidebarOpacity}`
@@ -1685,19 +1758,31 @@ function SeamlessBackdrop({
             }
             if (sidebarGripRef.current) sidebarGripRef.current.style.opacity = '0'
 
-            // Counters update: Criteria becomes 1, P1.2 becomes 4/5 (highlighted red)
-            if (criteriaCountRef.current) criteriaCountRef.current.textContent = dropProgress >= 0.4 ? '1' : '2'
+            const isDropped = dropProgress >= 0.25
+            if (criteriaCountRef.current) criteriaCountRef.current.textContent = isDropped ? '1' : '2'
             if (p12CountRef.current) {
-              p12CountRef.current.textContent = dropProgress >= 0.4 ? '4/5' : '3/5'
-              p12CountRef.current.style.color = dropProgress >= 0.4 ? '#CC0001' : '#645A57'
-              p12CountRef.current.style.fontWeight = dropProgress >= 0.4 ? '700' : '500'
+              p12CountRef.current.textContent = isDropped ? '4/5' : '3/5'
+              p12CountRef.current.style.color = '#645A57'
+              p12CountRef.current.style.fontWeight = '500'
+            }
+
+            if (p11FinancialCardRef.current) {
+              p11FinancialCardRef.current.style.background = isDropped ? 'rgba(255, 255, 255, 0.3)' : 'rgba(204, 0, 1, 0.05)'
+              p11FinancialCardRef.current.style.borderColor = isDropped ? 'rgba(255, 255, 255, 0.3)' : '#CC0001'
+            }
+            if (p11FinancialTitleRef.current) {
+              p11FinancialTitleRef.current.style.color = isDropped ? '#645A57' : '#CC0001'
+            }
+            if (p11FinancialImpactRef.current) {
+              p11FinancialImpactRef.current.style.color = isDropped ? '#645A57' : '#CC0001'
+              p11FinancialImpactRef.current.style.opacity = isDropped ? '0.6' : '0.8'
             }
           } else {
-            // Phase 5: Exit drift & resting finished state
-            const exitProgress = MathUtils.clamp((plannerT - 0.86) / 0.14, 0, 1)
+            // Cursor exits & Completed Study Planner rests
+            const exitProgress = MathUtils.clamp((plannerT - 0.58) / 0.07, 0, 1)
             const exitT = smoothstepEase(exitProgress)
             const posX = DROP_X + 45 * exitT
-            const posY = DROP_Y + 30 * exitT
+            const posY = DROP_Y + 25 * exitT
             const cursorOpacity = 1 - exitT
 
             plannerCursorRef.current.style.opacity = `${cursorOpacity}`
@@ -1711,7 +1796,6 @@ function SeamlessBackdrop({
               droppedCardRef.current.style.opacity = '1'
             }
 
-            // Card is completely gone from Study Criteria
             if (sidebarPreparingCardRef.current) {
               sidebarPreparingCardRef.current.style.display = 'none'
               sidebarPreparingCardRef.current.style.opacity = '0'
@@ -1721,10 +1805,85 @@ function SeamlessBackdrop({
             if (criteriaCountRef.current) criteriaCountRef.current.textContent = '1'
             if (p12CountRef.current) {
               p12CountRef.current.textContent = '4/5'
-              p12CountRef.current.style.color = '#CC0001'
-              p12CountRef.current.style.fontWeight = '700'
+              p12CountRef.current.style.color = '#645A57'
+              p12CountRef.current.style.fontWeight = '500'
+            }
+
+            if (p11FinancialCardRef.current) {
+              p11FinancialCardRef.current.style.background = 'rgba(255, 255, 255, 0.3)'
+              p11FinancialCardRef.current.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+            }
+            if (p11FinancialTitleRef.current) {
+              p11FinancialTitleRef.current.style.color = '#645A57'
+            }
+            if (p11FinancialImpactRef.current) {
+              p11FinancialImpactRef.current.style.color = '#645A57'
+              p11FinancialImpactRef.current.style.opacity = '0.6'
             }
           }
+        }
+      } else if (plannerT <= 0.88) {
+        // --- TRANSITION 2: Study Planner -> Syllabus Production (plannerT: 0.65 -> 0.88) ---
+        aiImpactCardRef.current.style.transform = 'translateX(-1150px)'
+        aiImpactCardRef.current.style.opacity = '0'
+        if (plannerCursorRef.current) plannerCursorRef.current.style.opacity = '0'
+        if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
+
+        const slide2Progress = MathUtils.clamp((plannerT - 0.65) / 0.23, 0, 1)
+        const slide2Eased = smoothstepEase(slide2Progress)
+        const SLIDE_PX = 1150
+        const slide2X = -slide2Eased * SLIDE_PX
+        macroPlannerViewRef.current.style.transform = `translateX(${slide2X}px)`
+
+        // Study Planner fades out when 70% hidden
+        const cardWidth = AI_IMPACT_PANEL_DESIGN_WIDTH
+        const hiddenFraction2 = -slide2X / cardWidth
+        let plannerOpacity = 1
+        if (hiddenFraction2 >= 0.7) {
+          plannerOpacity = MathUtils.clamp(1 - (hiddenFraction2 - 0.7) / 0.3, 0, 1)
+        }
+        macroPlannerViewRef.current.style.opacity = `${plannerOpacity}`
+
+        // Syllabus Production slides in from the right
+        const entry2X = (1 - slide2Eased) * SLIDE_PX
+        syllabusProductionViewRef.current.style.transform = `translateX(${entry2X}px)`
+        syllabusProductionViewRef.current.style.opacity = `${MathUtils.clamp((plannerT - 0.65) / 0.16, 0, 1)}`
+
+        // Navbar active indicator: Planning -> Production
+        if (navAiAnalysisRef.current && navPlanningRef.current && navProductionRef.current) {
+          navAiAnalysisRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+          navAiAnalysisRef.current.style.fontWeight = '500'
+          if (plannerT > 0.75) {
+            navPlanningRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+            navPlanningRef.current.style.fontWeight = '500'
+            navProductionRef.current.style.color = '#645A57'
+            navProductionRef.current.style.fontWeight = '700'
+          } else {
+            navPlanningRef.current.style.color = '#645A57'
+            navPlanningRef.current.style.fontWeight = '700'
+            navProductionRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+            navProductionRef.current.style.fontWeight = '500'
+          }
+        }
+      } else {
+        // --- RESTING IN SYLLABUS PRODUCTION (plannerT: 0.88 -> 1.00) ---
+        aiImpactCardRef.current.style.transform = 'translateX(-1150px)'
+        aiImpactCardRef.current.style.opacity = '0'
+        macroPlannerViewRef.current.style.transform = 'translateX(-1150px)'
+        macroPlannerViewRef.current.style.opacity = '0'
+        syllabusProductionViewRef.current.style.transform = 'translateX(0px)'
+        syllabusProductionViewRef.current.style.opacity = '1'
+
+        if (plannerCursorRef.current) plannerCursorRef.current.style.opacity = '0'
+        if (plannerRippleRef.current) plannerRippleRef.current.style.opacity = '0'
+
+        if (navAiAnalysisRef.current && navPlanningRef.current && navProductionRef.current) {
+          navAiAnalysisRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+          navAiAnalysisRef.current.style.fontWeight = '500'
+          navPlanningRef.current.style.color = 'rgba(150, 142, 139, 0.6)'
+          navPlanningRef.current.style.fontWeight = '500'
+          navProductionRef.current.style.color = '#645A57'
+          navProductionRef.current.style.fontWeight = '700'
         }
       }
     }
@@ -2001,7 +2160,7 @@ function SeamlessBackdrop({
           position={[litSquareRightX, litSquareRowY, GRID_Z + 0.02]}
           style={{ transform: `translate(calc(-100% - ${TEXT_RIGHT_MARGIN_PX}px), -50%)`, pointerEvents: 'none' }}
         >
-          <div ref={punchRef} className="flex flex-col items-end">
+          <div ref={punchRef} className="flex flex-col items-end" style={{ opacity: PUNCH_TEXT_BASE_OPACITY }}>
             <span ref={logoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
               <XxentaWordmark />
             </span>
@@ -2183,8 +2342,13 @@ function SeamlessBackdrop({
             sidebarGripRef={sidebarGripRef}
             criteriaCountRef={criteriaCountRef}
             p12CountRef={p12CountRef}
+            p11FinancialCardRef={p11FinancialCardRef}
+            p11FinancialTitleRef={p11FinancialTitleRef}
+            p11FinancialImpactRef={p11FinancialImpactRef}
             navAiAnalysisRef={navAiAnalysisRef}
             navPlanningRef={navPlanningRef}
+            navProductionRef={navProductionRef}
+            syllabusProductionViewRef={syllabusProductionViewRef}
           />
         </Html>
       </group>
@@ -2303,7 +2467,7 @@ const HOVER_VH = 140
 // played out, same sequential handoff CHAT_SCROLL_VH → EXAMS_SLIDE_VH
 // already uses.
 const REVEAL_VH = 560
-const PLANNER_SLIDE_VH = 340
+const PLANNER_SLIDE_VH = 560
 const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + HOVER_VH + REVEAL_VH + PLANNER_SLIDE_VH
 
 // 0 the instant the sticky stage pins (this section's top reaching the top of
@@ -2484,10 +2648,23 @@ function usePinnedProgress(sectionRef, carouselRef) {
   }
 }
 
-export function BackgroundGlowSection({ carouselRef }) {
+export function BackgroundGlowSection({ carouselRef, onDrpActiveChange }) {
   const sectionRef = useRef(null)
   const { progress, progressRef, arrival, panProgress, panProgressRef, hoverProgressRef, revealProgressRef, plannerProgressRef } =
     usePinnedProgress(sectionRef, carouselRef)
+
+  useEffect(() => {
+    if (!onDrpActiveChange) return
+    let lastActive = panProgress.get() >= PAN_FADE_END
+    onDrpActiveChange(lastActive)
+    return panProgress.on('change', (value) => {
+      const active = value >= PAN_FADE_END
+      if (active !== lastActive) {
+        lastActive = active
+        onDrpActiveChange(active)
+      }
+    })
+  }, [panProgress, onDrpActiveChange])
 
   // How far into each of the chat's two moods the visitor currently is, on
   // the WebGL side. Derived from the same scroll progress and the same

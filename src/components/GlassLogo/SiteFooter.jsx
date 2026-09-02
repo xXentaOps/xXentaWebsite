@@ -4,7 +4,7 @@ import { PAGE_MARGIN_VH } from './pageMargin'
 import { XxentaWordmark } from './XxentaWordmark'
 
 // The link columns. Labels reuse the site's own existing vocabulary rather
-// than inventing a parallel one — "AI for Academia/Enterprises/Achievers"
+// than inventing a parallel one — "AI for Education/Enterprises/Achievers"
 // are BackgroundGrid's own three buttons, and About Us / Contact / Security
 // & Compliance are SiteNavbar's own links — so the footer reads as the same
 // site rather than a generic template dropped underneath it. None of these
@@ -13,7 +13,7 @@ import { XxentaWordmark } from './XxentaWordmark'
 const LINK_COLUMNS = [
   {
     heading: 'Solutions',
-    links: ['AI for Academia', 'AI for Enterprises', 'AI for Achievers'],
+    links: ['AI for Education', 'AI for Enterprises', 'AI for Achievers'],
   },
   {
     heading: 'Company',

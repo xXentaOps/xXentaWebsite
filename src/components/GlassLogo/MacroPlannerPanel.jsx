@@ -118,7 +118,6 @@ export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style
         width: '100%',
         minHeight: 88,
         background: CARD_BG,
-        backgroundBlendMode: 'soft-light',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         border: `0.666667px solid ${BORDER_COLOR}`,
@@ -128,7 +127,7 @@ export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style
         ...style,
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
         {/* Badge "2" */}
         <div
           style={{
@@ -142,6 +141,7 @@ export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style
             border: '0.666667px solid #AE0818',
             borderRadius: 9999,
             flexShrink: 0,
+            marginTop: 2,
           }}
         >
           <span
@@ -225,7 +225,7 @@ export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style
   )
 })
 
-function CriteriaItemCard({ title, opacity = 1 }) {
+function CriteriaItemCard({ title, opacity = 0.5 }) {
   return (
     <div
       style={{
@@ -233,13 +233,13 @@ function CriteriaItemCard({ title, opacity = 1 }) {
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'center',
-        padding: '9px 11px',
+        padding: '9px 10px',
         gap: 10,
         width: '100%',
-        minHeight: 56,
+        minHeight: 58,
         background: ITEM_BG,
         border: `0.666667px solid ${BORDER_COLOR}`,
-        borderRadius: 12,
+        borderRadius: 10,
         flexShrink: 0,
         opacity,
       }}
@@ -260,51 +260,57 @@ function CriteriaItemCard({ title, opacity = 1 }) {
   )
 }
 
-function PeriodItemCard({ title, impact, isHighlighted = false }) {
+function PeriodItemCard({ title, impact, isHighlighted = false, cardRef, titleRef, impactRef }) {
   const isRed = isHighlighted
   return (
     <div
+      ref={cardRef}
       style={{
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'flex-start',
-        padding: '8px 10px',
+        padding: '9px 10px',
         gap: 2,
         width: '100%',
-        minHeight: 52,
+        minHeight: 58,
         background: isRed ? 'rgba(204, 0, 1, 0.05)' : ITEM_BG,
         border: isRed ? '0.666667px solid #CC0001' : `0.666667px solid ${BORDER_COLOR}`,
         borderRadius: 10,
         flexShrink: 0,
+        transition: 'background 0.12s ease-out, border-color 0.12s ease-out',
       }}
     >
       <span
+        ref={titleRef}
         style={{
           fontFamily: "'Plus Jakarta Sans', sans-serif",
           fontWeight: 700,
-          fontSize: 11,
-          lineHeight: '15px',
+          fontSize: 12,
+          lineHeight: '16px',
           color: isRed ? '#CC0001' : TEXT_COLOR,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           width: '100%',
+          transition: 'color 0.12s ease-out',
         }}
       >
         {title}
       </span>
       <span
+        ref={impactRef}
         style={{
           fontFamily: "'Plus Jakarta Sans', sans-serif",
           fontWeight: 500,
-          fontSize: 9,
+          fontSize: 9.5,
           lineHeight: '13px',
           letterSpacing: '0.25px',
           textTransform: 'uppercase',
           color: isRed ? '#CC0001' : TEXT_COLOR,
           opacity: isRed ? 0.8 : 0.6,
+          transition: 'color 0.12s ease-out, opacity 0.12s ease-out',
         }}
       >
         {impact}
@@ -325,6 +331,9 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
     sidebarGripRef,
     criteriaCountRef,
     p12CountRef,
+    p11FinancialCardRef,
+    p11FinancialTitleRef,
+    p11FinancialImpactRef,
   },
   ref
 ) {
@@ -337,15 +346,15 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
         flexDirection: 'row',
         alignItems: 'stretch',
         width: '100%',
-        minHeight: 520,
+        minHeight: 460,
         background: CARD_BG,
-        backgroundBlendMode: 'soft-light',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         border: `0.666667px solid ${BORDER_COLOR}`,
         boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
         borderRadius: 24,
         position: 'relative',
+        overflow: 'hidden',
         flexShrink: 0,
         ...style,
       }}
@@ -360,20 +369,18 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
           position: 'absolute',
           top: 0,
           left: 0,
-          width: 203,
-          minHeight: 56,
+          width: 204,
+          minHeight: 58,
           boxSizing: 'border-box',
           display: 'none',
           flexDirection: 'row',
           alignItems: 'center',
-          padding: '9px 11px',
+          padding: '9px 10px',
           gap: 10,
           background: ITEM_BG,
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
           border: `0.666667px solid ${BORDER_COLOR}`,
           boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
-          borderRadius: 12,
+          borderRadius: 10,
           zIndex: 75,
           pointerEvents: 'none',
           willChange: 'transform, opacity',
@@ -401,11 +408,10 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',
-          padding: '22px 18px 20px',
-          gap: 20,
-          width: 250,
-          background: 'rgba(241, 245, 249, 0.2)',
-          backgroundBlendMode: 'soft-light',
+          padding: '20px 16px 18px',
+          gap: 14,
+          width: 230,
+          background: 'rgba(255, 255, 255, 0.15)',
           borderRight: `0.666667px solid ${BORDER_COLOR}`,
           borderRadius: '24px 0px 0px 24px',
           flexShrink: 0,
@@ -460,12 +466,12 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
             paddingLeft: 10,
             gap: 8,
             width: '100%',
-            borderLeft: '1px solid rgba(147, 140, 137, 0.3)',
+        borderLeft: '1px solid rgba(147, 140, 137, 0.3)',
           }}
         >
           <CriteriaItemCard title="Development of an Entrepreneurial Concept" opacity={0.5} />
           
-          {/* Card 2: Preparing for Entrepreneurship with 6 dots grip on hover */}
+          {/* Preparing for Entrepreneurship Card (Animated/Grabbed) */}
           <div
             ref={sidebarPreparingCardRef}
             style={{
@@ -473,12 +479,12 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'center',
-              padding: '9px 11px',
+              padding: '9px 10px',
               width: '100%',
-              minHeight: 56,
+              minHeight: 58,
               background: ITEM_BG,
               border: `0.666667px solid ${BORDER_COLOR}`,
-              borderRadius: 12,
+              borderRadius: 10,
               flexShrink: 0,
               opacity: 0.5,
               position: 'relative',
@@ -523,11 +529,12 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',
-          padding: '20px 20px 18px',
-          gap: 16,
+          padding: '16px 0 16px 16px',
+          gap: 14,
           flex: 1,
           minWidth: 0,
           position: 'relative',
+          overflow: 'hidden',
         }}
       >
         {/* Top: Years Slider */}
@@ -537,13 +544,14 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
             display: 'flex',
             flexDirection: 'row',
             alignItems: 'center',
-            padding: '3px 5px',
-            gap: 6,
-            width: 300,
-            height: 34,
+            flexWrap: 'nowrap',
+            padding: '2px 4px 2.5px 4px',
+            gap: 4,
+            width: 'max-content',
+            height: 30.5,
             background: 'rgba(255, 255, 255, 0.3)',
             border: `0.666667px solid ${BORDER_COLOR}`,
-            borderRadius: 10,
+            borderRadius: 8,
           }}
         >
           {/* 2026 - 2027 Active Button */}
@@ -553,12 +561,13 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 95,
-              height: 26,
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+              height: 24,
+              padding: '0 10px',
               background: 'rgba(147, 140, 137, 0.3)',
               border: '0.666667px solid rgba(147, 140, 137, 0.3)',
-              boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
-              borderRadius: 8,
+              borderRadius: 6,
               cursor: 'pointer',
             }}
           >
@@ -566,10 +575,11 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 700,
-                fontSize: 13.5,
-                lineHeight: '18px',
+                fontSize: 12,
+                lineHeight: '16px',
                 textAlign: 'center',
                 color: TEXT_COLOR,
+                whiteSpace: 'nowrap',
               }}
             >
               2026 - 2027
@@ -577,15 +587,28 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
           </div>
 
           {/* 2027 - 2028 */}
-          <div style={{ padding: '2px 6px', cursor: 'pointer' }}>
+          <div
+            style={{
+              boxSizing: 'border-box',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+              height: 24,
+              padding: '0 8px',
+              cursor: 'pointer',
+            }}
+          >
             <span
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 500,
-                fontSize: 13,
-                lineHeight: '18px',
+                fontSize: 12,
+                lineHeight: '16px',
                 textAlign: 'center',
                 color: MUTED_COLOR,
+                whiteSpace: 'nowrap',
               }}
             >
               2027 - 2028
@@ -593,15 +616,28 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
           </div>
 
           {/* 2028 - 2029 */}
-          <div style={{ padding: '2px 6px', cursor: 'pointer' }}>
+          <div
+            style={{
+              boxSizing: 'border-box',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+              height: 24,
+              padding: '0 8px',
+              cursor: 'pointer',
+            }}
+          >
             <span
               style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
                 fontWeight: 500,
-                fontSize: 13,
-                lineHeight: '18px',
+                fontSize: 12,
+                lineHeight: '16px',
                 textAlign: 'center',
                 color: MUTED_COLOR,
+                whiteSpace: 'nowrap',
               }}
             >
               2028 - 2029
@@ -609,7 +645,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
           </div>
         </div>
 
-        {/* Period Columns Container (3 columns with no scrollbars) */}
+        {/* Period Columns Container (P1.1 and P1.2 wider, P1.3 halfway shown with right gradual fadeout) */}
         <div
           style={{
             display: 'flex',
@@ -617,6 +653,10 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
             gap: 10,
             width: '100%',
             flex: 1,
+            overflow: 'hidden',
+            position: 'relative',
+            WebkitMaskImage: 'linear-gradient(to right, black 0%, black calc(100% - 110px), rgba(0, 0, 0, 0.4) calc(100% - 35px), transparent 100%)',
+            maskImage: 'linear-gradient(to right, black 0%, black calc(100% - 110px), rgba(0, 0, 0, 0.4) calc(100% - 35px), transparent 100%)',
           }}
         >
           {/* Column P1.1 (5/5) */}
@@ -626,9 +666,9 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
               display: 'flex',
               flexDirection: 'column',
               padding: '10px 8px',
-              gap: 10,
-              flex: 1,
-              minWidth: 0,
+              gap: 8,
+              width: 220,
+              flexShrink: 0,
               background: 'rgba(255, 255, 255, 0.3)',
               borderRadius: 12,
               overflow: 'hidden',
@@ -676,12 +716,19 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
               style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 5,
+                gap: 6,
                 overflow: 'hidden',
               }}
             >
               <PeriodItemCard title="Market Research" impact="high impact" />
-              <PeriodItemCard title="Creating a Financial Plan for..." impact="medium impact" isHighlighted={true} />
+              <PeriodItemCard
+                title="Creating a Financial Plan for..."
+                impact="medium impact"
+                isHighlighted={true}
+                cardRef={p11FinancialCardRef}
+                titleRef={p11FinancialTitleRef}
+                impactRef={p11FinancialImpactRef}
+              />
               <PeriodItemCard title="Choosing a Form of Entrepre..." impact="high impact" />
               <PeriodItemCard title="Selection of the Value Propo..." impact="low impact" />
               <PeriodItemCard title="Building a Business Model" impact="high impact" />
@@ -695,9 +742,9 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
               display: 'flex',
               flexDirection: 'column',
               padding: '10px 8px',
-              gap: 10,
-              flex: 1,
-              minWidth: 0,
+              gap: 8,
+              width: 220,
+              flexShrink: 0,
               background: 'rgba(255, 255, 255, 0.3)',
               borderRadius: 12,
               overflow: 'hidden',
@@ -747,7 +794,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
               style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 5,
+                gap: 6,
                 overflow: 'hidden',
               }}
             >
@@ -761,7 +808,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                 style={{
                   boxSizing: 'border-box',
                   display: 'none',
-                  height: 48,
+                  height: 58,
                   width: '100%',
                   border: '1.5px dashed rgba(204, 0, 1, 0.5)',
                   background: 'rgba(204, 0, 1, 0.04)',
@@ -779,10 +826,10 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                   flexDirection: 'column',
                   justifyContent: 'center',
                   alignItems: 'flex-start',
-                  padding: '8px 10px',
+                  padding: '9px 10px',
                   gap: 2,
                   width: '100%',
-                  minHeight: 52,
+                  minHeight: 58,
                   background: 'rgba(204, 0, 1, 0.05)',
                   border: '0.666667px solid #CC0001',
                   borderRadius: 10,
@@ -794,8 +841,8 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                   style={{
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
                     fontWeight: 700,
-                    fontSize: 11,
-                    lineHeight: '15px',
+                    fontSize: 12,
+                    lineHeight: '16px',
                     color: '#CC0001',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -809,7 +856,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                   style={{
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
                     fontWeight: 500,
-                    fontSize: 9,
+                    fontSize: 9.5,
                     lineHeight: '13px',
                     letterSpacing: '0.25px',
                     textTransform: 'uppercase',
@@ -823,16 +870,16 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
             </div>
           </div>
 
-          {/* Column P1.3 (0/5) */}
+          {/* Column P1.3 (0/5) — halfway visible and gradually fades out at the right */}
           <div
             style={{
               boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
-              padding: '10px 8px',
-              gap: 10,
-              flex: 1,
-              minWidth: 0,
+              padding: '8px 8px',
+              gap: 6,
+              width: 220,
+              flexShrink: 0,
               background: 'rgba(255, 255, 255, 0.3)',
               borderRadius: 12,
               overflow: 'hidden',
@@ -883,7 +930,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                 alignItems: 'center',
                 justifyContent: 'center',
                 flex: 1,
-                padding: '20px 8px',
+                padding: '12px 6px',
                 textAlign: 'center',
               }}
             >
@@ -891,12 +938,12 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                 style={{
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
                   fontWeight: 700,
-                  fontSize: 11.5,
+                  fontSize: 11,
                   lineHeight: '15px',
                   textAlign: 'center',
                   color: TEXT_COLOR,
                   opacity: 0.5,
-                  marginBottom: 6,
+                  marginBottom: 4,
                 }}
               >
                 Nothing Planned
@@ -905,8 +952,8 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                 style={{
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
                   fontWeight: 400,
-                  fontSize: 9.5,
-                  lineHeight: '14px',
+                  fontSize: 9,
+                  lineHeight: '13px',
                   textAlign: 'center',
                   letterSpacing: '0.2px',
                   color: TEXT_COLOR,
@@ -938,6 +985,9 @@ export const MacroPlannerView = forwardRef(function MacroPlannerView(
     sidebarGripRef,
     criteriaCountRef,
     p12CountRef,
+    p11FinancialCardRef,
+    p11FinancialTitleRef,
+    p11FinancialImpactRef,
   },
   ref
 ) {
@@ -966,6 +1016,9 @@ export const MacroPlannerView = forwardRef(function MacroPlannerView(
         sidebarGripRef={sidebarGripRef}
         criteriaCountRef={criteriaCountRef}
         p12CountRef={p12CountRef}
+        p11FinancialCardRef={p11FinancialCardRef}
+        p11FinancialTitleRef={p11FinancialTitleRef}
+        p11FinancialImpactRef={p11FinancialImpactRef}
       />
     </div>
   )

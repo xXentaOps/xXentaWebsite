@@ -18,19 +18,27 @@ const OTHER_NAV_LINKS = ['Contact', 'Security & Compliance']
 // to the viewport instead, so it now stays on screen through every section
 // and through the About Us open/close transition, same as a real site's
 // navbar would.
-function navLinkClass(isActive) {
-  return `cursor-pointer px-2 py-2 transition-colors duration-200 ${
+function navLinkClass(isActive, isDrp) {
+  if (isDrp) {
+    return `cursor-pointer px-2 py-2 transition-colors duration-300 ${
+      isActive ? 'text-[#E3E1E1]' : 'text-[#E3E1E1] hover:text-white'
+    }`
+  }
+  return `cursor-pointer px-2 py-2 transition-colors duration-300 ${
     isActive ? 'text-white/40' : 'text-white/15 hover:text-white/40'
   }`
 }
 
-export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
+export function SiteNavbar({ isAboutUsActive, isDrpActive = false, onAboutUsClick, onLogoClick }) {
   const [selectedLink, setSelectedLink] = useState(null)
   // Below `md`, "About Us" / "Contact" / "Security & Compliance" plus the
   // wordmark no longer fit in one row (confirmed: three tracked-out labels
   // alongside the logo overflow a phone-width viewport) — collapsed behind
   // this toggle into a dropdown instead, same links, same click handlers.
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  // In About Us overlay, isDrpActive should not apply because About Us is dark navy
+  const effectiveDrp = isDrpActive && !isAboutUsActive
 
   return (
     <div className="pointer-events-none fixed inset-x-6 top-5 z-20 flex items-center justify-between md:inset-x-8 md:top-6">
@@ -52,7 +60,9 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
         // not inherited: the wrapping div above is pointer-events-none (so
         // its own empty margin doesn't block the canvas underneath), same
         // reasoning the nav links' own wrapper already opts back into.
-        className="pointer-events-auto cursor-pointer text-xs font-medium text-white/15 transition-colors duration-200 hover:text-white/40"
+        className={`pointer-events-auto cursor-pointer text-xs font-medium transition-colors duration-300 ${
+          effectiveDrp ? 'text-[#E3E1E1] hover:text-white' : 'text-white/15 hover:text-white/40'
+        }`}
       >
         {/* The mark itself lives in XxentaWordmark now — shared verbatim
             with the footer, which needs the identical construction (see
@@ -68,7 +78,7 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
         transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
         className="pointer-events-auto hidden items-center gap-2 text-xs font-extralight tracking-[0.2em] uppercase md:flex md:gap-4"
       >
-        <span onClick={onAboutUsClick} className={navLinkClass(isAboutUsActive)}>
+        <span onClick={onAboutUsClick} className={navLinkClass(isAboutUsActive, effectiveDrp)}>
           About Us
         </span>
         {OTHER_NAV_LINKS.map((label) => (
@@ -79,7 +89,7 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
           <span
             key={label}
             onClick={() => setSelectedLink((current) => (current === label ? null : label))}
-            className={navLinkClass(selectedLink === label)}
+            className={navLinkClass(selectedLink === label, effectiveDrp)}
           >
             {label}
           </span>
@@ -97,11 +107,19 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
         className="pointer-events-auto flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
       >
         <span
-          className={`h-px w-5 bg-white/40 transition-transform duration-200 ${isMenuOpen ? 'translate-y-[3.5px] rotate-45' : ''}`}
+          className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
+            isMenuOpen ? 'translate-y-[3.5px] rotate-45' : ''
+          }`}
         />
-        <span className={`h-px w-5 bg-white/40 transition-opacity duration-200 ${isMenuOpen ? 'opacity-0' : ''}`} />
         <span
-          className={`h-px w-5 bg-white/40 transition-transform duration-200 ${isMenuOpen ? '-translate-y-[3.5px] -rotate-45' : ''}`}
+          className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
+            isMenuOpen ? 'opacity-0' : ''
+          }`}
+        />
+        <span
+          className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
+            isMenuOpen ? '-translate-y-[3.5px] -rotate-45' : ''
+          }`}
         />
       </motion.button>
 
@@ -122,7 +140,7 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
                 onAboutUsClick()
                 setIsMenuOpen(false)
               }}
-              className={navLinkClass(isAboutUsActive)}
+              className={navLinkClass(isAboutUsActive, effectiveDrp)}
             >
               About Us
             </span>
@@ -133,7 +151,7 @@ export function SiteNavbar({ isAboutUsActive, onAboutUsClick, onLogoClick }) {
                   setSelectedLink((current) => (current === label ? null : label))
                   setIsMenuOpen(false)
                 }}
-                className={navLinkClass(selectedLink === label)}
+                className={navLinkClass(selectedLink === label, effectiveDrp)}
               >
                 {label}
               </span>

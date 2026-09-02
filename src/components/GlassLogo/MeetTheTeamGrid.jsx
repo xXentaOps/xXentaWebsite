@@ -601,7 +601,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
                   fight. This sits on the image *inside* it instead, so the
                   two compose instead of overwriting each other. */}
               <img
-                src={`/team/${member.id}.jpg`}
+                src={`/team/${member.photo || `${member.id}.jpg`}`}
                 alt={member.name}
                 draggable={false}
                 className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"

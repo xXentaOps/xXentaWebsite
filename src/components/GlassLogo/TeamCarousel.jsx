@@ -23,7 +23,7 @@ function TeamMemberCard({ member }) {
     >
       <div className="relative aspect-square w-full overflow-hidden bg-white/5">
         <img
-          src={`/team/${member.id}.jpg`}
+          src={`/team/${member.photo || `${member.id}.jpg`}`}
           alt={member.name}
           draggable={false}
           className="h-full w-full object-cover"

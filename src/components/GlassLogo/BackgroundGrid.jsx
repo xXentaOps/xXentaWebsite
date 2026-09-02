@@ -69,7 +69,7 @@ const BUTTON_COLUMN_FROM_RIGHT = 2
 // — paired with BUTTON_LABELS below in the same top-to-bottom order the
 // labels were given in.
 const BUTTON_ROW_OFFSETS = [1, 0, -1]
-const BUTTON_LABELS = ['AI for Academia', 'AI for Enterprises', 'AI for Achievers']
+const BUTTON_LABELS = ['AI for Education', 'AI for Enterprises', 'AI for Achievers']
 // Which button gets the "[COMING SOON]" caption below its own label — a
 // label lookup, not a hardcoded row index, so this keeps pointing at the
 // right button if BUTTON_LABELS' own order ever changes again.
@@ -660,7 +660,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     return () => window.removeEventListener('pointermove', onPointerMove)
   }, [])
-  // Starts on "AI for Academia" (index 0) rather than nothing selected, so
+  // Starts on "AI for Education" (index 0) rather than nothing selected, so
   // that label — and the hero title's matching "Learning" — show by
   // default instead of only on interaction.
   const [selectedIndex, setSelectedIndex] = useState(0)
