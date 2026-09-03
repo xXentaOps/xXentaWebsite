@@ -145,6 +145,7 @@ function CoursePill({ course, index, pillRef }) {
         boxShadow: '0 2px 5px rgba(100, 90, 87, 0.1)',
         opacity: course.opacity,
         transformOrigin: 'center center',
+        willChange: 'transform, opacity',
       }}
     >
       <div style={{ marginLeft: 23, width: 11, height: 11, borderRadius: '50%', background: course.dotColor, flexShrink: 0 }} />
@@ -274,6 +275,8 @@ export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
         paddingLeft: PANEL_HORIZONTAL_MARGIN,
         paddingRight: PANEL_HORIZONTAL_MARGIN,
         transformOrigin: 'center center',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       <div
@@ -285,6 +288,7 @@ export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
           color: TEXT_COLOR,
           marginBottom: 22,
           textAlign: 'left',
+          alignSelf: 'flex-start',
           transformOrigin: 'center left',
           willChange: 'transform, opacity',
         }}

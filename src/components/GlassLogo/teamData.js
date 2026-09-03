@@ -1,11 +1,5 @@
 // Team data for the About Us "Meet the Team" carousel (TeamCarousel) and
-// detail view (MeetTheTeamGrid). Names are real; `role` and `email` are
-// still stand-ins for most members, marked with the same obvious-placeholder
-// bracket convention ClientLogoCarousel uses for its own placeholder client
-// names, so none of them could be mistaken for real content if this shipped
-// as-is. Replace the remaining bracketed strings (and the example.com
-// addresses) as the real copy arrives; nothing else here needs to change
-// with them.
+// detail view (MeetTheTeamGrid).
 //
 // `bio` is an array of paragraph strings, not one block of text — real bios
 // run several paragraphs, and the detail view renders each as its own <p>
@@ -81,7 +75,6 @@ export const TEAM_MEMBERS = [
     linkedin: 'https://www.linkedin.com/in/jeroen-schilders-59282798/',
     // sizeScale: computer.svg is a solid, densely-filled shape — at the
     // same target size as the sparser icons it read as visibly too big.
-    // First guess, meant to be tuned live.
     nameIcon: { svg: 'computer', viewBoxSize: 24, sizeScale: 0.8 },
     x: 16.3,
     y: 13,
@@ -101,19 +94,8 @@ export const TEAM_MEMBERS = [
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/juliana-muller-venturi/',
     // sizeScale: same "dense shape reads bigger" correction as computer.svg
-    // above, milder here — went 0.92, then 0.88, then 0.8 chasing "a bit
-    // smaller" each time, then overshot ("a tiny bit bigger again"). Split
-    // the difference between the last two.
     // offsetX pushes/pulls it relative to the default flex-gap spot right
-    // against the name block. Was 50 pre-"Müller": the marker sits off the
-    // *whole* w-fit box's own right edge, which sizes to its widest line —
-    // splitName cuts on the first space only, so "Müller" landed on the
-    // *second* line ("Müller Venturi", 78px bold), roughly doubling that
-    // line's own width versus "Venturi" alone. A first ~30px pull-in did
-    // nothing visible against a shift that size, so this corrects hard in
-    // the other direction instead — a rough estimate of that width jump,
-    // meant to land near where the marker sat relative to "Venturi" before,
-    // not a small nudge. Tune live from here.
+    // against the name block.
     nameIcon: { svg: 'canvas', viewBoxSize: 24, sizeScale: 0.84, offsetX: -180 },
     x: 29.2,
     y: 19,
@@ -151,13 +133,7 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/jeroenkrouwels/',
-    // Graduation cap for his roots as an educational specialist, mentioned
-    // in his own bio above. depthScale: this shape is thin arms (a diamond
-    // outline, a band, a tassel) with a lot of empty space between them —
-    // at the default depth ratio every other icon uses it read as flat, no
-    // depth wall at all. This is the one shape that needs the amplification;
-    // see GlassIcon's own extrudeSettingsFor comment for why it isn't the
-    // default for everyone.
+    // Graduation cap for his roots as an educational specialist
     nameIcon: { svg: 'graduation-cap', viewBoxSize: 24, depthScale: 4 },
     x: 62.5,
     y: 13,
@@ -177,13 +153,6 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/norma-wouters-snell-6116153/',
-    // offsetX pulls the icon left from its default spot (right of her full
-    // name block, which sizes to her much wider "Wouters-Snell" line) back
-    // in toward her shorter first name — asked for directly. Negative CSS
-    // px, a first guess meant to be tuned live rather than treated as final.
-    // sizeScale: shield.svg is a solid, densely-filled shape — same "reads
-    // bigger than a sparse shape at the same target size" correction as
-    // computer.svg/canvas.svg above.
     nameIcon: { svg: 'shield', viewBoxSize: 16, offsetX: -180, sizeScale: 0.85 },
     x: 75,
     y: 18,
@@ -203,14 +172,6 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/ardie-van-honk-a1054230/',
-    // Swapped from graph.svg (rebuilt once already to fix a glitch, still
-    // not quite right) to document.svg — a solid document-with-folded-
-    // corner shape plus three short rounded-rect "text line" bars, all
-    // reasonably thick, no near-hairline geometry the way the original
-    // graph.svg's diagonal connectors were. viewBoxSize is that file's own
-    // viewBox width (32).
-    // sizeScale: solid, densely-filled shape — same "reads bigger than a
-    // sparse shape at the same target size" correction as the others.
     nameIcon: { svg: 'document', viewBoxSize: 32, sizeScale: 0.8 },
     x: 51.0,
     y: 12.5,
@@ -228,9 +189,6 @@ export const TEAM_MEMBERS = [
     ],
     email: 'name@example.com',
     linkedin: 'https://www.linkedin.com/in/arno-wouters/',
-    // sizeScale: cog.svg is a solid, densely-filled shape — same "reads
-    // bigger than a sparse shape at the same target size" correction as
-    // computer.svg/canvas.svg/shield.svg above.
     nameIcon: { svg: 'cog', viewBoxSize: 72, sizeScale: 0.85 },
     x: 84.5,
     y: 10,

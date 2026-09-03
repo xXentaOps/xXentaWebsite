@@ -47,14 +47,25 @@ function createFixedPointerEvents(store) {
   return { ...events(store), compute: computeClientPointer }
 }
 
-export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScrollComp, aboutUsProgress }) {
+export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScrollComp, aboutUsProgress, onCategoryChange, activeCategoryIndex }) {
   const tier = usePerformanceTier()
   const breakpoint = useBreakpoint()
   const targetSize = TARGET_SIZE_BY_BREAKPOINT[breakpoint] ?? 4
   // Lifted here because BackgroundGrid (inside Backdrop) and HeroTitle are
   // siblings under Canvas, not parent/child — this is the nearest shared
   // ancestor that can pass the active grid button down to both.
-  const [activeIndex, setActiveIndex] = useState(0)
+  const [activeIndex, setActiveIndex] = useState(activeCategoryIndex ?? 0)
+
+  useEffect(() => {
+    if (activeCategoryIndex !== undefined && activeCategoryIndex !== activeIndex) {
+      setActiveIndex(activeCategoryIndex)
+    }
+  }, [activeCategoryIndex, activeIndex])
+
+  const handleActiveIndexChange = (index) => {
+    setActiveIndex(index)
+    onCategoryChange?.(index)
+  }
   // R3F normally listens for pointer events on the canvas element itself —
   // fine until a real DOM element (the grid buttons' labels, now clickable;
   // see BackgroundGrid) sits visually on top of it. The browser delivers
@@ -148,7 +159,7 @@ export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScr
       >
         <Backdrop
           aboutUsProgress={aboutUsProgress}
-          onActiveIndexChange={setActiveIndex}
+          onActiveIndexChange={handleActiveIndexChange}
           onScrollLockChange={onScrollLockChange}
           isForceScrollingRef={isForceScrollingRef}
         />

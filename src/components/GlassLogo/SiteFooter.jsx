@@ -71,7 +71,7 @@ const CONTENT_START_SCALE = 0.9
 // a faint softening.
 const CONTENT_START_BLUR_PX = 14
 
-export function SiteFooter() {
+export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, onAboutUsClick }) {
   // scrollY (raw pixels), not scrollYProgress. Three earlier versions of
   // this measured something — the footer's own height via ResizeObserver,
   // the document height during render, a target element's rect through
@@ -79,6 +79,7 @@ export function SiteFooter() {
   // the wrong place: the footer fading back *out* at the true bottom, then
   // being invisible for all but a flash of the scroll.
   const { scrollY } = useScroll()
+  const spacerRef = useRef(null)
 
   // window.innerHeight and document.documentElement.scrollHeight, cached in
   // a ref rather than read fresh inside the per-frame transform below (an
@@ -90,19 +91,38 @@ export function SiteFooter() {
   // gestureStartedAtTop) depends on the classifier reading gesture
   // boundaries off real event timing, which a stalled frame corrupts — that
   // file's own comments describe this exact failure mode at length. Caching
-  // here instead — measured only on mount and resize, a ref so writing it
-  // doesn't itself trigger a re-render — keeps the per-frame read down to a
-  // plain property lookup, no layout cost at all.
+  // here instead — measured on mount, resize, and whenever the showcase category
+  // changes or content resizes — keeps the per-frame read down to a plain
+  // property lookup, no layout cost at all.
   const dimsRef = useRef({ viewport: 0, maxScroll: 0 })
   useLayoutEffect(() => {
     function measure() {
       const viewport = window.innerHeight
-      dimsRef.current = { viewport, maxScroll: document.documentElement.scrollHeight - viewport }
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - viewport)
+      dimsRef.current = { viewport, maxScroll }
     }
     measure()
     window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [])
+
+    // Watch the preceding content container (the main page scrolling wrapper) for height changes.
+    // When switching between showcase categories (Education vs Enterprises), this container's height changes.
+    const previousElement = spacerRef.current?.previousElementSibling
+    let observer = null
+    if (previousElement) {
+      observer = new ResizeObserver(measure)
+      observer.observe(previousElement)
+    }
+
+    const rafId = requestAnimationFrame(measure)
+    const timeoutId = setTimeout(measure, 100)
+
+    return () => {
+      window.removeEventListener('resize', measure)
+      observer?.disconnect()
+      cancelAnimationFrame(rafId)
+      clearTimeout(timeoutId)
+    }
+  }, [activeCategoryIndex])
 
   // The one shared 0->1 number opacity/scale/blur are all derived from —
   // computed once here rather than three times, so they can never drift out
@@ -131,6 +151,7 @@ export function SiteFooter() {
   // frame, so this derives the whole `blur(...)` string directly rather
   // than animating a bare px number that would need converting separately.
   const filter = useTransform(zoomProgress, (p) => `blur(${(1 - p) * CONTENT_START_BLUR_PX}px)`)
+  const pointerEvents = useTransform(rawProgress, (p) => (p > 0.4 ? 'auto' : 'none'))
 
   return (
     <>
@@ -139,7 +160,7 @@ export function SiteFooter() {
           footer's own cap below exactly (see FOOTER_MAX_VH's own comment) —
           a round, fixed distance needs no measurement at all, and it's the
           same distance the transform above uses. */}
-      <div aria-hidden style={{ height: `${FOOTER_MAX_VH}vh` }} />
+      <div ref={spacerRef} aria-hidden style={{ height: `${FOOTER_MAX_VH}vh` }} />
 
       {/* Capped to FOOTER_MAX_VH, not the full viewport — an earlier
           version pinned only the bottom edge at the footer's own natural
@@ -178,11 +199,14 @@ export function SiteFooter() {
             position visibly drifts left/down as scale grows toward 1,
             settling into its resting spot only once the zoom finishes,
             rather than sitting still through the whole reveal. */}
-        <motion.div style={{ opacity, scale, filter }} className="pointer-events-auto">
+        <motion.div style={{ opacity, scale, filter, pointerEvents }} className="pointer-events-auto">
           {/* Everything left-justified against the page's shared left margin
               — the same edge the hero's title, About Us's copy, and the
               highlighted grid cell all start from (see pageMargin.js). */}
-          <XxentaWordmark className="block text-xs font-medium text-white/40" />
+          <XxentaWordmark
+            className={`block text-xs font-medium text-white/40 ${scrollTo ? 'cursor-pointer hover:text-white/70 transition-colors duration-200' : ''}`}
+            onClick={() => scrollTo?.(0)}
+          />
 
           <p className="mt-6 max-w-[340px] text-xs leading-[1.9] font-extralight text-white/35">
             [ A short paragraph about xXenta — to be added. ]
@@ -208,19 +232,32 @@ export function SiteFooter() {
                   {column.heading}
                 </span>
                 <div className="mt-5 flex flex-col gap-3">
-                  {column.links.map((label) => (
-                    // Same hover brighten, same 200ms, as every other
-                    // placeholder link on the site (see navLinkClass in
-                    // SiteNavbar) — resting a touch dimmer than its heading
-                    // so the column reads as heading-then-contents at a
-                    // glance.
-                    <span
-                      key={label}
-                      className="cursor-pointer text-xs font-extralight text-white/30 transition-colors duration-200 hover:text-white/60"
-                    >
-                      {label}
-                    </span>
-                  ))}
+                  {column.links.map((label) => {
+                    const handleClick = () => {
+                      if (label === 'AI for Education') {
+                        onCategoryChange?.(0)
+                        scrollTo?.(0)
+                      } else if (label === 'AI for Enterprises') {
+                        onCategoryChange?.(1)
+                        scrollTo?.(0)
+                      } else if (label === 'AI for Achievers') {
+                        onCategoryChange?.(2)
+                        scrollTo?.(0)
+                      } else if (label === 'About Us' || label === 'Meet the Team') {
+                        onAboutUsClick?.()
+                      }
+                    }
+
+                    return (
+                      <span
+                        key={label}
+                        onClick={handleClick}
+                        className="cursor-pointer text-xs font-extralight text-white/30 transition-colors duration-200 hover:text-white/60"
+                      >
+                        {label}
+                      </span>
+                    )
+                  })}
                 </div>
               </div>
             ))}

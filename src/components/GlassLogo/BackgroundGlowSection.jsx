@@ -10,6 +10,7 @@ import { DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYL
 import { pageMarginPx } from './pageMargin'
 import { GradientBlob } from './GradientBlob'
 import { COURSES, PANEL_DESIGN_WIDTH, SyllabusOverviewPanel } from './SyllabusOverviewPanel'
+import { DRP_INTRO_PANEL_DESIGN_WIDTH, ExamsSyllabiIntroPanel } from './ExamsSyllabiIntroPanel'
 import { AI_IMPACT_PANEL_DESIGN_WIDTH, AiImpactAnalysisPanel } from './AiImpactAnalysisPanel'
 import { XxentaWordmark } from './XxentaWordmark'
 import {
@@ -494,6 +495,7 @@ function SeamlessBackdrop({
   isVisibleRef,
   pinnedProgressRef,
   panProgressRef,
+  drpIntroProgressRef,
   hoverProgressRef,
   revealProgressRef,
   plannerProgressRef,
@@ -587,6 +589,8 @@ function SeamlessBackdrop({
   // fading it in reads as arriving deliberately rather than just always
   // having been there, off past the edge of what was on screen.
   const placeholderMeshRef = useRef(null)
+  // Page 0 Introductory panel sitting on top of DRP_1 before Syllabus Overview
+  const drpIntroPanelRef = useRef(null)
   // The "Syllabus Overview" list riding on top of the placeholder image —
   // faded in and scaled the same panT/nextScale-driven way as the
   // placeholder itself (see the frame loop), so it arrives with the rest
@@ -1046,11 +1050,8 @@ function SeamlessBackdrop({
     // snapping the instant scroll outruns a plain lerp.
     const panT = smoothstepEase(panProgressRef.current)
     group.position.x = MathUtils.damp(group.position.x, panWorldDistance * panT, PAN_LAMBDA, delta)
-    // The hover and reveal phases' own progress — see HOVER_VH/REVEAL_VH.
-    // Both stay 0 for the entire chat and the pan into DRP Showcase (their
-    // own useTransform windows don't open until panProgress/hoverProgress
-    // respectively have already reached 1), the same chained "arrives, then
-    // plays out, then hands off" shape panT itself follows from progress.
+    // The DRP Intro, hover and reveal phases' own progress — see DRP_INTRO_VH/HOVER_VH/REVEAL_VH.
+    const rawIntro = drpIntroProgressRef.current
     const hoverT = smoothstepEase(hoverProgressRef.current)
     const rawReveal = revealProgressRef.current
     const slideT = smoothstepEase(MathUtils.clamp(rawReveal / 0.20, 0, 1))
@@ -1093,39 +1094,41 @@ function SeamlessBackdrop({
     if (punchRef.current) punchRef.current.style.opacity = `${(1 - panT) * PUNCH_TEXT_BASE_OPACITY}`
     if (examsPunchRef.current) examsPunchRef.current.style.opacity = `${panT}`
     if (placeholderMeshRef.current) placeholderMeshRef.current.material.opacity = panT
-    // The panel's own on-screen scale — same "local width × the group's
-    // current scale × screen px per world unit" conversion placeholderWidth
-    // itself is measured in, divided by the panel's own design width so a
-    // CSS scale() of 1 lands it at exactly PANEL_DESIGN_WIDTH screen px
-    // (i.e. matching the placeholder rectangle's own current on-screen
-    // width one-for-one). Html doesn't scale its own DOM content with the
-    // group any more than the lockup text does (see onScreenCellPx above),
-    // so this is the same per-frame handoff, just driven off the
-    // placeholder's width instead of a cell.
+
+    // Page 0 (ExamsSyllabiIntroPanel) arrives with DRP_1, remains visible during rawIntro < 0.15,
+    // then smoothly slides left behind the grid section on the left while Page 1 (SyllabusOverviewPanel)
+    // enters from the right side in lockstep, matching the DRP Showcase page transition mechanism.
+    const SLIDE_DIST = 1150
+    const introTransitionProgress = MathUtils.clamp((rawIntro - 0.15) / 0.70, 0, 1)
+    const introT = smoothstepEase(introTransitionProgress)
+
+    if (drpIntroPanelRef.current) {
+      const pxPerWorldUnit = size.width / gridWidth
+      const panelScale = (placeholderWidth * nextScale * pxPerWorldUnit) / DRP_INTRO_PANEL_DESIGN_WIDTH
+      const exitSlide = SLIDE_DIST * introT
+
+      drpIntroPanelRef.current.style.transform = `scale(${panelScale}) translateX(-${exitSlide}px)`
+      drpIntroPanelRef.current.style.clipPath = `inset(-80px -40px -80px ${exitSlide}px)`
+      drpIntroPanelRef.current.style.opacity = `${panT * MathUtils.clamp(1 - (introT - 0.75) / 0.25, 0, 1)}`
+      drpIntroPanelRef.current.style.display = (panT < 0.001 || introT >= 1) ? 'none' : 'flex'
+      drpIntroPanelRef.current.style.pointerEvents = (introT < 0.1 && panT > 0.8) ? 'auto' : 'none'
+    }
+
     if (syllabusPanelRef.current) {
       const pxPerWorldUnit = size.width / gridWidth
       const panelScale = (placeholderWidth * nextScale * pxPerWorldUnit) / PANEL_DESIGN_WIDTH
-      syllabusPanelRef.current.style.transform = `scale(${panelScale})`
-      // How much of the panel's own width has crossed to the left of
-      // boundaryWorldX (the same fixed grid boundary drpClipPlaneRef
-      // clips DRP_1/DRP_2 against) — placeholderLeftX/placeholderWidth
-      // again, just carried by revealGroupRef's own live position instead
-      // of read back from a mesh, since the panel rides that same group
-      // and is sized/centred to match DRP_1 exactly.
       const panelWorldWidth = placeholderWidth * nextScale
       const panelWorldLeftEdge = revealGroupRef.current.position.x + placeholderLeftX * nextScale
       const hiddenFraction = panelWorldWidth > 0 ? MathUtils.clamp((boundaryWorldX - panelWorldLeftEdge) / panelWorldWidth, 0, 1) : 0
-      // The hard mask — this is the part that actually enforces "never
-      // shows past the boundary, full stop," the same guarantee
-      // drpClipPlaneRef gives DRP_1/DRP_2, since opacity alone (below)
-      // only ever softens *what's already there*, it doesn't stop the
-      // panel's own pixels from painting past the line in the meantime.
-      // clip-path's inset is defined in this element's own local (pre-
-      // transform) pixel space, so hiddenFraction × PANEL_DESIGN_WIDTH —
-      // not a screen-pixel amount — is what actually stays aligned with
-      // the boundary once the scale() transform above is applied on top.
+
+      const entryX = SLIDE_DIST * (1 - introT)
+      const syllabusEnterOpacity = panT * MathUtils.clamp(introTransitionProgress / 0.15, 0, 1)
+
+      syllabusPanelRef.current.style.transform = `scale(${panelScale}) translateX(${entryX}px)`
       syllabusPanelRef.current.style.clipPath = `inset(0 0 0 ${hiddenFraction * PANEL_DESIGN_WIDTH}px)`
-      syllabusPanelRef.current.style.opacity = `${panT}`
+      syllabusPanelRef.current.style.opacity = `${syllabusEnterOpacity}`
+      syllabusPanelRef.current.style.display = syllabusEnterOpacity < 0.001 ? 'none' : 'flex'
+      syllabusPanelRef.current.style.pointerEvents = (introT > 0.9 && panT > 0.8 && rawReveal <= 0) ? 'auto' : 'none'
     }
 
     if (aiImpactPanelRef.current) {
@@ -1139,14 +1142,14 @@ function SeamlessBackdrop({
       aiImpactPanelRef.current.style.opacity = `${panT}`
     }
 
-    // Staggered bottom-to-top exit cascade for Syllabus Overview during slideT:
-    // The bottom-most pill (Retail Sales & Operations, index 6) begins moving first,
-    // followed by index 5, 4, 3, 2, 1, and finally Entrepreneurial Management (index 0)
-    // and the section title exit last.
+    // Syllabus Overview pill exit cascade and hover animations:
+    // EXIT (rawReveal > 0, slideT):
+    // Staggered bottom-to-top exit cascade where Retail Sales & Operations (index 6) begins moving left first (-360px),
+    // followed by index 5, 4, 3, 2, 1, and finally Entrepreneurial Management (index 0) and the section title exiting last.
     if (pillRefs.current) {
       if (rawReveal > 0) {
         for (let i = 0; i < COURSES.length; i++) {
-          const pillEl = pillRefs.current[i]
+          const pillEl = pillRefs.current[i] || (i === 0 ? firstPillRef.current : null)
           if (!pillEl) continue
           // Reverse index so bottom item (index 6) starts at startT = 0
           const startT = (6 - i) * 0.08
@@ -1163,6 +1166,31 @@ function SeamlessBackdrop({
           const titleExitT = smoothstepEase(rawTitleT)
           titleRef.current.style.transform = titleExitT > 0 ? `translateX(${-360 * titleExitT}px)` : 'none'
           titleRef.current.style.opacity = `${1 - titleExitT}`
+        }
+      } else if (introTransitionProgress < 1) {
+        // Staggered bottom-to-top arrival cascade while the panel slides in from the right:
+        // Retail Sales & Operations (index 6) starts moving left first, followed by index 5, 4, 3, 2, 1,
+        // and finally Entrepreneurial Management (index 0) and the section title arriving last.
+        const ENTRY_SLIDE = 260
+        for (let i = 0; i < COURSES.length; i++) {
+          const pillEl = pillRefs.current[i] || (i === 0 ? firstPillRef.current : null)
+          if (!pillEl) continue
+          // Reverse index so bottom item (index 6: Retail Sales & Operations) starts at startT = 0
+          const startT = (6 - i) * 0.07
+          const rawT = MathUtils.clamp((introTransitionProgress - startT) / 0.45, 0, 1)
+          const pillEnterT = smoothstepEase(rawT)
+          const baseOpacity = i === 0 ? 0.9 : COURSES[i].opacity
+          const opacity = baseOpacity * MathUtils.clamp(pillEnterT * 1.5, 0, 1)
+          const slideX = ENTRY_SLIDE * (1 - pillEnterT)
+          pillEl.style.transform = pillEnterT < 1 ? `translateX(${slideX}px)` : 'none'
+          pillEl.style.opacity = `${opacity}`
+        }
+        if (titleRef.current) {
+          const rawTitleT = MathUtils.clamp((introTransitionProgress - 0.45) / 0.45, 0, 1)
+          const titleEnterT = smoothstepEase(rawTitleT)
+          const titleSlideX = ENTRY_SLIDE * (1 - titleEnterT)
+          titleRef.current.style.transform = titleEnterT < 1 ? `translateX(${titleSlideX}px)` : 'none'
+          titleRef.current.style.opacity = `${MathUtils.clamp(titleEnterT * 1.5, 0, 1)}`
         }
       } else {
         // Pre-reveal & hover phase:
@@ -2288,6 +2316,18 @@ function SeamlessBackdrop({
           </Suspense>
         </mesh>
 
+        {/* Page 0: "Curriculum Intelligence / Exams & Syllabi Intro" —
+            fades in with DRP_1 during panT, sits in place during drpIntroProgress
+            for the visitor to absorb the statistics, savings, and 4-step pipeline,
+            and then seamlessly crossfades into Syllabus Overview (Page 1)
+            before hoverT begins. */}
+        <Html
+          position={[placeholderCenterX, placeholderCenterY, GRID_Z + 0.01]}
+          style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 2 }}
+        >
+          <ExamsSyllabiIntroPanel ref={drpIntroPanelRef} />
+        </Html>
+
         {/* "Syllabus Overview" — centred on the placeholder rectangle above
             (same anchor point, placeholderCenterX/Y) rather than a fixed
             screen position, so it stays centred on the image regardless of
@@ -2298,7 +2338,7 @@ function SeamlessBackdrop({
             so the visual centre never moves as the scale animates in. */}
         <Html
           position={[placeholderCenterX, placeholderCenterY, GRID_Z + 0.01]}
-          style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}
+          style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 1 }}
         >
           <SyllabusOverviewPanel
             ref={syllabusPanelRef}
@@ -2313,7 +2353,6 @@ function SeamlessBackdrop({
         {/* "AI Impact Analysis" — centred on drp2PanelCenterX/Y rather
             than a fixed screen position, so it sits directly above DRP_2
             and arrives synchronously with DRP_2 from right to left as
-            revealGroupRef pans, matching the exact width and position of
             the Syllabus Overview pills. */}
         <Html
           position={[drp2PanelCenterX, drp2PanelCenterY, GRID_Z + 0.01]}
@@ -2451,14 +2490,15 @@ const INTRO_VH = 100
 // sticky stage the chat already pins inside, not a second section of its
 // own.
 const EXAMS_SLIDE_VH = 120
-// Scroll spent on the "hover" beat once DRP Showcase itself has arrived —
+// Scroll spent exploring Page 0 (Introductory pitch, statistics, and 4-stage pipeline)
+// once DRP_1 arrives, before handing off to Syllabus Overview (Page 1).
+const DRP_INTRO_VH = 160
+// Scroll spent on the "hover" beat once Syllabus Overview has arrived —
 // the first pill (see firstPillRef) settling from its own resting 90%
 // opacity up to a full 100%, "as if it was being hovered," while the
 // syllabus-generation guided message (see hoverCalloutRef) fades in beside
 // the grid the same way Floren Showcase's own first callout did. Deliberately
-// its own phase, after EXAMS_SLIDE_VH rather than folded into it — the pan
-// above is about arriving at DRP Showcase; this is a beat that happens once
-// the visitor is already looking at it.
+// its own phase, after DRP_INTRO_VH rather than folded into it.
 const HOVER_VH = 140
 // Scroll spent panning the whole DRP Showcase group — grid, squares, panel,
 // and DRP_1.png — one further screen-width to the left, sliding DRP_2.png
@@ -2468,7 +2508,7 @@ const HOVER_VH = 140
 // already uses.
 const REVEAL_VH = 560
 const PLANNER_SLIDE_VH = 560
-const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + HOVER_VH + REVEAL_VH + PLANNER_SLIDE_VH
+const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + DRP_INTRO_VH + HOVER_VH + REVEAL_VH + PLANNER_SLIDE_VH
 
 // 0 the instant the sticky stage pins (this section's top reaching the top of
 // the screen, which is also the exact moment the grid zoom and the callout
@@ -2489,7 +2529,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
   // transform below. getBoundingClientRect forces a synchronous layout
   // reflow, and doing that on every scroll frame is exactly the main-thread
   // (see SiteFooter's dimsRef for the longer version of this same argument).
-  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1, hoverDistance: 1, revealDistance: 1, plannerDistance: 1 })
+  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1, drpIntroDistance: 1, hoverDistance: 1, revealDistance: 1, plannerDistance: 1 })
   useLayoutEffect(() => {
     const section = sectionRef.current
     if (!section) return
@@ -2514,10 +2554,10 @@ function usePinnedProgress(sectionRef, carouselRef) {
         // panProgress below) spends, once the chat's own `distance` above
         // has already been used up — see EXAMS_SLIDE_VH's own comment.
         panDistance: Math.max(1, window.innerHeight * (EXAMS_SLIDE_VH / 100)),
-        // hoverProgress/revealProgress's own windows — see HOVER_VH/REVEAL_VH
-        // and hoverProgress/revealProgress below, each starting exactly
-        // where the one before it finishes, same chained handoff
-        // panDistance itself already follows on from distance.
+        // drpIntroProgress/hoverProgress/revealProgress's own windows —
+        // each starting exactly where the one before it finishes, same
+        // chained handoff panDistance itself already follows on from distance.
+        drpIntroDistance: Math.max(1, window.innerHeight * (DRP_INTRO_VH / 100)),
         hoverDistance: Math.max(1, window.innerHeight * (HOVER_VH / 100)),
         revealDistance: Math.max(1, window.innerHeight * (REVEAL_VH / 100)),
         plannerDistance: Math.max(1, window.innerHeight * (PLANNER_SLIDE_VH / 100)),
@@ -2574,27 +2614,33 @@ function usePinnedProgress(sectionRef, carouselRef) {
     return MathUtils.clamp((latest - (start + distance)) / panDistance, 0, 1)
   })
 
-  // 0 until panProgress itself has finished (DRP Showcase has fully
-  // arrived), then 1 - 0 across hoverDistance — see HOVER_VH's own comment.
+  // Page 0 Intro pitch & statistics explore window
+  const drpIntroProgress = useTransform(scrollY, (latest) => {
+    const { start, distance, panDistance, drpIntroDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + distance + panDistance)) / drpIntroDistance, 0, 1)
+  })
+
+  // 0 until drpIntroProgress itself has finished (Page 0 has handed off to
+  // Syllabus Overview), then 1 - 0 across hoverDistance — see HOVER_VH's own comment.
   // Chained the same way panProgress chains off `distance`: each phase's
   // window starts exactly where the one before it ends.
   const hoverProgress = useTransform(scrollY, (latest) => {
-    const { start, distance, panDistance, hoverDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + distance + panDistance)) / hoverDistance, 0, 1)
+    const { start, distance, panDistance, drpIntroDistance, hoverDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + distance + panDistance + drpIntroDistance)) / hoverDistance, 0, 1)
   })
 
   // 0 until hoverProgress itself has finished, then 1 - 0 across
   // revealDistance — see REVEAL_VH's own comment.
   const revealProgress = useTransform(scrollY, (latest) => {
-    const { start, distance, panDistance, hoverDistance, revealDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + distance + panDistance + hoverDistance)) / revealDistance, 0, 1)
+    const { start, distance, panDistance, drpIntroDistance, hoverDistance, revealDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + distance + panDistance + drpIntroDistance + hoverDistance)) / revealDistance, 0, 1)
   })
 
   // 0 until revealProgress itself has finished, then 1 - 0 across
   // plannerDistance.
   const plannerProgress = useTransform(scrollY, (latest) => {
-    const { start, distance, panDistance, hoverDistance, revealDistance, plannerDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + distance + panDistance + hoverDistance + revealDistance)) / plannerDistance, 0, 1)
+    const { start, distance, panDistance, drpIntroDistance, hoverDistance, revealDistance, plannerDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + distance + panDistance + drpIntroDistance + hoverDistance + revealDistance)) / plannerDistance, 0, 1)
   })
 
   // The same numbers again, as plain refs, for the WebGL side — useFrame runs
@@ -2614,6 +2660,13 @@ function usePinnedProgress(sectionRef, carouselRef) {
       panProgressRef.current = value
     })
   }, [panProgress])
+  const drpIntroProgressRef = useRef(0)
+  useEffect(() => {
+    drpIntroProgressRef.current = drpIntroProgress.get()
+    return drpIntroProgress.on('change', (value) => {
+      drpIntroProgressRef.current = value
+    })
+  }, [drpIntroProgress])
   const hoverProgressRef = useRef(0)
   useEffect(() => {
     hoverProgressRef.current = hoverProgress.get()
@@ -2642,6 +2695,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
     arrival,
     panProgress,
     panProgressRef,
+    drpIntroProgressRef,
     hoverProgressRef,
     revealProgressRef,
     plannerProgressRef,
@@ -2650,7 +2704,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
 
 export function BackgroundGlowSection({ carouselRef, onDrpActiveChange }) {
   const sectionRef = useRef(null)
-  const { progress, progressRef, arrival, panProgress, panProgressRef, hoverProgressRef, revealProgressRef, plannerProgressRef } =
+  const { progress, progressRef, arrival, panProgress, panProgressRef, drpIntroProgressRef, hoverProgressRef, revealProgressRef, plannerProgressRef } =
     usePinnedProgress(sectionRef, carouselRef)
 
   useEffect(() => {
@@ -2761,6 +2815,7 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange }) {
             isVisibleRef={isVisibleRef}
             pinnedProgressRef={progressRef}
             panProgressRef={panProgressRef}
+            drpIntroProgressRef={drpIntroProgressRef}
             hoverProgressRef={hoverProgressRef}
             revealProgressRef={revealProgressRef}
             plannerProgressRef={plannerProgressRef}

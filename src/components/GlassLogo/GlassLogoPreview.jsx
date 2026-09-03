@@ -12,6 +12,7 @@ import BackgroundGlowSection from './BackgroundGlowSection'
 import ClientLogoCarousel from './ClientLogoCarousel'
 import FrameRateMeter from './FrameRateMeter'
 import GlassLogoHero from './GlassLogoHero'
+import NoordhuysShowcase from './NoordhuysShowcase'
 import { createGestureClassifier, GESTURE_END_MS } from './scrollGestureClassifier'
 import SiteFooter from './SiteFooter'
 import SiteNavbar from './SiteNavbar'
@@ -27,6 +28,7 @@ export default function GlassLogoPreview() {
   // while it's selected. See onScrollLockChange in GlassLogoHero for how
   // that state actually gets here.
   const [scrollLocked, setScrollLocked] = useState(false)
+  const [activeCategoryIndex, setActiveCategoryIndex] = useState(0)
   // Whether the About Us overlay is showing — a pure visual toggle, not a
   // scroll position. AboutUsSection is a `position: fixed` overlay (see
   // there), not a real section in document flow, so opening/closing it
@@ -39,6 +41,13 @@ export default function GlassLogoPreview() {
   // screen apart — see the comments on each.
   const [isAboutUsOpen, setIsAboutUsOpen] = useState(false)
   const [isDrpActive, setIsDrpActive] = useState(false)
+
+  const handleCategoryChange = (index) => {
+    setActiveCategoryIndex(index)
+    if (index !== 0) {
+      setIsDrpActive(false)
+    }
+  }
   // Written by useLenis itself, for exactly as long as the forced
   // scroll-back-to-top animation (triggered by scrollLocked turning on) is
   // actually in flight — threaded back down to BackgroundGrid so it can
@@ -123,6 +132,10 @@ export default function GlassLogoPreview() {
   // authoritative, the same as Achievers already relies on.
   const [scrollLockActive, setScrollLockActive] = useState(false)
   const { scrollTo, resize, getTargetScroll } = useLenis(scrollLocked || scrollLockActive, isForceScrollingRef)
+
+  useEffect(() => {
+    resize?.()
+  }, [activeCategoryIndex, resize])
   // Everything about the About Us scroll-lock/dismiss state machine lives
   // in one persistent, mount-once effect using plain closure variables
   // (isLocked/isOpenNow and the per-gesture flags below), not React state
@@ -999,14 +1012,32 @@ export default function GlassLogoPreview() {
           aboutUsProgress={aboutUsProgress}
           onScrollLockChange={setScrollLocked}
           isForceScrollingRef={isForceScrollingRef}
+          onCategoryChange={handleCategoryChange}
+          activeCategoryIndex={activeCategoryIndex}
         />
         <ClientLogoCarousel sectionRef={carouselRef} />
-        <BackgroundGlowSection
-          carouselRef={carouselRef}
-          onDrpActiveChange={setIsDrpActive}
-        />
+        {activeCategoryIndex === 1 ? (
+          <NoordhuysShowcase carouselRef={carouselRef} />
+        ) : (
+          <BackgroundGlowSection
+            carouselRef={carouselRef}
+            onDrpActiveChange={setIsDrpActive}
+          />
+        )}
       </div>
-      <SiteFooter />
+      <SiteFooter
+        key={activeCategoryIndex}
+        activeCategoryIndex={activeCategoryIndex}
+        onCategoryChange={handleCategoryChange}
+        scrollTo={scrollTo}
+        onAboutUsClick={() => {
+          if (isAboutUsOpen) {
+            aboutUsSectionRef.current?.closeTeam()
+          } else {
+            lockApiRef.current?.open()
+          }
+        }}
+      />
       {SHOW_FRAME_RATE && <FrameRateMeter />}
       <AboutUsSection
         ref={aboutUsSectionRef}
