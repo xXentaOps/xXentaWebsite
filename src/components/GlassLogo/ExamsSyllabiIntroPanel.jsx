@@ -4,9 +4,9 @@ export const DRP_INTRO_PANEL_DESIGN_WIDTH = 883
 export const DRP_INTRO_PANEL_DESIGN_HEIGHT = 525
 export const DRP_INTRO_PANEL_MARGIN = 40
 
-const CARD_BG = 'rgba(241, 245, 249, 0.35)'
-const INNER_CARD_BG = 'rgba(255, 255, 255, 0.38)'
-const BORDER_COLOR = 'rgba(255, 255, 255, 0.35)'
+const CARD_BG = 'rgba(241, 245, 249, 0.24)'
+const INNER_CARD_BG = 'rgba(255, 255, 255, 0.26)'
+const BORDER_COLOR = 'rgba(255, 255, 255, 0.26)'
 const TEXT_COLOR = '#645A57'
 const SUBTITLE_COLOR = '#968E8B'
 const ACCENT_RED = '#CC0001'
@@ -237,7 +237,7 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
           boxSizing: 'border-box',
           width: '100%',
           padding: '13px 18px',
-          background: 'rgba(255, 255, 255, 0.45)',
+          background: 'rgba(255, 255, 255, 0.30)',
           border: `1px solid ${BORDER_COLOR}`,
           borderRadius: 18,
           boxShadow: '0 2px 8px rgba(100, 90, 87, 0.06)',
@@ -253,32 +253,24 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
               fontFamily: BADGE_FONT,
               fontWeight: 700,
               fontSize: 10,
+              color: TEXT_COLOR,
               letterSpacing: '0.6px',
               textTransform: 'uppercase',
             }}
           >
             The 4-Stage Faculty Pipeline
           </span>
-          <div
+          <span
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontWeight: 400,
+              fontSize: 9.5,
+              color: SUBTITLE_COLOR,
+              lineHeight: '13px',
             }}
           >
-            <div style={{ width: 5, height: 5, borderRadius: '50%', background: ACCENT_RED, flexShrink: 0 }} />
-            <span
-              style={{
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontWeight: 400,
-                fontSize: 9.5,
-                color: SUBTITLE_COLOR,
-                lineHeight: '13px',
-              }}
-            >
-              Institution Criteria Preloaded
-            </span>
-          </div>
+            * Institutional Criteria Preloaded
+          </span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' }}>
@@ -321,14 +313,14 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
             fontWeight: 600,
             fontSize: 15.5,
             lineHeight: '20px',
-            color: 'rgba(255, 255, 255, 0.65)',
+            color: 'rgba(255, 255, 255, 0.58)',
             display: 'flex',
             alignItems: 'center',
             letterSpacing: '0.2px',
-            textShadow: '0 1px 3px rgba(100, 90, 87, 0.22)',
+            textShadow: '0 1px 3px rgba(100, 90, 87, 0.18)',
           }}
         >
-          Scroll to explore <span style={{ fontSize: 16.5, transform: 'translateY(1px)' }}>↓</span>
+          Scroll to Explore <span style={{ fontSize: 16.5, marginLeft: 7, transform: 'translateY(-1.5px)' }}>↓</span>
         </span>
       </div>
     </div>
