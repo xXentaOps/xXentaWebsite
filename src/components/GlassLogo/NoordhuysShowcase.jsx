@@ -15,9 +15,14 @@ import {
   SCENE_BACKDROP,
 } from './sceneConstants'
 import { useSeamlessGrid } from './useSeamlessGrid'
+import { NoordhuysAppPanel } from './NoordhuysAppPanel'
 
 function smoothstepEase(t) {
   return t * t * (3 - 2 * t)
+}
+
+function easeOutQuad(t) {
+  return t * (2 - t)
 }
 
 const EDGE_COLUMN_FROM_LEFT = 3
@@ -27,6 +32,7 @@ const STAGE_SETTLE_SPRING = { stiffness: 180, damping: 28, mass: 0.6 }
 const INTRO_VH = 100
 const SHOWCASE_SCROLL_VH = 160
 const SECTION_VH = INTRO_VH + SHOWCASE_SCROLL_VH
+const ENTRY_RISE_PX = 80
 
 function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef }) {
   const { size, blobWidth, blobHeight, gridWidth, gridHeight, cellSize, repeat, yPhaseShiftCells, blobY } = useSeamlessGrid(1)
@@ -105,9 +111,9 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef }) {
           position={[edgeX + cellSize * 0.3, (edgeBottomY + edgeTopY) / 2, GRID_Z + 0.01]}
           style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
         >
-          <div className="w-[280px]">
-            <p className="text-xs leading-loose font-extralight text-white/40 animate-[fadeInUp_1s_ease-out_both]">
-              {"Every case runs live. Say what you'd actually say, and the room reacts in real time."}
+          <div className="w-[300px]">
+            <p className="text-xs leading-loose font-extralight text-white/50 animate-[fadeInUp_1s_ease-out_both]">
+              {"Real-time multilingual operations for the modern greenhouse. From daily shifts to live translation, workers stay connected, trained, and aligned across every harvest."}
             </p>
           </div>
         </Html>
@@ -187,6 +193,9 @@ export function NoordhuysShowcase({ carouselRef }) {
   }, [])
 
   const stageScale = useSpring(useTransform(arrival, [0, 1], [STAGE_SETTLE_SCALE, 1]), STAGE_SETTLE_SPRING)
+  const entry = useTransform(arrival, easeOutQuad)
+  const y = useTransform(entry, [0, 1], [ENTRY_RISE_PX, 0])
+  const appOpacity = useTransform(entry, [0, 0.35, 1], [0, 0.8, 1])
 
   return (
     <section ref={sectionRef} className="relative w-full bg-[#0F172B]" style={{ height: `${SECTION_VH}vh` }}>
@@ -203,6 +212,22 @@ export function NoordhuysShowcase({ carouselRef }) {
           />
           <SceneRenderGate isVisibleRef={isVisibleRef} />
         </Canvas>
+
+        {/* Floating Mobile App Panel over Canvas */}
+        <motion.div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center z-10 px-4"
+          style={{ opacity: appOpacity, y }}
+        >
+          <div
+            className="pointer-events-auto transform-gpu"
+            style={{
+              transform: 'scale(min(1, calc(86vh / 838.67px)))',
+              transformOrigin: 'center center',
+            }}
+          >
+            <NoordhuysAppPanel />
+          </div>
+        </motion.div>
       </motion.div>
     </section>
   )

@@ -136,7 +136,7 @@ function PipelineStep({ stepNumber, title, detail, isLast }) {
 }
 
 export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel(
-  props,
+  { elementRefs },
   ref
 ) {
   return (
@@ -153,12 +153,16 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
     >
       {/* Top Row: Hero Headline & Institutional Metadata */}
       <div
+        ref={(el) => {
+          if (elementRefs && elementRefs.current) elementRefs.current[0] = el
+        }}
         style={{
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
           width: '100%',
           gap: 16,
+          willChange: 'transform, opacity',
         }}
       >
         <h2
@@ -195,6 +199,9 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
 
       {/* Subhead Paragraph with generous breathing room before the cards */}
       <p
+        ref={(el) => {
+          if (elementRefs && elementRefs.current) elementRefs.current[1] = el
+        }}
         style={{
           margin: 0,
           marginTop: 9,
@@ -205,6 +212,7 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
           lineHeight: '18px',
           color: '#766D6A',
           maxWidth: 730,
+          willChange: 'transform, opacity',
         }}
       >
         Educational institutions spend thousands of euros on outsourced syllabus writers and manual exam consultants.
@@ -213,7 +221,20 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
       </p>
 
       {/* 3 Metric Cards */}
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', gap: 14, width: '100%', marginBottom: 13 }}>
+      <div
+        ref={(el) => {
+          if (elementRefs && elementRefs.current) elementRefs.current[2] = el
+        }}
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'stretch',
+          gap: 14,
+          width: '100%',
+          marginBottom: 13,
+          willChange: 'transform, opacity',
+        }}
+      >
         <StatCard
           stat="€74,000+"
           title="Avg. Contractor Savings"
@@ -233,6 +254,9 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
 
       {/* 4-Stage Faculty Pipeline Preview */}
       <div
+        ref={(el) => {
+          if (elementRefs && elementRefs.current) elementRefs.current[3] = el
+        }}
         style={{
           boxSizing: 'border-box',
           width: '100%',
@@ -245,6 +269,7 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
           flexDirection: 'column',
           gap: 10,
           marginBottom: 22,
+          willChange: 'transform, opacity',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -300,11 +325,15 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
 
       {/* Centered Scroll Indicator */}
       <div
+        ref={(el) => {
+          if (elementRefs && elementRefs.current) elementRefs.current[4] = el
+        }}
         style={{
           alignSelf: 'center',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          willChange: 'transform, opacity',
         }}
       >
         <span
@@ -320,7 +349,16 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
             textShadow: '0 1px 3px rgba(100, 90, 87, 0.18)',
           }}
         >
-          Scroll to Explore <span style={{ fontSize: 16.5, marginLeft: 7, transform: 'translateY(-1.5px)' }}>↓</span>
+          Scroll to Explore{' '}
+          <span
+            className="intro-arrow-bob"
+            style={{
+              fontSize: 16.5,
+              marginLeft: 7,
+            }}
+          >
+            ↓
+          </span>
         </span>
       </div>
     </div>

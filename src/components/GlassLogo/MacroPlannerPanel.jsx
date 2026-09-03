@@ -124,6 +124,7 @@ export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style
         boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
         borderRadius: 24,
         flexShrink: 0,
+        willChange: 'transform, opacity',
         ...style,
       }}
     >
@@ -356,6 +357,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
         position: 'relative',
         overflow: 'hidden',
         flexShrink: 0,
+        willChange: 'transform, opacity',
         ...style,
       }}
     >

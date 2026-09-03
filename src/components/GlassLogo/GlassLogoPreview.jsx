@@ -131,7 +131,7 @@ export default function GlassLogoPreview() {
   // through useLenis's own lock/stop()/start() keeps Lenis's bookkeeping
   // authoritative, the same as Achievers already relies on.
   const [scrollLockActive, setScrollLockActive] = useState(false)
-  const { scrollTo, resize, getTargetScroll } = useLenis(scrollLocked || scrollLockActive, isForceScrollingRef)
+  const { scrollTo, resize, getTargetScroll, setDetent } = useLenis(scrollLocked || scrollLockActive, isForceScrollingRef)
 
   useEffect(() => {
     resize?.()
@@ -1022,6 +1022,7 @@ export default function GlassLogoPreview() {
           <BackgroundGlowSection
             carouselRef={carouselRef}
             onDrpActiveChange={setIsDrpActive}
+            setDetent={setDetent}
           />
         )}
       </div>

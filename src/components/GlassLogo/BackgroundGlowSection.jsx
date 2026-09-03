@@ -172,15 +172,28 @@ const CALLOUTS = [
   },
 ]
 
-// DRP Showcase's own first guided message — same standing as CALLOUTS
-// above, just its own separate list rather than one more entry in it: it
-// belongs to the hover phase (see HOVER_VH), not the chat's own timeline,
-// so it has nothing to trigger off of CALLOUTS's own trigger field
-// expects. "The first" because more of these, timed to later DRP Showcase
-// beats, are the expected shape this grows into — not built out yet since
-// only the one exists to show right now.
-const HOVER_CALLOUT_TEXT =
-  'Every syllabus is built for real-world depth — structured dynamically, and updated with every case.'
+// DRP Showcase Guided Messages — timed to the 4 stages of the showcase
+// (Page 1: Syllabus Overview, Page 2: AI Impact Analysis, Page 3: Study Planner,
+// Page 4: Syllabus Production), sharing the exact same slot on the grid and
+// crossfading smoothly as the user scrolls through each phase.
+const DRP_GUIDED_MESSAGES = [
+  {
+    id: 'overview',
+    text: 'Every syllabus is structured into dynamic competency blocks — allowing faculties to update modules in real time as industry practices evolve.',
+  },
+  {
+    id: 'ai-analysis',
+    text: 'As AI automates routine tasks, learning outcomes automatically elevate from rote recall to high-order ethical evaluation and critical reasoning.',
+  },
+  {
+    id: 'planner',
+    text: 'Drag-and-drop curriculum planning with live workload balancing — ensuring accreditation criteria and student contact hours align effortlessly.',
+  },
+  {
+    id: 'production',
+    text: 'From pedagogical theory to audit-ready syllabus in seconds — fully formatted with grading rubrics, weekly milestones, and LMS export.',
+  },
+]
 
 // How much of the grid plane's own spare overscan the slow drift below is
 // allowed to spend.
@@ -591,6 +604,7 @@ function SeamlessBackdrop({
   const placeholderMeshRef = useRef(null)
   // Page 0 Introductory panel sitting on top of DRP_1 before Syllabus Overview
   const drpIntroPanelRef = useRef(null)
+  const drpIntroElementRefs = useRef([])
   // The "Syllabus Overview" list riding on top of the placeholder image —
   // faded in and scaled the same panT/nextScale-driven way as the
   // placeholder itself (see the frame loop), so it arrives with the rest
@@ -635,15 +649,13 @@ function SeamlessBackdrop({
   // Minimalist guided cursor that points and clicks on the first pill
   const cursorRef = useRef(null)
   const cursorRippleRef = useRef(null)
-  // The hover phase's own guided message — same visual treatment as
-  // Floren Showcase's own first callout (see CALLOUTS), reusing that
-  // callout's exact position (calloutPositions[0]) rather than a position
-  // of its own, and living in the same calloutGroupRef, so it reads as
-  // "the same message slot, on to its next thing" rather than a new
-  // element appearing somewhere unrelated. Opacity driven by hoverT alone
-  // (see the frame loop) rather than the CALLOUTS crossfade machinery —
-  // there's only the one of these right now.
-  const hoverCalloutRef = useRef(null)
+  // DRP Showcase Guided Messages — 4 stages sharing the exact same slot on the
+  // grid, crossfading smoothly per frame based on hoverT, rawReveal, and plannerT.
+  const drpCallout0Ref = useRef(null)
+  const drpCallout1Ref = useRef(null)
+  const drpCallout2Ref = useRef(null)
+  const drpCallout3Ref = useRef(null)
+  const drpCalloutRefs = [drpCallout0Ref, drpCallout1Ref, drpCallout2Ref, drpCallout3Ref]
   // DRP Showcase's own second placeholder image — see Drp2ImageMaterial
   // and drp2CenterX's own comment for where it sits and why. Always fully
   // opaque once loaded (see Drp2ImageMaterial's own comment) rather than
@@ -1114,6 +1126,34 @@ function SeamlessBackdrop({
       drpIntroPanelRef.current.style.pointerEvents = (introT < 0.1 && panT > 0.8) ? 'auto' : 'none'
     }
 
+    if (drpIntroElementRefs.current) {
+      if (introTransitionProgress > 0) {
+        // Staggered exit cascade (bottom-to-top):
+        // Scroll to Explore (index 4) begins exiting first, followed by the 4-Stage Pipeline card (index 3),
+        // the 3 Metric cards (index 2), the paragraph (index 1), and the title/header (index 0).
+        // Perfectly balanced offset (-100px) between subtle and pronounced.
+        const INTRO_STAGGER_PX = 100
+        for (let i = 0; i < 5; i++) {
+          const el = drpIntroElementRefs.current[i]
+          if (!el) continue
+          const startT = (4 - i) * 0.08
+          const rawT = MathUtils.clamp((introTransitionProgress - startT) / 0.50, 0, 1)
+          const itemExitT = smoothstepEase(rawT)
+          const slideX = -INTRO_STAGGER_PX * itemExitT
+          el.style.transform = itemExitT > 0 ? `translateX(${slideX}px)` : 'none'
+          el.style.opacity = `${1 - itemExitT}`
+        }
+      } else {
+        for (let i = 0; i < 5; i++) {
+          const el = drpIntroElementRefs.current[i]
+          if (el) {
+            el.style.transform = 'none'
+            el.style.opacity = '1'
+          }
+        }
+      }
+    }
+
     if (syllabusPanelRef.current) {
       const pxPerWorldUnit = size.width / gridWidth
       const panelScale = (placeholderWidth * nextScale * pxPerWorldUnit) / PANEL_DESIGN_WIDTH
@@ -1451,6 +1491,14 @@ function SeamlessBackdrop({
         aiImpactCardRef.current.style.opacity = '1'
         macroPlannerViewRef.current.style.transform = 'translateX(1150px)'
         macroPlannerViewRef.current.style.opacity = '0'
+        if (macroPlannerHeaderRef.current) {
+          macroPlannerHeaderRef.current.style.transform = 'none'
+          macroPlannerHeaderRef.current.style.opacity = '1'
+        }
+        if (macroPlannerContainerRef.current) {
+          macroPlannerContainerRef.current.style.transform = 'none'
+          macroPlannerContainerRef.current.style.opacity = '1'
+        }
         syllabusProductionViewRef.current.style.transform = 'translateX(1150px)'
         syllabusProductionViewRef.current.style.opacity = '0'
         if (navAiAnalysisRef.current) {
@@ -1513,10 +1561,33 @@ function SeamlessBackdrop({
         }
         aiImpactCardRef.current.style.opacity = `${cardOpacity}`
 
-        // Study Planner enters from the right
-        const entryX = (1 - slideEased) * SLIDE_PX
-        macroPlannerViewRef.current.style.transform = `translateX(${entryX}px)`
-        macroPlannerViewRef.current.style.opacity = `${MathUtils.clamp(plannerT / 0.16, 0, 1)}`
+        // Soft staggered entrance:
+        // The container holding 'Study Criteria' and all the P1.X cards (macroPlannerContainerRef)
+        // shows up first, followed softly by the container above ('Study Planner' title - macroPlannerHeaderRef).
+        const STAGGER_DELAY = 0.055
+        const STAGGER_DURATION = 1 - STAGGER_DELAY
+
+        const rawContainerT = MathUtils.clamp(slideProgress / STAGGER_DURATION, 0, 1)
+        const containerEase = smoothstepEase(rawContainerT)
+        const containerEntryX = (1 - containerEase) * SLIDE_PX
+        const containerOpacity = MathUtils.clamp(rawContainerT / 0.70, 0, 1)
+
+        const rawHeaderT = MathUtils.clamp((slideProgress - STAGGER_DELAY) / STAGGER_DURATION, 0, 1)
+        const headerEase = smoothstepEase(rawHeaderT)
+        const headerEntryX = (1 - headerEase) * SLIDE_PX
+        const headerOpacity = MathUtils.clamp(rawHeaderT / 0.70, 0, 1)
+
+        macroPlannerViewRef.current.style.transform = 'translateX(0px)'
+        macroPlannerViewRef.current.style.opacity = '1'
+
+        if (macroPlannerContainerRef.current) {
+          macroPlannerContainerRef.current.style.transform = `translateX(${containerEntryX}px)`
+          macroPlannerContainerRef.current.style.opacity = `${containerOpacity}`
+        }
+        if (macroPlannerHeaderRef.current) {
+          macroPlannerHeaderRef.current.style.transform = `translateX(${headerEntryX}px)`
+          macroPlannerHeaderRef.current.style.opacity = `${headerOpacity}`
+        }
 
         // Syllabus Production stays parked offscreen right
         syllabusProductionViewRef.current.style.transform = 'translateX(1150px)'
@@ -1580,6 +1651,14 @@ function SeamlessBackdrop({
         aiImpactCardRef.current.style.opacity = '0'
         macroPlannerViewRef.current.style.transform = 'translateX(0px)'
         macroPlannerViewRef.current.style.opacity = '1'
+        if (macroPlannerHeaderRef.current) {
+          macroPlannerHeaderRef.current.style.transform = 'none'
+          macroPlannerHeaderRef.current.style.opacity = '1'
+        }
+        if (macroPlannerContainerRef.current) {
+          macroPlannerContainerRef.current.style.transform = 'none'
+          macroPlannerContainerRef.current.style.opacity = '1'
+        }
         syllabusProductionViewRef.current.style.transform = 'translateX(1150px)'
         syllabusProductionViewRef.current.style.opacity = '0'
 
@@ -1860,17 +1939,42 @@ function SeamlessBackdrop({
         const slide2Progress = MathUtils.clamp((plannerT - 0.65) / 0.23, 0, 1)
         const slide2Eased = smoothstepEase(slide2Progress)
         const SLIDE_PX = 1150
-        const slide2X = -slide2Eased * SLIDE_PX
-        macroPlannerViewRef.current.style.transform = `translateX(${slide2X}px)`
 
-        // Study Planner fades out when 70% hidden
-        const cardWidth = AI_IMPACT_PANEL_DESIGN_WIDTH
-        const hiddenFraction2 = -slide2X / cardWidth
-        let plannerOpacity = 1
-        if (hiddenFraction2 >= 0.7) {
-          plannerOpacity = MathUtils.clamp(1 - (hiddenFraction2 - 0.7) / 0.3, 0, 1)
+        // Soft staggered exit:
+        // The container holding 'Study Criteria' and all the P1.X cards (macroPlannerContainerRef)
+        // exits first to the left, followed softly by the container above ('Study Planner' title - macroPlannerHeaderRef).
+        const EXIT_STAGGER_DELAY = 0.055
+        const EXIT_STAGGER_DURATION = 1 - EXIT_STAGGER_DELAY
+
+        const rawContainerExitT = MathUtils.clamp(slide2Progress / EXIT_STAGGER_DURATION, 0, 1)
+        const containerExitEase = smoothstepEase(rawContainerExitT)
+        const containerExitX = -containerExitEase * SLIDE_PX
+        const containerHiddenFraction = -containerExitX / AI_IMPACT_PANEL_DESIGN_WIDTH
+        let containerExitOpacity = 1
+        if (containerHiddenFraction >= 0.7) {
+          containerExitOpacity = MathUtils.clamp(1 - (containerHiddenFraction - 0.7) / 0.3, 0, 1)
         }
-        macroPlannerViewRef.current.style.opacity = `${plannerOpacity}`
+
+        const rawHeaderExitT = MathUtils.clamp((slide2Progress - EXIT_STAGGER_DELAY) / EXIT_STAGGER_DURATION, 0, 1)
+        const headerEase = smoothstepEase(rawHeaderExitT)
+        const headerExitX = -headerEase * SLIDE_PX
+        const headerHiddenFraction = -headerExitX / AI_IMPACT_PANEL_DESIGN_WIDTH
+        let headerExitOpacity = 1
+        if (headerHiddenFraction >= 0.7) {
+          headerExitOpacity = MathUtils.clamp(1 - (headerHiddenFraction - 0.7) / 0.3, 0, 1)
+        }
+
+        macroPlannerViewRef.current.style.transform = 'translateX(0px)'
+        macroPlannerViewRef.current.style.opacity = '1'
+
+        if (macroPlannerContainerRef.current) {
+          macroPlannerContainerRef.current.style.transform = `translateX(${containerExitX}px)`
+          macroPlannerContainerRef.current.style.opacity = `${containerExitOpacity}`
+        }
+        if (macroPlannerHeaderRef.current) {
+          macroPlannerHeaderRef.current.style.transform = `translateX(${headerExitX}px)`
+          macroPlannerHeaderRef.current.style.opacity = `${headerExitOpacity}`
+        }
 
         // Syllabus Production slides in from the right
         const entry2X = (1 - slide2Eased) * SLIDE_PX
@@ -1899,6 +2003,14 @@ function SeamlessBackdrop({
         aiImpactCardRef.current.style.opacity = '0'
         macroPlannerViewRef.current.style.transform = 'translateX(-1150px)'
         macroPlannerViewRef.current.style.opacity = '0'
+        if (macroPlannerHeaderRef.current) {
+          macroPlannerHeaderRef.current.style.transform = 'none'
+          macroPlannerHeaderRef.current.style.opacity = '1'
+        }
+        if (macroPlannerContainerRef.current) {
+          macroPlannerContainerRef.current.style.transform = 'none'
+          macroPlannerContainerRef.current.style.opacity = '1'
+        }
         syllabusProductionViewRef.current.style.transform = 'translateX(0px)'
         syllabusProductionViewRef.current.style.opacity = '1'
 
@@ -1916,8 +2028,31 @@ function SeamlessBackdrop({
       }
     }
 
-    // The hover phase's own guided message — fades in swiftly upon DRP arrival
-    if (hoverCalloutRef.current) hoverCalloutRef.current.style.opacity = `${MathUtils.clamp(hoverT * 3, 0, 1)}`
+    // DRP Showcase Guided Messages: smooth crossfades between the 4 showcase stages
+    // Stage 1 (Syllabus Overview): starts fading in as soon as the page arrives (rawIntro 0.65 -> 0.85),
+    // fully visible from the moment the page settles throughout Syllabus Overview, then fades out when rawReveal begins
+    const msg1In = smoothstepEase(MathUtils.clamp((rawIntro - 0.65) / 0.20, 0, 1))
+    const msg1Out = smoothstepEase(MathUtils.clamp(rawReveal / 0.15, 0, 1))
+    const op1 = msg1In * (1 - msg1Out)
+
+    // Stage 2 (AI Impact Analysis): fades in with rawReveal, fades out as plannerT begins
+    const msg2In = smoothstepEase(MathUtils.clamp((rawReveal - 0.05) / 0.17, 0, 1))
+    const msg2Out = smoothstepEase(MathUtils.clamp(plannerT / 0.15, 0, 1))
+    const op2 = msg2In * (1 - msg2Out)
+
+    // Stage 3 (Study Planner): fades in as plannerT reaches planning phase, fades out towards production
+    const msg3In = smoothstepEase(MathUtils.clamp((plannerT - 0.06) / 0.16, 0, 1))
+    const msg3Out = smoothstepEase(MathUtils.clamp((plannerT - 0.65) / 0.13, 0, 1))
+    const op3 = msg3In * (1 - msg3Out)
+
+    // Stage 4 (Syllabus Production): fades in as production phase enters and stays through the end
+    const msg4In = smoothstepEase(MathUtils.clamp((plannerT - 0.72) / 0.16, 0, 1))
+    const op4 = msg4In
+
+    if (drpCallout0Ref.current) drpCallout0Ref.current.style.opacity = `${op1}`
+    if (drpCallout1Ref.current) drpCallout1Ref.current.style.opacity = `${op2}`
+    if (drpCallout2Ref.current) drpCallout2Ref.current.style.opacity = `${op3}`
+    if (drpCallout3Ref.current) drpCallout3Ref.current.style.opacity = `${op4}`
 
     // ...and each callout crossing into the next, over the segment whose
     // CALLOUTS's own trigger field). swapTs[i] is how far the *transition
@@ -2325,7 +2460,7 @@ function SeamlessBackdrop({
           position={[placeholderCenterX, placeholderCenterY, GRID_Z + 0.01]}
           style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 2 }}
         >
-          <ExamsSyllabiIntroPanel ref={drpIntroPanelRef} />
+          <ExamsSyllabiIntroPanel ref={drpIntroPanelRef} elementRefs={drpIntroElementRefs} />
         </Html>
 
         {/* "Syllabus Overview" — centred on the placeholder rectangle above
@@ -2425,30 +2560,34 @@ function SeamlessBackdrop({
           )
         })}
 
-        {/* DRP Showcase's own first guided message (see HOVER_CALLOUT_TEXT)
-            — the exact same slot Floren Showcase's own first callout used
+        {/* DRP Showcase Guided Messages (see DRP_GUIDED_MESSAGES)
+            — reusing the exact same slot Floren Showcase's own first callout used
             (calloutPositions[0], same column-A/row-0 geometry, same
-            cellSize×0.3 nudge), on the reasoning that reusing it reads as
+            cellSize×0.85 nudge), on the reasoning that reusing it reads as
             "the same message slot, on to its next thing" rather than a new
             element appearing somewhere unrelated. By the time hoverT ever
             moves, panT has long since carried CALLOUTS's own text out of
             view (calloutPanFade), so nothing is actually sharing the spot
             at once. Full-strength TEXT_COLOR rather than CALLOUTS's own
-            text-white/40 — that faint white reads fine on Floren
-            Showcase's own near-black backdrop and would be close to
-            invisible against DRP Showcase's light one, the same contrast
-            problem DRP_LINE_OPACITY_BOOST exists to fix for the grid
-            lines. Opacity alone (hoverCalloutRef, written from hoverT in
-            the frame loop) does the fading in, not a CSS mount animation —
-            this has to track scroll, not just play once on mount. */}
+            text-white/40. Opacity alone, written from the frame loop,
+            handles smooth crossfades between the 4 showcase stages. */}
         <Html
           position={[calloutPositions[0].x + cellSize * 0.85, (hoverCalloutRow.bottomY + hoverCalloutRow.topY) / 2, GRID_Z + 0.01]}
           style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
         >
-          <div ref={hoverCalloutRef} className="w-[280px]" style={{ opacity: 0 }}>
-            <p className="text-xs leading-loose font-extralight" style={{ color: DRP_TEXT_COLOR }}>
-              {HOVER_CALLOUT_TEXT}
-            </p>
+          <div className="w-[280px]" style={{ display: 'grid', gridTemplateAreas: '"stack"' }}>
+            {DRP_GUIDED_MESSAGES.map((msg, i) => (
+              <div
+                key={msg.id}
+                ref={drpCalloutRefs[i]}
+                className="w-[280px]"
+                style={{ gridArea: 'stack', opacity: 0, willChange: 'opacity' }}
+              >
+                <p className="text-xs leading-loose font-extralight" style={{ color: DRP_TEXT_COLOR }}>
+                  {msg.text}
+                </p>
+              </div>
+            ))}
           </div>
         </Html>
       </group>
@@ -2521,7 +2660,7 @@ const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + DRP_INTRO_VH + H
 // child, and put its window in the wrong place badly enough to need a live
 // debug overlay to find — see that file's own note. Arithmetic against one
 // measured number is a thing that can be reasoned about from the outside.
-function usePinnedProgress(sectionRef, carouselRef) {
+function usePinnedProgress(sectionRef, carouselRef, setDetent) {
   const { scrollY } = useScroll()
 
   // Measured on mount and whenever anything could have moved this section,
@@ -2535,12 +2674,15 @@ function usePinnedProgress(sectionRef, carouselRef) {
     if (!section) return
     function measure() {
       const start = section.getBoundingClientRect().top + window.scrollY
+      const distance = Math.max(1, window.innerHeight * (CHAT_SCROLL_VH / 100))
+      const panDistance = Math.max(1, window.innerHeight * (EXAMS_SLIDE_VH / 100))
+      const introScroll = start + distance + panDistance
       rangeRef.current = {
         start,
         // The sticky stage is one screen tall inside a section SECTION_VH
         // tall, so it stays pinned for exactly the difference — which is
         // CHAT_SCROLL_VH, by construction.
-        distance: Math.max(1, window.innerHeight * (CHAT_SCROLL_VH / 100)),
+        distance,
         // Where `arrival` (below) starts counting from: one viewport height
         // *before* start, i.e. the scroll position at which this section's
         // own top edge first touches the *bottom* of the screen — the same
@@ -2553,7 +2695,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
         // How much scroll the pan to the second showcase page (see
         // panProgress below) spends, once the chat's own `distance` above
         // has already been used up — see EXAMS_SLIDE_VH's own comment.
-        panDistance: Math.max(1, window.innerHeight * (EXAMS_SLIDE_VH / 100)),
+        panDistance,
         // drpIntroProgress/hoverProgress/revealProgress's own windows —
         // each starting exactly where the one before it finishes, same
         // chained handoff panDistance itself already follows on from distance.
@@ -2562,6 +2704,10 @@ function usePinnedProgress(sectionRef, carouselRef) {
         revealDistance: Math.max(1, window.innerHeight * (REVEAL_VH / 100)),
         plannerDistance: Math.max(1, window.innerHeight * (PLANNER_SLIDE_VH / 100)),
       }
+      setDetent?.({
+        threshold: introScroll,
+        active: true,
+      })
     }
     measure()
     window.addEventListener('resize', measure)
@@ -2581,8 +2727,9 @@ function usePinnedProgress(sectionRef, carouselRef) {
     return () => {
       window.removeEventListener('resize', measure)
       observer?.disconnect()
+      setDetent?.(null)
     }
-  }, [sectionRef, carouselRef])
+  }, [sectionRef, carouselRef, setDetent])
 
   const progress = useTransform(scrollY, (latest) => {
     const { start, distance } = rangeRef.current
@@ -2702,10 +2849,10 @@ function usePinnedProgress(sectionRef, carouselRef) {
   }
 }
 
-export function BackgroundGlowSection({ carouselRef, onDrpActiveChange }) {
+export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent }) {
   const sectionRef = useRef(null)
   const { progress, progressRef, arrival, panProgress, panProgressRef, drpIntroProgressRef, hoverProgressRef, revealProgressRef, plannerProgressRef } =
-    usePinnedProgress(sectionRef, carouselRef)
+    usePinnedProgress(sectionRef, carouselRef, setDetent)
 
   useEffect(() => {
     if (!onDrpActiveChange) return

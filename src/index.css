@@ -174,6 +174,30 @@ body {
   }
 }
 
+/* Gentle up-and-down bobbing animation for the Intro "Scroll to Explore ↓" indicator */
+@keyframes introArrowBob {
+  0%,
+  100% {
+    transform: translateY(-1.4px);
+  }
+  50% {
+    transform: translateY(0px);
+  }
+}
+
+.intro-arrow-bob {
+  display: inline-block;
+  will-change: transform;
+  animation: introArrowBob 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-arrow-bob {
+    animation: none;
+    transform: translateY(-0.8px);
+  }
+}
+
 .bg-grid {
   background-color: #000;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Cline x1='64' y1='0' x2='64' y2='128' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3Cline x1='0' y1='64' x2='128' y2='64' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3Cline x1='59' y1='64' x2='69' y2='64' stroke='rgba(255,255,255,0.16)' stroke-width='1.5'/%3E%3Cline x1='64' y1='59' x2='64' y2='69' stroke='rgba(255,255,255,0.16)' stroke-width='1.5'/%3E%3C/svg%3E");

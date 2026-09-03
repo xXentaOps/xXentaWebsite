@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import Lenis from 'lenis'
+import { createScrollDetent } from './scrollDetent'
 
 // Keys that scroll the page natively — needed because Lenis's own stop()
 // only intercepts wheel/touch input (it registers no keydown listener at
@@ -46,12 +47,20 @@ export const SCROLL_LERP = 0.075
 
 export function useLenis(locked = false, isForceScrollingRef) {
   const lenisRef = useRef(null)
+  const scrollDetentRef = useRef(createScrollDetent())
 
   useEffect(() => {
     // See SCROLL_LERP — passed here, not just to the scrollTo calls below,
     // so a visitor's own wheel scrolling carries the same weight as every
     // scroll this file performs on their behalf.
-    const lenis = new Lenis({ lerp: SCROLL_LERP })
+    function handleVirtualScroll(data) {
+      const lenis = lenisRef.current
+      const currentScroll = lenis?.animatedScroll ?? window.scrollY
+      const targetScroll = lenis?.targetScroll ?? currentScroll
+      return scrollDetentRef.current.handleVirtualScroll(data, currentScroll, targetScroll)
+    }
+
+    const lenis = new Lenis({ lerp: SCROLL_LERP, virtualScroll: handleVirtualScroll })
     lenisRef.current = lenis
 
     function raf(time) {
@@ -112,6 +121,18 @@ export function useLenis(locked = false, isForceScrollingRef) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [locked])
 
+  useEffect(() => {
+    function onKeyDown(event) {
+      const currentScroll = lenisRef.current?.animatedScroll ?? window.scrollY
+      scrollDetentRef.current.handleKeyDown(event, currentScroll, (target) => {
+        lenisRef.current?.scrollTo(target, { lerp: SCROLL_LERP })
+      })
+    }
+
+    window.addEventListener('keydown', onKeyDown, { passive: false })
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   // General-purpose smooth scroll for callers outside the locked/forced
   // mechanism above — currently just the xXenta logo (see onLogoClick in
   // GlassLogoPreview), which needs to animate back to the hero on demand
@@ -151,5 +172,17 @@ export function useLenis(locked = false, isForceScrollingRef) {
   // open About Us.
   const getTargetScroll = useCallback(() => lenisRef.current?.targetScroll ?? window.scrollY, [])
 
-  return { scrollTo, resize, getTargetScroll }
+  // Allows sticky sections (such as BackgroundGlowSection's DRP Showcase Introduction)
+  // to register an intentional stopping point. Any continuous scrolling or momentum
+  // originating from above halts cleanly at the threshold, requiring a separate,
+  // intentional downward scroll gesture to unlatch and proceed.
+  const setDetent = useCallback((config) => {
+    scrollDetentRef.current.setConfig(config ? {
+      ...config,
+      currentScroll: lenisRef.current?.targetScroll ?? window.scrollY,
+    } : null)
+  }, [])
+
+  return { scrollTo, resize, getTargetScroll, setDetent }
 }
+
