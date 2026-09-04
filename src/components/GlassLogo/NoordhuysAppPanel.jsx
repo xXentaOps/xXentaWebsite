@@ -234,7 +234,7 @@ export function NoordhuysAppPanel() {
       >
         {/* Card 1: Training */}
         <div
-          className="absolute group transition-transform duration-300 hover:translate-y-[-2px] cursor-pointer"
+          className="absolute group origin-center transition-transform duration-300 ease-out hover:scale-[1.04] hover:z-10 cursor-pointer"
           style={{
             width: 192,
             height: 152.33,
@@ -245,6 +245,7 @@ export function NoordhuysAppPanel() {
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             overflow: 'hidden',
+            transformOrigin: 'center center',
           }}
         >
           <img
@@ -302,7 +303,7 @@ export function NoordhuysAppPanel() {
 
         {/* Card 2: Translator */}
         <div
-          className="absolute group transition-transform duration-300 hover:translate-y-[-2px] cursor-pointer"
+          className="absolute group origin-center transition-transform duration-300 ease-out hover:scale-[1.04] hover:z-10 cursor-pointer"
           style={{
             width: 192,
             height: 152.33,
@@ -313,6 +314,7 @@ export function NoordhuysAppPanel() {
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             overflow: 'hidden',
+            transformOrigin: 'center center',
           }}
         >
           <img
@@ -368,7 +370,7 @@ export function NoordhuysAppPanel() {
 
         {/* Card 3: Messages */}
         <div
-          className="absolute group transition-transform duration-300 hover:translate-y-[-2px] cursor-pointer"
+          className="absolute group origin-center transition-transform duration-300 ease-out hover:scale-[1.04] hover:z-10 cursor-pointer"
           style={{
             width: 192,
             height: 152.33,
@@ -379,6 +381,7 @@ export function NoordhuysAppPanel() {
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             overflow: 'hidden',
+            transformOrigin: 'center center',
           }}
         >
           <img
@@ -434,7 +437,7 @@ export function NoordhuysAppPanel() {
 
         {/* Card 4: Schedule */}
         <div
-          className="absolute group transition-transform duration-300 hover:translate-y-[-2px] cursor-pointer"
+          className="absolute group origin-center transition-transform duration-300 ease-out hover:scale-[1.04] hover:z-10 cursor-pointer"
           style={{
             width: 192,
             height: 152.33,
@@ -445,6 +448,7 @@ export function NoordhuysAppPanel() {
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
             overflow: 'hidden',
+            transformOrigin: 'center center',
           }}
         >
           <img

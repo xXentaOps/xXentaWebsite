@@ -136,7 +136,16 @@ const EDGE_ANGRY = new Color(SCENE_BACKDROP_ANGRY)
 const EDGE_DRP = new Color(SCENE_BACKDROP_DRP)
 const EDGE_DRP_BRIGHT = new Color(SCENE_BACKDROP_DRP_BRIGHT)
 
-export function GradientBlob({ position, scale, dimRef, angryRef, drpRef, revealRef }) {
+export function GradientBlob({
+  position,
+  scale,
+  dimRef,
+  angryRef,
+  drpRef,
+  revealRef,
+  centerColorRef,
+  edgeColorRef,
+}) {
   const materialRef = useRef(null)
   // Set on this blob's own first frame — same one-time-only entrance
   // pattern used throughout this piece (see GlassLogoGroup/HeroTitle/
@@ -151,6 +160,14 @@ export function GradientBlob({ position, scale, dimRef, angryRef, drpRef, reveal
     if (entranceStartRef.current === null) entranceStartRef.current = state.clock.elapsedTime
     const t = Math.min((state.clock.elapsedTime - entranceStartRef.current) / ENTRANCE_DURATION, 1)
     material.uEntranceProgress = smoothstepEase(t)
+
+    // Optional dynamic color overrides (e.g. Noordhuys Showcase theme transition)
+    if (centerColorRef?.current) {
+      material.uniforms.uColorCenter.value.copy(centerColorRef.current)
+    }
+    if (edgeColorRef?.current) {
+      material.uniforms.uColorEdge.value.copy(edgeColorRef.current)
+    }
 
     // Optional, and absent for every caller but the chat showcase's own
     // backdrop: three independent 0..1 moods, each draining the glow and the

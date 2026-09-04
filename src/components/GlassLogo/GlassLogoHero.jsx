@@ -162,6 +162,7 @@ export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScr
           onActiveIndexChange={handleActiveIndexChange}
           onScrollLockChange={onScrollLockChange}
           isForceScrollingRef={isForceScrollingRef}
+          activeIndex={activeIndex}
         />
         <Suspense fallback={null}>
           <HeroTitle targetSize={targetSize} highQuality={tier === 'high'} activeIndex={activeIndex} isHeroVisibleRef={isHeroVisibleRef} />

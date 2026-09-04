@@ -62,6 +62,7 @@ export function useLenis(locked = false, isForceScrollingRef) {
 
     const lenis = new Lenis({ lerp: SCROLL_LERP, virtualScroll: handleVirtualScroll })
     lenisRef.current = lenis
+    if (typeof window !== 'undefined') window.__lenis = lenis
 
     function raf(time) {
       lenis.raf(time)
@@ -69,7 +70,10 @@ export function useLenis(locked = false, isForceScrollingRef) {
     }
     requestAnimationFrame(raf)
 
-    return () => lenis.destroy()
+    return () => {
+      if (typeof window !== 'undefined') delete window.__lenis
+      lenis.destroy()
+    }
   }, [])
 
   useEffect(() => {

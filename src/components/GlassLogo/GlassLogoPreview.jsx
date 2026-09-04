@@ -28,7 +28,17 @@ export default function GlassLogoPreview() {
   // while it's selected. See onScrollLockChange in GlassLogoHero for how
   // that state actually gets here.
   const [scrollLocked, setScrollLocked] = useState(false)
-  const [activeCategoryIndex, setActiveCategoryIndex] = useState(0)
+  const [activeCategoryIndex, setActiveCategoryIndex] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const cat = params.get('category')
+      if (cat !== null) {
+        const parsed = parseInt(cat, 10)
+        if (!isNaN(parsed)) return parsed
+      }
+    }
+    return 0
+  })
   // Whether the About Us overlay is showing — a pure visual toggle, not a
   // scroll position. AboutUsSection is a `position: fixed` overlay (see
   // there), not a real section in document flow, so opening/closing it

@@ -553,7 +553,7 @@ const LABEL_START_X_FACTOR = 0.4
 // the interactive area and the label both land precisely on the visible
 // cross regardless of window size — the same "compute once, share" approach
 // that avoided drift everywhere else this piece uses derived layout math.
-export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress }) {
+export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress, activeIndex }) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
   const size = useThree((state) => state.size)
@@ -660,10 +660,15 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     return () => window.removeEventListener('pointermove', onPointerMove)
   }, [])
-  // Starts on "AI for Education" (index 0) rather than nothing selected, so
+  // Starts on activeIndex (or 0) rather than nothing selected, so
   // that label — and the hero title's matching "Learning" — show by
   // default instead of only on interaction.
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [selectedIndex, setSelectedIndex] = useState(activeIndex ?? 0)
+  useEffect(() => {
+    if (activeIndex !== undefined && activeIndex !== selectedIndex) {
+      setSelectedIndex(activeIndex)
+    }
+  }, [activeIndex])
   const visibleIndex = hoveredIndex ?? selectedIndex
 
   // Bubbles the currently-showing button up so the hero title (a sibling
