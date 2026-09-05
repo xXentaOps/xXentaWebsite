@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useLayoutEffect, useRef } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Html, shaderMaterial } from '@react-three/drei'
 import { Canvas, extend, useFrame, useLoader } from '@react-three/fiber'
 import { motion, useScroll, useSpring, useTransform } from 'framer-motion'
@@ -12,6 +12,7 @@ import { GradientBlob } from './GradientBlob'
 import { COURSES, PANEL_DESIGN_WIDTH, SyllabusOverviewPanel } from './SyllabusOverviewPanel'
 import { DRP_INTRO_PANEL_DESIGN_WIDTH, ExamsSyllabiIntroPanel } from './ExamsSyllabiIntroPanel'
 import { AI_IMPACT_PANEL_DESIGN_WIDTH, AiImpactAnalysisPanel } from './AiImpactAnalysisPanel'
+import { SimulationsIntroPanel } from './SimulationsIntroPanel'
 import { XxentaWordmark } from './XxentaWordmark'
 import {
   BLOB_WIDTH_OVERSCALE,
@@ -506,6 +507,8 @@ function safeCellsBelowCenter(preferredCells, safeFraction, gridHeight, finalZoo
 function SeamlessBackdrop({
   carouselRef,
   isVisibleRef,
+  simIntroProgressRef,
+  _simIntroPanelRef,
   pinnedProgressRef,
   panProgressRef,
   drpIntroProgressRef,
@@ -1038,14 +1041,16 @@ function SeamlessBackdrop({
     // whatever the zoom is currently doing — the two compose rather than
     // multiply. Positive Y is up: the page has stopped moving the background
     // for us, so this keeps it going in the direction it was already going,
-    // just far slower than the scroll driving it.
+    // drifting continuously across both the introduction and chat phases.
+    const introProgress = simIntroProgressRef ? simIntroProgressRef.current : 0
     const pinned = pinnedProgressRef.current
-    group.position.y = driftWorld * pinned
+    const totalDrift = (introProgress * 0.45 + pinned * 0.55) * driftWorld
+    group.position.y = totalDrift
     // Mirrored onto the callouts' own group as well, same reason the scale
     // is — see calloutGroupRef's own comment.
-    if (calloutGroupRef.current) calloutGroupRef.current.position.y = driftWorld * pinned
+    if (calloutGroupRef.current) calloutGroupRef.current.position.y = totalDrift
     // ...and onto revealGroupRef too — see its own comment.
-    if (revealGroupRef.current) revealGroupRef.current.position.y = driftWorld * pinned
+    if (revealGroupRef.current) revealGroupRef.current.position.y = totalDrift
 
     // gridGroupRef's own slide to the screen's true left edge — the grid and
     // the squares moving together as one rigid unit (see panWorldDistance's
@@ -1106,6 +1111,9 @@ function SeamlessBackdrop({
     if (punchRef.current) punchRef.current.style.opacity = `${(1 - panT) * PUNCH_TEXT_BASE_OPACITY}`
     if (examsPunchRef.current) examsPunchRef.current.style.opacity = `${panT}`
     if (placeholderMeshRef.current) placeholderMeshRef.current.material.opacity = panT
+
+    // Simulation Intro Panel is positioned and animated vertically via Framer Motion
+    // (scrolls up out of view as Floren rises from below).
 
     // Page 0 (ExamsSyllabiIntroPanel) arrives with DRP_1, remains visible during rawIntro < 0.15,
     // then smoothly slides left behind the grid section on the left while Page 1 (SyllabusOverviewPanel)
@@ -2083,10 +2091,11 @@ function SeamlessBackdrop({
     // left it in its own group, on screen, unfaded, once that stopped
     // sliding with the squares.
     const calloutPanFade = 1 - MathUtils.clamp(panProgressRef.current / PAN_FADE_END, 0, 1)
+    const simIntroChatT = smoothstepEase(MathUtils.clamp(((simIntroProgressRef ? simIntroProgressRef.current : 1) - 0.70) / 0.30, 0, 1))
     CALLOUTS.forEach((callout, i) => {
       const enter = i === 0 ? 1 : swapTs[i - 1]
       const exit = i === CALLOUTS.length - 1 ? 0 : swapTs[i]
-      const rawOpacity = (enter - exit) * calloutPanFade
+      const rawOpacity = (enter - exit) * calloutPanFade * simIntroChatT
       const opacity = Number.isFinite(rawOpacity) ? MathUtils.clamp(rawOpacity, 0, 1) : 0
       if (calloutRefs[i]) calloutRefs[i].style.opacity = `${opacity}`
     })
@@ -2321,6 +2330,7 @@ function SeamlessBackdrop({
             paint is likely to matter. */}
         <Html
           position={[litSquareRightX, litSquareRowY, GRID_Z + 0.02]}
+          zIndexRange={[0, 0]}
           style={{ transform: `translate(calc(-100% - ${TEXT_RIGHT_MARGIN_PX}px), -50%)`, pointerEvents: 'none' }}
         >
           <div ref={punchRef} className="flex flex-col items-end" style={{ opacity: PUNCH_TEXT_BASE_OPACITY }}>
@@ -2345,6 +2355,7 @@ function SeamlessBackdrop({
             there until the crossfade brings it in. */}
         <Html
           position={[edgeXB, litSquareRowY, GRID_Z + 0.02]}
+          zIndexRange={[0, 0]}
           style={{ transform: `translate(${EXAMS_TEXT_LEFT_MARGIN_PX}px, -50%)`, pointerEvents: 'none' }}
         >
           <div ref={examsPunchRef} className="flex flex-col items-start" style={{ opacity: 0 }}>
@@ -2614,6 +2625,10 @@ function SceneRenderGate({ isVisibleRef }) {
 // rest — CHAT_SCROLL_VH, derived from the script itself rather than picked —
 // is scroll spent standing still while the chat plays out.
 const INTRO_VH = 100
+// Scroll spent exploring the Simulation App Introduction (value proposition & The Science of Retention)
+// before transitioning into the interactive trauma bay chat simulation. Dynamically matches
+// the intro wrapper height so scrolling between intro and chat is 1:1 with normal page scroll.
+const SIM_INTRO_VH = 75
 // Named pages, for anything below that has to talk about one or the other:
 // "Floren Showcase" is the chat itself (CHAT_SCROLL_VH's own scroll room,
 // SIM_TEXT's own "Simulations" lockup); "DRP Showcase" is what the pan below
@@ -2647,7 +2662,8 @@ const HOVER_VH = 140
 // already uses.
 const REVEAL_VH = 560
 const PLANNER_SLIDE_VH = 560
-const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + DRP_INTRO_VH + HOVER_VH + REVEAL_VH + PLANNER_SLIDE_VH
+const SECTION_VH = INTRO_VH + SIM_INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + DRP_INTRO_VH + HOVER_VH + REVEAL_VH + PLANNER_SLIDE_VH
+const SIM_INTRO_RISE_PX = 32
 
 // 0 the instant the sticky stage pins (this section's top reaching the top of
 // the screen, which is also the exact moment the grid zoom and the callout
@@ -2660,7 +2676,7 @@ const SECTION_VH = INTRO_VH + CHAT_SCROLL_VH + EXAMS_SLIDE_VH + DRP_INTRO_VH + H
 // child, and put its window in the wrong place badly enough to need a live
 // debug overlay to find — see that file's own note. Arithmetic against one
 // measured number is a thing that can be reasoned about from the outside.
-function usePinnedProgress(sectionRef, carouselRef, setDetent) {
+function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) {
   const { scrollY } = useScroll()
 
   // Measured on mount and whenever anything could have moved this section,
@@ -2668,17 +2684,22 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent) {
   // transform below. getBoundingClientRect forces a synchronous layout
   // reflow, and doing that on every scroll frame is exactly the main-thread
   // (see SiteFooter's dimsRef for the longer version of this same argument).
-  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0, panDistance: 1, drpIntroDistance: 1, hoverDistance: 1, revealDistance: 1, plannerDistance: 1 })
+  const rangeRef = useRef({ start: 0, simIntroDistance: 1, distance: 1, arrivalStart: 0, panDistance: 1, drpIntroDistance: 1, hoverDistance: 1, revealDistance: 1, plannerDistance: 1 })
   useLayoutEffect(() => {
     const section = sectionRef.current
     if (!section) return
     function measure() {
       const start = section.getBoundingClientRect().top + window.scrollY
+      const introEl = introWrapperRef?.current
+      const dock = introEl?.offsetHeight || Math.round(window.innerHeight * (SIM_INTRO_VH / 100))
+      // 1:1 speed with page scroll: travel distance equals the physical height of the intro section
+      const simIntroDistance = Math.max(1, dock)
       const distance = Math.max(1, window.innerHeight * (CHAT_SCROLL_VH / 100))
       const panDistance = Math.max(1, window.innerHeight * (EXAMS_SLIDE_VH / 100))
-      const introScroll = start + distance + panDistance
+      const introScroll = start + simIntroDistance + distance + panDistance
       rangeRef.current = {
         start,
+        simIntroDistance,
         // The sticky stage is one screen tall inside a section SECTION_VH
         // tall, so it stays pinned for exactly the difference — which is
         // CHAT_SCROLL_VH, by construction.
@@ -2724,16 +2745,26 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent) {
     const carousel = carouselRef?.current
     const observer = carousel ? new ResizeObserver(measure) : null
     if (carousel) observer.observe(carousel)
+    const introEl = introWrapperRef?.current
+    const introObserver = introEl ? new ResizeObserver(measure) : null
+    if (introEl) introObserver.observe(introEl)
     return () => {
       window.removeEventListener('resize', measure)
       observer?.disconnect()
+      introObserver?.disconnect()
       setDetent?.(null)
     }
-  }, [sectionRef, carouselRef, setDetent])
+  }, [sectionRef, carouselRef, setDetent, introWrapperRef])
+
+  // Simulation App Intro explore progress
+  const simIntroProgress = useTransform(scrollY, (latest) => {
+    const { start, simIntroDistance } = rangeRef.current
+    return MathUtils.clamp((latest - start) / simIntroDistance, 0, 1)
+  })
 
   const progress = useTransform(scrollY, (latest) => {
-    const { start, distance } = rangeRef.current
-    return MathUtils.clamp((latest - start) / distance, 0, 1)
+    const { start, simIntroDistance, distance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + simIntroDistance)) / distance, 0, 1)
   })
 
   // 0 the instant this section's own top touches the *bottom* of the screen
@@ -2757,14 +2788,14 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent) {
   // then hands off" shape the chat's own arrival→progress handoff already
   // has.
   const panProgress = useTransform(scrollY, (latest) => {
-    const { start, distance, panDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + distance)) / panDistance, 0, 1)
+    const { start, simIntroDistance, distance, panDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + simIntroDistance + distance)) / panDistance, 0, 1)
   })
 
   // Page 0 Intro pitch & statistics explore window
   const drpIntroProgress = useTransform(scrollY, (latest) => {
-    const { start, distance, panDistance, drpIntroDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + distance + panDistance)) / drpIntroDistance, 0, 1)
+    const { start, simIntroDistance, distance, panDistance, drpIntroDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + simIntroDistance + distance + panDistance)) / drpIntroDistance, 0, 1)
   })
 
   // 0 until drpIntroProgress itself has finished (Page 0 has handed off to
@@ -2772,27 +2803,34 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent) {
   // Chained the same way panProgress chains off `distance`: each phase's
   // window starts exactly where the one before it ends.
   const hoverProgress = useTransform(scrollY, (latest) => {
-    const { start, distance, panDistance, drpIntroDistance, hoverDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + distance + panDistance + drpIntroDistance)) / hoverDistance, 0, 1)
+    const { start, simIntroDistance, distance, panDistance, drpIntroDistance, hoverDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance)) / hoverDistance, 0, 1)
   })
 
   // 0 until hoverProgress itself has finished, then 1 - 0 across
   // revealDistance — see REVEAL_VH's own comment.
   const revealProgress = useTransform(scrollY, (latest) => {
-    const { start, distance, panDistance, drpIntroDistance, hoverDistance, revealDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + distance + panDistance + drpIntroDistance + hoverDistance)) / revealDistance, 0, 1)
+    const { start, simIntroDistance, distance, panDistance, drpIntroDistance, hoverDistance, revealDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance + hoverDistance)) / revealDistance, 0, 1)
   })
 
   // 0 until revealProgress itself has finished, then 1 - 0 across
   // plannerDistance.
   const plannerProgress = useTransform(scrollY, (latest) => {
-    const { start, distance, panDistance, drpIntroDistance, hoverDistance, revealDistance, plannerDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + distance + panDistance + drpIntroDistance + hoverDistance + revealDistance)) / plannerDistance, 0, 1)
+    const { start, simIntroDistance, distance, panDistance, drpIntroDistance, hoverDistance, revealDistance, plannerDistance } = rangeRef.current
+    return MathUtils.clamp((latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance + hoverDistance + revealDistance)) / plannerDistance, 0, 1)
   })
 
   // The same numbers again, as plain refs, for the WebGL side — useFrame runs
   // outside React and wants a property read, not a subscription. One source,
   // two readers each, rather than two independent copies of the arithmetic.
+  const simIntroProgressRef = useRef(0)
+  useEffect(() => {
+    simIntroProgressRef.current = simIntroProgress.get()
+    return simIntroProgress.on('change', (value) => {
+      simIntroProgressRef.current = value
+    })
+  }, [simIntroProgress])
   const progressRef = useRef(0)
   useEffect(() => {
     progressRef.current = progress.get()
@@ -2837,6 +2875,8 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent) {
   }, [plannerProgress])
 
   return {
+    simIntroProgress,
+    simIntroProgressRef,
     progress,
     progressRef,
     arrival,
@@ -2851,8 +2891,23 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent) {
 
 export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent }) {
   const sectionRef = useRef(null)
-  const { progress, progressRef, arrival, panProgress, panProgressRef, drpIntroProgressRef, hoverProgressRef, revealProgressRef, plannerProgressRef } =
-    usePinnedProgress(sectionRef, carouselRef, setDetent)
+  const simIntroPanelRef = useRef(null)
+  const introWrapperRef = useRef(null)
+  const chatContainerRef = useRef(null)
+  const [dockDistance, setDockDistance] = useState(760)
+  const {
+    simIntroProgress,
+    simIntroProgressRef,
+    progress,
+    progressRef,
+    arrival,
+    panProgress,
+    panProgressRef,
+    drpIntroProgressRef,
+    hoverProgressRef,
+    revealProgressRef,
+    plannerProgressRef,
+  } = usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef)
 
   useEffect(() => {
     if (!onDrpActiveChange) return
@@ -2922,6 +2977,39 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
   // CSS itself has no way to add to the catch.
   const stageScale = useSpring(useTransform(arrival, [0, 1], [STAGE_SETTLE_SCALE, 1]), STAGE_SETTLE_SPRING)
 
+  // Simulation Intro Panel arrival (slides up gently as section reaches top of screen)
+  const simIntroArrivalOpacity = useTransform(arrival, [0.2, 1], [0, 1])
+  const simIntroArrivalY = useTransform(arrival, [0.2, 1], [SIM_INTRO_RISE_PX, 0])
+
+  useLayoutEffect(() => {
+    const el = chatContainerRef.current
+    const introEl = introWrapperRef.current
+    if (!el && !introEl) return
+    const update = () => {
+      if (introEl?.offsetHeight) {
+        setDockDistance(introEl.offsetHeight)
+      } else if (el?.offsetTop) {
+        setDockDistance(el.offsetTop)
+      }
+    }
+    update()
+    window.addEventListener('resize', update)
+    const ro = new ResizeObserver(update)
+    if (el?.parentElement) {
+      ro.observe(el.parentElement)
+    }
+    return () => {
+      window.removeEventListener('resize', update)
+      ro.disconnect()
+    }
+  }, [])
+
+  // Continuous unified scroll:
+  // Row 1 and Row 2 of the Introduction section scroll upward, and immediately
+  // below Row 2, the Floren Showcase app scrolls into view, docking perfectly
+  // in the center of the viewport at simIntroProgress = 1.
+  const unifiedScrollY = useTransform(simIntroProgress, [0, 1], [0, -dockDistance])
+
   // The chat UI has no idea the pan exists — left alone, it would still be
   // sitting fully opaque over the whole stage for the entire pan, hiding the
   // second page it's supposed to be revealing. Faded out over the pan's own
@@ -2960,6 +3048,8 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
           <SeamlessBackdrop
             carouselRef={carouselRef}
             isVisibleRef={isVisibleRef}
+            simIntroProgressRef={simIntroProgressRef}
+            simIntroPanelRef={simIntroPanelRef}
             pinnedProgressRef={progressRef}
             panProgressRef={panProgressRef}
             drpIntroProgressRef={drpIntroProgressRef}
@@ -2971,16 +3061,39 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
           />
           <SceneRenderGate isVisibleRef={isVisibleRef} />
         </Canvas>
-        {/* Plain DOM over the canvas rather than more drei Html: this is a
-            text-heavy interface with real wrapping, masks and hairlines, and
-            nothing about it wants to be in the 3D scene. It sits after the
-            Canvas in tree order, so it paints over both the grid and the
-            callout's own Html without needing a z-index. Wrapped here rather
-            than opacity going straight on ChatShowcase's own root, so this
-            component doesn't need to know the pan exists at all — see
-            chatOpacity's own comment. */}
-        <motion.div style={{ opacity: chatOpacity }}>
-          <ChatShowcase progress={progress} arrival={arrival} />
+
+        {/* Unified Introduction & Floren Showcase Chat Overlay */}
+        <motion.div
+          className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-start"
+          style={{
+            opacity: simIntroArrivalOpacity,
+            y: simIntroArrivalY,
+          }}
+        >
+          <motion.div
+            style={{
+              width: '100%',
+              y: unifiedScrollY,
+              opacity: chatOpacity,
+              pointerEvents: 'auto',
+            }}
+          >
+            {/* Step 1: Introduction Section (Hero + Retention Card + Scenario Engine Card) */}
+            <div
+              ref={introWrapperRef}
+              style={{ paddingTop: 'clamp(92px, 11vh, 132px)' }}
+            >
+              <SimulationsIntroPanel ref={simIntroPanelRef} />
+            </div>
+
+            {/* Step 2: Floren Showcase Trauma Bay App (flows directly beneath the last card) */}
+            <div
+              ref={chatContainerRef}
+              className="relative flex h-screen w-full justify-center"
+            >
+              <ChatShowcase progress={progress} />
+            </div>
+          </motion.div>
         </motion.div>
       </motion.div>
     </section>

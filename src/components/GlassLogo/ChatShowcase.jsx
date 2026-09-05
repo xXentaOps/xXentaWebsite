@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { motion, useTransform } from 'framer-motion'
+import { easeOut, motion, useTransform } from 'framer-motion'
 import { AlertDot, ChatAvatar, LockIcon, MicrophoneIcon, RoomPulseIcon } from './ChatIcons'
 import {
   CHANNEL_ORDER,
@@ -16,7 +16,6 @@ import {
   chatInstructionsFadeAt,
   chatPrivateAt,
   chatSelectionAt,
-  easeOut,
   windowProgress,
 } from './chatShowcaseScript'
 import { PAGE_MARGIN_VH } from './pageMargin'
@@ -190,10 +189,7 @@ const LINE_HEIGHT_PX = 22.8
 const CAPTION_LINE_HEIGHT_PX = 19.5
 const CAPTION_TRACKING_PX = 0.32
 
-// How far the whole frame rises into place across its own arrival (see
-// `arrival` in ChatShowcase).
-const ENTRY_RISE_PX = 28
-// ...and how far the brief itself rises as it's crowded out — smaller, since
+// How far the brief itself rises as it's crowded out — smaller, since
 // this is a subtle "give way" rather than an arrival.
 const INSTRUCTIONS_EXIT_RISE_PX = 16
 
@@ -711,40 +707,15 @@ function InputBar({ progress }) {
   )
 }
 
-export function ChatShowcase({ progress, arrival }) {
+export function ChatShowcase({ progress }) {
   const selection = useTransform(progress, chatSelectionAt)
-
-  // The frame's own arrival — two things were tried before this and both
-  // read wrong. Tying it to `progress` (the *pinned* progress) left it
-  // invisible for the entire scroll while this section is still rising into
-  // view from below the fold, since that's what `progress` staying at 0
-  // means (see usePinnedProgress) — the chat then snapped in all at once
-  // only once the section had already fully arrived, correct on paper but
-  // static and sudden on screen. Dropping the scroll-tie entirely, in favour
-  // of a plain mount-time CSS entrance (matching the callout beside it,
-  // which never had this problem, its own opacity never having been gated on
-  // `progress` at all), fixed "shows up too late" but overcorrected into
-  // "doesn't animate on scroll at all" — already fully resolved by the time
-  // scrolling brought it into view, which read as static for a different
-  // reason.
-  //
-  // `arrival` is what both of those were reaching for: it starts counting
-  // the moment this section's own top edge touches the *bottom* of the
-  // screen — while it's still entirely below the fold — and reaches 1
-  // exactly where `progress` itself starts, so the two hand off with no gap
-  // and no overlap. The frame now genuinely rises and fades in step with the
-  // scroll that's bringing it into view, the same "already moving by the
-  // time any of it is visible" idea SeamlessBackdrop's own carousel-driven
-  // zoom already uses one section up.
-  const entry = useTransform(arrival, easeOut)
-  const y = useTransform(entry, [0, 1], [ENTRY_RISE_PX, 0])
 
   return (
     // pointer-events-none throughout: this is a scroll-driven illustration,
     // not a working chat, and the page it sits on has wheel-gesture machinery
     // (see GlassLogoPreview) that nothing here should ever be able to
     // intercept.
-    <motion.div className="pointer-events-none absolute inset-0 flex justify-center" style={{ opacity: entry, y }}>
+    <div className="pointer-events-none relative flex h-full w-full justify-center">
       <div
         className="flex h-full flex-col"
         style={{
@@ -769,7 +740,7 @@ export function ChatShowcase({ progress, arrival }) {
         <ChannelStatus progress={progress} />
         <InputBar progress={progress} />
       </div>
-    </motion.div>
+    </div>
   )
 }
 

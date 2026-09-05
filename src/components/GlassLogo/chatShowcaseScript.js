@@ -180,9 +180,8 @@ export const CHAT_SCRIPT = [
 // message makes the section longer rather than squeezing every other message
 // into less scroll.
 
-// Scroll spent before the first message, while the chat frame itself fades in
-// and the placeholder callout it replaces fades out.
-const ENTRY_UNITS = 0.55
+// Scroll spent before the first message begins typing once the chat has docked.
+const ENTRY_UNITS = 0.08
 // ...and after the last one, so the finished case gets a moment to be read
 // before the section unpins and scrolls away.
 const EXIT_UNITS = 0.9
