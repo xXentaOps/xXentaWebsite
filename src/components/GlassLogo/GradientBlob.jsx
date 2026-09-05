@@ -69,26 +69,20 @@ const GradientBlobMaterial = shaderMaterial(
       // Very small, high-frequency perturbations only — this should read
       // as essentially circular with the faintest organic irregularity,
       // not a lobed/scalloped blob.
+      // Subtle organic perturbation — kept gentle to prevent rippling wave-fronts
       float wobble = 0.0;
-      wobble += sin(angle * 4.0 + uTime * 0.10) * 0.02;
-      wobble += sin(angle * 6.0 - uTime * 0.15) * 0.015;
+      wobble += sin(angle * 4.0 + uTime * 0.08) * 0.012;
+      wobble += sin(angle * 6.0 - uTime * 0.12) * 0.008;
 
-      // Pushed out from 0.65 — lets the glow spread over a wider area
-      // before fading out completely, rather than being contained to a
-      // tighter core.
       float edge = 0.85 + wobble;
-      // A wide gap between core and edge (rather than glow peaking at a
-      // single point, or cutting off sharply) makes the falloff gradual so
-      // it blends smoothly into the navy background instead of reading as
-      // a distinct shape with a visible boundary.
-      float core = 0.12;
-      float falloff = 1.0 - smoothstep(core, edge, radius);
-      // Raising the linear falloff to a power thins out the outer layers
-      // specifically — values already close to 1 (near the core) barely
-      // move, while the partial, fractional values further out (the
-      // "outer layers") get pushed down much more, reading as sparser and
-      // more transparent even though the glow now reaches further overall.
-      float glow = pow(falloff, 1.8) * 0.5;
+      float core = 0.08;
+      float t = clamp((radius - core) / max(edge - core, 0.0001), 0.0, 1.0);
+      // Ken Perlin's smootherstep (C2 continuous: zero 1st and 2nd derivatives at boundaries)
+      // Completely eliminates perceptual inflection rings / Mach banding at the edge
+      float smoother = t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+      float falloff = clamp(1.0 - smoother, 0.0, 1.0);
+      // Guard pow against infinitesimally zero/negative inputs that trigger GPU driver NaNs
+      float glow = (falloff > 0.0001) ? pow(falloff, 1.6) * 0.5 : 0.0;
       vec3 color = mix(uColorEdge, uColorCenter, glow);
       // See uEntranceProgress above — blending the *result* back toward
       // uColorEdge (rather than, say, scaling glow itself down to 0) is
@@ -104,6 +98,20 @@ const GradientBlobMaterial = shaderMaterial(
 
       gl_FragColor = vec4(color, 1.0);
       #include <colorspace_fragment>
+
+      // Screen-space high-frequency dithering (TPDF with Interleaved Gradient Noise)
+      // Completely eliminates 8-bit color quantization banding and concentric rings
+      vec2 screenCoord = gl_FragCoord.xy;
+      float r1 = fract(52.9829189 * fract(dot(screenCoord, vec2(0.06711056, 0.00583715))));
+      float r2 = fract(52.9829189 * fract(dot(screenCoord + vec2(17.3, 31.7), vec2(0.06711056, 0.00583715))));
+      float r3 = fract(52.9829189 * fract(dot(screenCoord + vec2(43.9, 79.1), vec2(0.06711056, 0.00583715))));
+      float r4 = fract(52.9829189 * fract(dot(screenCoord + vec2(89.3, 11.3), vec2(0.06711056, 0.00583715))));
+      vec3 dither = vec3(
+        r1 + r2 - 1.0,
+        r2 + r3 - 1.0,
+        r3 + r4 - 1.0
+      ) * (1.25 / 255.0);
+      gl_FragColor.rgb = clamp(gl_FragColor.rgb + dither, 0.0, 1.0);
     }
   `,
 )

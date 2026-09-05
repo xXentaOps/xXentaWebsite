@@ -91,11 +91,11 @@ const ENTRY_RISE_PX = 80
 
 const BLOB_CENTER_BLUE = new Color(BLOB_CENTER)
 const SCENE_BACKDROP_NAVY = new Color(SCENE_BACKDROP)
-const NOORDHUYS_GLOW_GREEN = new Color('#2d4f3a')
+const NOORDHUYS_GLOW_GREEN = new Color('#355f45')
 const NOORDHUYS_BACKDROP_DARK = new Color('#0d1610')
 
 // ChoXPro dark grey scheme sharing the exact hue (225°) and saturation (11%) of ChoXPro (#2F323B)
-const CHOXPRO_GLOW_GREY = new Color('#2b2e36')
+const CHOXPRO_GLOW_GREY = new Color('#363a44')
 const CHOXPRO_BACKDROP_DARK = new Color('#090a0c')
 const SQUARE_GREY = new Color('#9fa3b0')
 
