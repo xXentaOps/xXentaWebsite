@@ -20,6 +20,7 @@ import { NoordhuysAppPanel } from './NoordhuysAppPanel'
 import { NoordhuysVideoContainer } from './NoordhuysVideoContainer'
 import { NoordhuysEmblem } from './NoordhuysEmblem'
 import { XxentaWordmark } from './XxentaWordmark'
+import { WeeklyPlanningDashboard } from './WeeklyPlanningDashboard'
 
 const GridGlowMaterial = shaderMaterial(
   { uOpacity: 0.05, uColor: new Color('#6CA1F8') },
@@ -60,6 +61,10 @@ function easeOutQuad(t) {
   return t * (2 - t)
 }
 
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+
 // ============================================================================
 // SAVED CALLOUT CONFIGURATION (Preserved for reuse per user directive)
 // ============================================================================
@@ -77,7 +82,10 @@ const STAGE_SETTLE_SCALE = 0.985
 const STAGE_SETTLE_SPRING = { stiffness: 180, damping: 28, mass: 0.6 }
 
 const INTRO_VH = 100
-const SHOWCASE_SCROLL_VH = 160
+const MOBILE_STAY_VH = 320
+const TRANSITION_VH = 380
+const PLANNING_STAY_VH = 320
+const SHOWCASE_SCROLL_VH = MOBILE_STAY_VH + TRANSITION_VH + PLANNING_STAY_VH
 const SECTION_VH = INTRO_VH + SHOWCASE_SCROLL_VH
 const ENTRY_RISE_PX = 80
 
@@ -86,11 +94,30 @@ const SCENE_BACKDROP_NAVY = new Color(SCENE_BACKDROP)
 const NOORDHUYS_GLOW_GREEN = new Color('#2d4f3a')
 const NOORDHUYS_BACKDROP_DARK = new Color('#0d1610')
 
+// ChoXPro dark grey scheme sharing the exact hue (225°) and saturation (11%) of ChoXPro (#2F323B)
+const CHOXPRO_GLOW_GREY = new Color('#2b2e36')
+const CHOXPRO_BACKDROP_DARK = new Color('#090a0c')
+const SQUARE_GREY = new Color('#9fa3b0')
+
+// Transition triggers when moving from Noordhuys to ChoXPro
+const TRANSITION_START = MOBILE_STAY_VH / SHOWCASE_SCROLL_VH
+const TRANSITION_END = (MOBILE_STAY_VH + TRANSITION_VH) / SHOWCASE_SCROLL_VH
+const CHOX_COLOR_TRIGGER_START = TRANSITION_START
+const CHOX_COLOR_TRIGGER_END = TRANSITION_END
+
+// Reusable scratch colors to prevent allocations inside useFrame
+const tempCenterColor = new Color()
+const tempEdgeColor = new Color()
+const tempSquareColor = new Color()
+
+const CHOX_DESIGN_WIDTH = 1160
+const CHOX_DESIGN_HEIGHT = 810
+
 // Trigger later into scrolling as the showcase reveals into view
 const COLOR_TRIGGER_START = 0.40
 const COLOR_TRIGGER_END = 0.80
 
-function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, designRef, sectionRef, emblemRef }) {
+function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, designRef, sectionRef, emblemRef, choxRef }) {
   const { size, blobWidth, blobHeight, gridWidth, gridHeight, cellSize, repeat, yPhaseShiftCells, blobY } = useSeamlessGrid(1)
   const blobMeshHeight = Math.max(PLANE_SIZE * 1.6, blobHeight * 2.5)
   const gridGroupRef = useRef(null)
@@ -103,6 +130,7 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
   const edgeColorRef = useRef(new Color(SCENE_BACKDROP))
   const squareColorRef = useRef(new Color(SQUARE_LIT))
   const colorProgressRef = useRef(0)
+  const choxColorProgressRef = useRef(0)
 
   const edgeX = -(gridWidth * OVERSCALE) / 2 + EDGE_COLUMN_FROM_LEFT * cellSize
 
@@ -146,8 +174,24 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
     const targetColorT = smoothstepEase(rawColorT)
     colorProgressRef.current = MathUtils.damp(colorProgressRef.current, targetColorT, 8, delta)
 
-    centerColorRef.current.lerpColors(BLOB_CENTER_BLUE, NOORDHUYS_GLOW_GREEN, colorProgressRef.current)
-    edgeColorRef.current.lerpColors(SCENE_BACKDROP_NAVY, NOORDHUYS_BACKDROP_DARK, colorProgressRef.current)
+    const pinned = pinnedProgressRef.current
+    const rawChoxColorT = MathUtils.clamp(
+      (pinned - CHOX_COLOR_TRIGGER_START) / (CHOX_COLOR_TRIGGER_END - CHOX_COLOR_TRIGGER_START),
+      0,
+      1
+    )
+    const targetChoxColorT = smoothstepEase(rawChoxColorT)
+    choxColorProgressRef.current = MathUtils.damp(choxColorProgressRef.current, targetChoxColorT, 8, delta)
+
+    // Step 1: Base entrance transition: Navy/Blue -> Noordhuys Green
+    tempCenterColor.lerpColors(BLOB_CENTER_BLUE, NOORDHUYS_GLOW_GREEN, colorProgressRef.current)
+    tempEdgeColor.lerpColors(SCENE_BACKDROP_NAVY, NOORDHUYS_BACKDROP_DARK, colorProgressRef.current)
+    tempSquareColor.lerpColors(SQUARE_LIT, SQUARE_GREEN, colorProgressRef.current)
+
+    // Step 2: Showcase transition: Noordhuys Green -> ChoXPro Grey
+    centerColorRef.current.lerpColors(tempCenterColor, CHOXPRO_GLOW_GREY, choxColorProgressRef.current)
+    edgeColorRef.current.lerpColors(tempEdgeColor, CHOXPRO_BACKDROP_DARK, choxColorProgressRef.current)
+    squareColorRef.current.lerpColors(tempSquareColor, SQUARE_GREY, choxColorProgressRef.current)
 
     if (backgroundRef.current) {
       backgroundRef.current.copy(edgeColorRef.current)
@@ -162,7 +206,6 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
     const targetX = -heroMarginWorld * smoothstepEase(progress)
     group.position.x = MathUtils.damp(group.position.x, targetX, 8, delta)
 
-    const pinned = pinnedProgressRef.current
     const targetY = driftWorld * pinned
     group.position.y = MathUtils.damp(group.position.y, targetY, 8, delta)
 
@@ -170,13 +213,12 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
     group.updateMatrixWorld(true)
 
     // Match text color to the Three.js scene background color (cutout punch-through effect)
+    // Punch text stays permanently visible alongside both stages
     if (punchRef.current && backgroundRef.current) {
       punchRef.current.style.color = backgroundRef.current.getStyle()
       punchRef.current.style.opacity = `${PUNCH_TEXT_BASE_OPACITY}`
+      punchRef.current.style.visibility = 'visible'
     }
-
-    // Lerp lit squares and emblem accent color from blue to green
-    squareColorRef.current.lerpColors(SQUARE_LIT, SQUARE_GREEN, colorProgressRef.current)
 
     // Keep lit squares updated with lit color and opacity
     for (const mesh of litSquareRefs.current) {
@@ -184,12 +226,6 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
         mesh.material.uColor.copy(squareColorRef.current)
         mesh.material.uOpacity = LIT_SQUARE_OPACITY
       }
-    }
-
-    // Keep transparent Noordhuys emblem behind video matching the lit squares color & opacity
-    if (emblemRef?.current) {
-      const rgbStyle = squareColorRef.current.getStyle()
-      emblemRef.current.style.color = rgbStyle.replace('rgb', 'rgba').replace(')', `, ${LIT_SQUARE_OPACITY})`)
     }
 
     // Responsive typography scaling based on on-screen cell dimensions —
@@ -211,6 +247,7 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
       titleTextRef.current.style.fontSize = `${Math.min(heightPx, widthPx)}px`
     }
 
+    let currentDesignScale = 1
     if (designRef?.current) {
       const zoomFactor = nextScale / finalZoomScale
       const marginPx = Math.max(24, (PAGE_MARGIN_VH / 100) * size.height)
@@ -220,10 +257,39 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
       const finalDeltaX = screenCenterX - size.width / 2
 
       const currentDeltaX = finalDeltaX * zoomFactor
-      const currentDeltaY = -group.position.y * (size.height / gridHeight)
-      const currentScale = baseScale * zoomFactor
+      currentDesignScale = baseScale * zoomFactor
 
-      designRef.current.style.transform = `translate3d(${currentDeltaX}px, ${currentDeltaY}px, 0) scale(${currentScale})`
+      designRef.current.style.transform = `translate3d(${currentDeltaX}px, 0px, 0) scale(${currentDesignScale})`
+    }
+
+    // Keep transparent Noordhuys emblem behind video matching the lit squares color & opacity,
+    // and scrolling in lockstep with the background grid
+    if (emblemRef?.current) {
+      const rgbStyle = squareColorRef.current.getStyle()
+      emblemRef.current.style.color = rgbStyle.replace('rgb', 'rgba').replace(')', `, ${LIT_SQUARE_OPACITY})`)
+
+      const emblemDeltaY = (-group.position.y * (size.height / gridHeight)) / (currentDesignScale || 1)
+      emblemRef.current.style.transform = `translate3d(0, ${emblemDeltaY}px, 0)`
+    }
+
+    if (choxRef?.current) {
+      const zoomFactor = nextScale / finalZoomScale
+      const marginPx = Math.max(24, (PAGE_MARGIN_VH / 100) * size.height)
+      const maxAvailableWidth = Math.max(400, size.width - marginPx - 460)
+      const maxAvailableHeight = Math.max(300, size.height - 2 * marginPx)
+      const choxScale = Math.min(
+        1,
+        maxAvailableHeight / CHOX_DESIGN_HEIGHT,
+        (0.96 * maxAvailableWidth) / CHOX_DESIGN_WIDTH
+      )
+      const choxWidthPx = CHOX_DESIGN_WIDTH * choxScale
+      const choxScreenCenterX = (size.width - marginPx) - choxWidthPx / 2
+      const finalChoxDeltaX = choxScreenCenterX - size.width / 2
+
+      const currentDeltaX = finalChoxDeltaX * zoomFactor
+      const currentScale = choxScale * zoomFactor
+
+      choxRef.current.style.transform = `translate3d(${currentDeltaX}px, 0px, 0) scale(${currentScale})`
     }
   })
 
@@ -275,6 +341,7 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
 
         {/* Lockup with xXenta logo and 'Noordhuys' below, matching DRP Showcase */}
         <Html
+          zIndexRange={[10, 0]}
           position={[edgeX, targetRowY, GRID_Z + 0.02]}
           style={{ transform: `translate(${EXAMS_TEXT_LEFT_MARGIN_PX}px, -50%)`, pointerEvents: 'none' }}
         >
@@ -351,7 +418,8 @@ export function NoordhuysShowcase({ carouselRef }) {
   const sectionRef = useRef(null)
   const designRef = useRef(null)
   const emblemRef = useRef(null)
-  const { progressRef, arrival } = usePinnedProgress(sectionRef, carouselRef)
+  const choxRef = useRef(null)
+  const { progress, progressRef, arrival } = usePinnedProgress(sectionRef, carouselRef)
   const isVisibleRef = useRef(true)
 
   useEffect(() => {
@@ -366,8 +434,48 @@ export function NoordhuysShowcase({ carouselRef }) {
 
   const stageScale = useSpring(useTransform(arrival, [0, 1], [STAGE_SETTLE_SCALE, 1]), STAGE_SETTLE_SPRING)
   const entry = useTransform(arrival, easeOutQuad)
-  const y = useTransform(entry, [0, 1], [ENTRY_RISE_PX, 0])
-  const appOpacity = useTransform(entry, [0, 0.35, 1], [0, 0.8, 1])
+
+  // Mobile stage arrival and exit motion: cleanly separated for rock-solid Framer Motion evaluation
+  const mobileArriveOpacity = useTransform(entry, [0, 0.35, 1], [0, 0.8, 1])
+  const mobileArriveY = useTransform(entry, [0, 1], [ENTRY_RISE_PX, 0])
+
+  const transitionSpan = TRANSITION_END - TRANSITION_START
+  const mobileExitOpacity = useTransform(
+    progress,
+    [TRANSITION_START + transitionSpan * 0.05, TRANSITION_START + transitionSpan * 0.60],
+    [1, 0]
+  )
+  const mobileExitY = useTransform(progress, (p) => {
+    if (p <= TRANSITION_START) return 0
+    const exitT = MathUtils.clamp((p - TRANSITION_START) / (transitionSpan * 0.75), 0, 1)
+    const exitDist = typeof window !== 'undefined' ? window.innerHeight * 1.25 : 1200
+    return -easeInOutCubic(exitT) * exitDist
+  })
+  const mobileExitScale = useTransform(progress, (p) => {
+    if (p <= TRANSITION_START) return 1
+    const exitT = MathUtils.clamp((p - TRANSITION_START) / (transitionSpan * 0.75), 0, 1)
+    return MathUtils.lerp(1, 0.95, easeInOutCubic(exitT))
+  })
+  const mobilePointerEvents = useTransform(progress, (p) =>
+    p > TRANSITION_START + transitionSpan * 0.30 ? 'none' : 'auto'
+  )
+
+  // ChoXPro Weekly Planning stage: comes up smoothly from below into the right-hand showcase area
+  const choxY = useTransform(progress, (p) => {
+    const enterDist = typeof window !== 'undefined' ? window.innerHeight * 1.25 : 1200
+    const enterStart = TRANSITION_START + transitionSpan * 0.20
+    if (p <= enterStart) return enterDist
+    const enterT = MathUtils.clamp((p - enterStart) / (TRANSITION_END - enterStart), 0, 1)
+    return (1 - easeInOutCubic(enterT)) * enterDist
+  })
+  const choxOpacity = useTransform(
+    progress,
+    [TRANSITION_START + transitionSpan * 0.25, TRANSITION_START + transitionSpan * 0.80],
+    [0, 1]
+  )
+  const choxPointerEvents = useTransform(progress, (p) =>
+    p > TRANSITION_START + transitionSpan * 0.75 ? 'auto' : 'none'
+  )
 
   const initialBaseScale = typeof window !== 'undefined'
     ? Math.min(1, (0.86 * window.innerHeight) / 838.67, (0.92 * window.innerWidth) / 960)
@@ -377,6 +485,17 @@ export function NoordhuysShowcase({ carouselRef }) {
     : 82
   const initialDeltaX = typeof window !== 'undefined'
     ? ((window.innerWidth - initialMargin) - (960 * initialBaseScale) / 2) - window.innerWidth / 2
+    : 0
+
+  const initialChoxBaseScale = typeof window !== 'undefined'
+    ? Math.min(
+        1,
+        Math.max(300, window.innerHeight - 2 * initialMargin) / CHOX_DESIGN_HEIGHT,
+        (0.96 * Math.max(400, window.innerWidth - initialMargin - 460)) / CHOX_DESIGN_WIDTH
+      )
+    : 1
+  const initialChoxDeltaX = typeof window !== 'undefined'
+    ? ((window.innerWidth - initialMargin) - (CHOX_DESIGN_WIDTH * initialChoxBaseScale) / 2) - window.innerWidth / 2
     : 0
 
   return (
@@ -394,6 +513,7 @@ export function NoordhuysShowcase({ carouselRef }) {
             designRef={designRef}
             sectionRef={sectionRef}
             emblemRef={emblemRef}
+            choxRef={choxRef}
           />
           <SceneRenderGate isVisibleRef={isVisibleRef} />
         </Canvas>
@@ -402,45 +522,84 @@ export function NoordhuysShowcase({ carouselRef }) {
         <motion.div
           className="pointer-events-none absolute inset-0 flex items-center justify-center z-10"
           style={{
-            opacity: appOpacity,
-            y,
+            opacity: mobileArriveOpacity,
+            y: mobileArriveY,
+          }}
+        >
+          <motion.div
+            className="w-full h-full flex items-center justify-center"
+            style={{
+              opacity: mobileExitOpacity,
+              y: mobileExitY,
+              scale: mobileExitScale,
+              pointerEvents: mobilePointerEvents,
+            }}
+          >
+            <div
+              ref={designRef}
+              id="noordhuys-design-stage"
+              className="transform-gpu relative flex items-center justify-center"
+              style={{
+                width: 960,
+                height: 838.67,
+                transform: `translate3d(${initialDeltaX}px, 0px, 0) scale(${initialBaseScale})`,
+                transformOrigin: 'center center',
+              }}
+            >
+              {/* Large Noordhuys Geometric Emblem behind both video and phone */}
+              <div
+                ref={emblemRef}
+                id="noordhuys-bg-emblem"
+                className="pointer-events-none absolute z-0 select-none flex items-center justify-center transition-opacity duration-500"
+                style={{
+                  left: -280,
+                  top: 30,
+                  width: 1200,
+                  height: 470,
+                  color: 'rgba(108, 161, 248, 0.05)',
+                }}
+              >
+                <NoordhuysEmblem className="w-full h-full" />
+              </div>
+
+              {/* Background Video Container underneath app */}
+              <div className="absolute z-10 flex items-center justify-center">
+                <NoordhuysVideoContainer width={960} height={540} />
+              </div>
+
+              {/* Foreground Mobile App Panel */}
+              <div className="relative z-20">
+                <NoordhuysAppPanel />
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        {/* ChoXPro Weekly Planning Stage: Glides up from below into place beside 'xXenta Custom Apps' */}
+        <motion.div
+          id="weekly-planning-stage"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center z-20"
+          style={{
+            y: choxY,
+            opacity: choxOpacity,
+            pointerEvents: choxPointerEvents,
           }}
         >
           <div
-            ref={designRef}
-            id="noordhuys-design-stage"
-            className="pointer-events-auto transform-gpu relative flex items-center justify-center"
+            ref={choxRef}
+            id="choxpro-design-stage"
+            className="transform-gpu relative flex items-center justify-center"
             style={{
-              width: 960,
-              height: 838.67,
-              transform: `translate3d(${initialDeltaX}px, 0px, 0) scale(${initialBaseScale})`,
+              width: CHOX_DESIGN_WIDTH,
+              height: CHOX_DESIGN_HEIGHT,
+              transform: `translate3d(${initialChoxDeltaX}px, 0px, 0) scale(${initialChoxBaseScale})`,
               transformOrigin: 'center center',
             }}
           >
-            {/* Large Noordhuys Geometric Emblem behind both video and phone */}
-            <div
-              ref={emblemRef}
-              id="noordhuys-bg-emblem"
-              className="pointer-events-none absolute z-0 select-none flex items-center justify-center transition-opacity duration-500"
-              style={{
-                left: -280,
-                top: 30,
-                width: 1200,
-                height: 470,
-                color: 'rgba(108, 161, 248, 0.05)',
-              }}
-            >
-              <NoordhuysEmblem className="w-full h-full" />
-            </div>
-
-            {/* Background Video Container underneath app */}
-            <div className="absolute z-10 flex items-center justify-center">
-              <NoordhuysVideoContainer width={960} height={540} />
-            </div>
-
-            {/* Foreground Mobile App Panel */}
-            <div className="relative z-20">
-              <NoordhuysAppPanel />
+            <div className="relative w-full h-full rounded-[24px] overflow-hidden border border-white/15 bg-[#2F323B] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-md">
+              {/* Subtle top edge glass reflection */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent z-40" />
+              <WeeklyPlanningDashboard />
             </div>
           </div>
         </motion.div>
