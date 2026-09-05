@@ -188,6 +188,7 @@ export function GlassIcon({
   // touched here, so flipping back to true just shows it already fully
   // grown in, instantly, with nothing to replay.
   visible = true,
+  isWarming = false,
 }) {
   const groupRef = useRef(null)
   const camera = useThree((state) => state.camera)
@@ -238,7 +239,7 @@ export function GlassIcon({
 
     const elapsed = performance.now() - mountedAtRef.current
     const delaying = elapsed < REVEAL_DELAY_MS
-    group.visible = !delaying && visible
+    group.visible = isWarming || (!delaying && visible)
     if (delaying) return
 
     revealScaleRef.current = MathUtils.damp(revealScaleRef.current, 1, REVEAL_LAMBDA, delta)
@@ -256,7 +257,7 @@ export function GlassIcon({
               thickness={extrudeSettings.depth}
               {...glassMaterialProps}
               {...glassOverrides}
-              active={isOpen}
+              active={isOpen || isWarming}
             />
           ) : (
             <meshPhysicalMaterial

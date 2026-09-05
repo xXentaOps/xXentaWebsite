@@ -325,7 +325,6 @@ export const TransmissionMaterial = /* @__PURE__ */ React.forwardRef(
     let oldBg
     let oldEnvMapIntensity
     let oldTone
-    let parent
     useFrame((state) => {
       ref.current.time = state.clock.elapsedTime
       if (active && (!activeRef || activeRef.current) && ref.current.buffer === fboMain.texture && !transmissionSampler) {

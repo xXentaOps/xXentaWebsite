@@ -201,7 +201,7 @@ function nameIconDomRect(markerRect) {
 // with no transform baked in, exactly the "resting" coordinate space
 // SlideGroup's own slidePx expects (see nameIconDomRect's neighboring
 // GlassIcon for the DOM-measured version of this same contract).
-function DecorativeGridSquares({ teamProgress, isOpen, highQuality, visible }) {
+function DecorativeGridSquares({ teamProgress, isOpen, highQuality, visible, isWarming }) {
   const [squares, setSquares] = useState(() => computeLayout(window.innerWidth, window.innerHeight).decorativeSquares)
   useEffect(() => {
     const relayout = () => setSquares(computeLayout(window.innerWidth, window.innerHeight).decorativeSquares)
@@ -217,6 +217,7 @@ function DecorativeGridSquares({ teamProgress, isOpen, highQuality, visible }) {
         viewBoxSize={100}
         domRect={{ left: square.left, top: square.top, width: square.size, height: square.size }}
         isOpen={isOpen}
+        isWarming={isWarming}
         highQuality={highQuality}
         visible={visible}
         // Faces the camera dead-on at rest, unlike the name icons' own
@@ -794,9 +795,26 @@ function CaptureGridBackdrop({ aboutUsProgress, teamProgress }) {
 // which is what makes taking it over here possible at all — and also why
 // the render below has to run unconditionally whenever the section is
 // visible, since nothing else will do it.
-function SceneRenderGate({ isVisibleRef }) {
+function SceneRenderGate({ isVisibleRef, isOpen, aboutUsProgress, sceneReady = false, tier = 'high', onWarmed }) {
+  const warmFramesRef = useRef(0)
+  const isWarmedRef = useRef(false)
   useFrame((state) => {
-    if (!isVisibleRef.current) return
+    const isMoving = Boolean(aboutUsProgress && aboutUsProgress.get() > 0)
+    const isVisible = isOpen || isMoving || (isVisibleRef && isVisibleRef.current)
+    if (!isVisible) {
+      if (sceneReady && !isWarmedRef.current) {
+        if (tier === 'high' && !state.scene.environment) {
+          return
+        }
+        warmFramesRef.current += 1
+        if (warmFramesRef.current >= 6) {
+          isWarmedRef.current = true
+          onWarmed?.()
+        }
+      } else {
+        return
+      }
+    }
     state.camera.layers.enable(OVERLAY_LAYER)
     state.gl.render(state.scene, state.camera)
     state.camera.layers.disable(OVERLAY_LAYER)
@@ -1064,6 +1082,9 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
     const timer = setTimeout(() => setSceneReady(true), 2500)
     return () => clearTimeout(timer)
   }, [sceneReady])
+  const [warmedCanvases, setWarmedCanvases] = useState({ c1: false, c2: false })
+  const isCanvas1Warming = sceneReady && !warmedCanvases.c1
+  const isCanvas2Warming = sceneReady && !warmedCanvases.c2
   // Warms PhotoBackdropCapture's texture cache for every slide up front —
   // see preloadPhotoTextures' own comment for why. Gated the same as
   // PhotoBackdropCapture itself (sceneReady && tier==='high'): preloading on
@@ -1206,7 +1227,7 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
               two glass objects asked to leave at their own pace (see
               teamTransition). */}
           <SlideGroup progress={teamProgress} speed={ACCENT_SPEED}>
-            {sceneReady && <GlassCircle domRect={circleRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+            {sceneReady && <GlassCircle domRect={circleRect} isOpen={isOpen} isWarming={isCanvas1Warming} highQuality={tier === 'high'} />}
           </SlideGroup>
           {/* A glass icon beside whichever member's name is open in the Meet
               the Team detail view (see MEMBERS[...].nameIcon in teamData.js).
@@ -1291,6 +1312,7 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
             <DecorativeGridSquares
               teamProgress={teamProgress}
               isOpen={isOpen}
+              isWarming={isCanvas1Warming}
               highQuality={tier === 'high'}
               visible={selectedMember == null}
             />
@@ -1320,7 +1342,14 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
           {sceneReady && <AboutUsGridGlow teamProgress={teamProgress} gridMetricsRef={gridMetricsRef} />}
           {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
-        <SceneRenderGate isVisibleRef={isVisibleRef} />
+        <SceneRenderGate
+          isVisibleRef={isVisibleRef}
+          isOpen={isOpen}
+          aboutUsProgress={aboutUsProgress}
+          sceneReady={sceneReady}
+          tier={tier}
+          onWarmed={() => setWarmedCanvases((prev) => ({ ...prev, c1: true }))}
+        />
       </Canvas>
 
       {/* Click-anywhere-to-close backdrop for the detail view — asked for
@@ -1449,7 +1478,7 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
                 the photo it normally hangs off as it goes, which is the whole
                 point of giving the two different speeds. */}
             <SlideGroup progress={teamProgress} speed={ACCENT_SPEED}>
-              {sceneReady && <GoogleCloudGlassBadge domRect={badgeRect} isOpen={isOpen} highQuality={tier === 'high'} />}
+              {sceneReady && <GoogleCloudGlassBadge domRect={badgeRect} isOpen={isOpen} isWarming={isCanvas2Warming} highQuality={tier === 'high'} />}
             </SlideGroup>
             {/* Gives the badge's glass an actual backdrop to refract — see
                 PhotoBackdropCapture's own top comment. Gated on tier==='high'
@@ -1501,7 +1530,14 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
             {sceneReady && tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
           </Suspense>
           <CaptureLayerGate />
-          <SceneRenderGate isVisibleRef={isVisibleRef} />
+          <SceneRenderGate
+            isVisibleRef={isVisibleRef}
+            isOpen={isOpen}
+            aboutUsProgress={aboutUsProgress}
+            sceneReady={sceneReady}
+            tier={tier}
+            onWarmed={() => setWarmedCanvases((prev) => ({ ...prev, c2: true }))}
+          />
         </Canvas>
       </motion.div>
     </motion.section>

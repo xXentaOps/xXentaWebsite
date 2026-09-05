@@ -42,26 +42,23 @@
 // being purely cosmetic, both directions sharing one unhurried pace again,
 // exactly as before any of this started.
 //
-// Trimmed from 1.8s to 1.6s — a deliberately small step, and purely a
-// matter of feel (asked for directly: "a little tiny bit faster"). It
-// happens to pull the reveal *closer* to the rest of the piece rather than
-// further from it, which is the reason to keep the step small rather than
-// go further: a critically-damped spring settling in 1.6s decays at roughly
-// lambda 4.1, against SCROLL_LERP's lambda 4.5 for ordinary wheel scrolling
-// (see useLenis.js). So the one screen of travel between the hero and About
-// Us and the one screen between the hero and the section below it now carry
-// very nearly the same weight — the thing that had to be fixed by slowing
-// scrolling down to meet this, and that speeding this up much further would
-// start to undo from the other side.
+// Retuned from 1.6s to 2.4s (asked for directly: "smoother and slower, it's
+// too fast now compared to the scroll we get from the Hero to the Showcases
+// below"). At 1.6s, a critically-damped spring moved over 70% of the screen
+// height in the first ~350ms, reading as an abrupt snap compared to the
+// gentle, weighted descent of scrolling down to the showcases (~2.2s–2.5s).
+// At 2.4s, peak initial speed is reduced by over a third and the journey
+// distributes gracefully across the full duration, giving the upward reveal
+// the exact same measured, luxurious weight as the rest of the page.
 export const ABOUT_US_OPEN_TRANSITION = {
   type: 'spring',
   bounce: 0,
-  duration: 1.6,
+  duration: 2.4,
 }
 export const ABOUT_US_CLOSE_TRANSITION = {
   type: 'spring',
   bounce: 0,
-  duration: 1.6,
+  duration: 2.4,
 }
 
 // isOpen here means "which direction is this animating in" — the target

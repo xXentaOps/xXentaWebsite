@@ -216,7 +216,7 @@ export default function GlassLogoPreview() {
     // animation and any real momentum tail, so it never fires in normal use
     // — it exists so that the release has one trigger a visitor cannot
     // influence at all. See gestureEndedSinceDismiss.
-    const CLOSE_HOLD_CEILING_MS = 2600
+    const CLOSE_HOLD_CEILING_MS = 3500
 
     let isLocked = false
     // Whether About Us is currently showing. Tracked here as a plain local

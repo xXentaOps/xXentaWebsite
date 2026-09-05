@@ -78,7 +78,7 @@ const TILT_LAMBDA = 4
 // whenever sceneReady first turns on) while still skipping its ongoing
 // per-frame backdrop-capture cost for the large majority of this section's
 // life that it spends closed.
-export function GoogleCloudGlassBadge({ domRect, isOpen, highQuality }) {
+export function GoogleCloudGlassBadge({ domRect, isOpen, isWarming = false, highQuality }) {
   const groupRef = useRef(null)
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
@@ -109,6 +109,8 @@ export function GoogleCloudGlassBadge({ domRect, isOpen, highQuality }) {
     group.rotation.y = MathUtils.damp(group.rotation.y, desiredY, TILT_LAMBDA, delta)
   })
 
+  const isTransmissionActive = isOpen || isWarming
+
   if (!domRect) return null
 
   return (
@@ -120,7 +122,7 @@ export function GoogleCloudGlassBadge({ domRect, isOpen, highQuality }) {
             mount/unmount. */}
         <mesh geometry={mergedGeometry}>
           {highQuality ? (
-            <TransmissionMaterial thickness={EXTRUDE_SETTINGS.depth} {...glassMaterialProps} active={isOpen} />
+            <TransmissionMaterial thickness={EXTRUDE_SETTINGS.depth} {...glassMaterialProps} active={isTransmissionActive} />
           ) : (
             <meshPhysicalMaterial
               color="#e2e8f0"

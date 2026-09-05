@@ -47,7 +47,7 @@ const TILT_LAMBDA = 4
 // rig the way the badge's does: the grid and blob it should refract already
 // live in this same canvas, so a plain unprioritized capture picks them up
 // exactly like the hero's own logo does.
-export function GlassCircle({ domRect, isOpen, highQuality }) {
+export function GlassCircle({ domRect, isOpen, isWarming = false, highQuality }) {
   const groupRef = useRef(null)
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
@@ -88,6 +88,8 @@ export function GlassCircle({ domRect, isOpen, highQuality }) {
     group.rotation.y = MathUtils.damp(group.rotation.y, desiredY, TILT_LAMBDA, delta)
   })
 
+  const isTransmissionActive = isOpen || isWarming
+
   if (!domRect) return null
 
   return (
@@ -95,7 +97,7 @@ export function GlassCircle({ domRect, isOpen, highQuality }) {
       <group scale={[scale, -scale, scale]}>
         <mesh geometry={mergedGeometry}>
           {highQuality ? (
-            <TransmissionMaterial thickness={EXTRUDE_SETTINGS.depth} {...glassMaterialProps} active={isOpen} />
+            <TransmissionMaterial thickness={EXTRUDE_SETTINGS.depth} {...glassMaterialProps} active={isTransmissionActive} />
           ) : (
             <meshPhysicalMaterial
               color="#e2e8f0"
