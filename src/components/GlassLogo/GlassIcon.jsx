@@ -142,6 +142,26 @@ const REVEAL_DELAY_MS = 250
 // this only has to happen once, quickly, not track a moving target.
 const REVEAL_LAMBDA = 10
 
+// Window-level pointer tracking: DOM elements (detail backdrop, member cards,
+// text) sit above Canvas 1 and consume mouse events, preventing R3F's canvas
+// element from receiving pointermove. Tracking pointermove at the window level
+// ensures both the decorative grid squares and the profile name icons smoothly
+// follow the cursor everywhere on screen.
+const windowPointer = { x: 0, y: 0 }
+let hasWindowPointer = false
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'pointermove',
+    (e) => {
+      windowPointer.x = (e.clientX / window.innerWidth) * 2 - 1
+      windowPointer.y = -(e.clientY / window.innerHeight) * 2 + 1
+      hasWindowPointer = true
+    },
+    { passive: true }
+  )
+}
+
 // domRect is a CSS px rect relative to this canvas — same contract, and the
 // same px-to-world conversion, GlassCircle/GoogleCloudPartnerBadge use.
 // depthScale/sizeScale/bevelEnabled are per-icon overrides (see
@@ -232,8 +252,9 @@ export function GlassIcon({
   useFrame((_, delta) => {
     const group = groupRef.current
     if (!group) return
-    const desiredX = baseTilt.x - pointer.y * MAX_TILT
-    const desiredY = baseTilt.y + pointer.x * MAX_TILT
+    const activePointer = hasWindowPointer ? windowPointer : pointer
+    const desiredX = baseTilt.x - activePointer.y * MAX_TILT
+    const desiredY = baseTilt.y + activePointer.x * MAX_TILT
     group.rotation.x = MathUtils.damp(group.rotation.x, desiredX, TILT_LAMBDA, delta)
     group.rotation.y = MathUtils.damp(group.rotation.y, desiredY, TILT_LAMBDA, delta)
 
