@@ -192,6 +192,15 @@ export function useLenis(locked = false, isForceScrollingRef) {
     } : null)
   }, [])
 
-  return { scrollTo, resize, getTargetScroll, setDetent }
+  // Allows freezing scroll input during transitions without resetting scroll position.
+  const stop = useCallback(() => {
+    lenisRef.current?.stop()
+  }, [])
+
+  const start = useCallback(() => {
+    lenisRef.current?.start()
+  }, [])
+
+  return { scrollTo, resize, getTargetScroll, setDetent, stop, start }
 }
 

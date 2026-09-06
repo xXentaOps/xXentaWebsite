@@ -71,7 +71,15 @@ const CONTENT_START_SCALE = 0.9
 // a faint softening.
 const CONTENT_START_BLUR_PX = 14
 
-export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, onAboutUsClick }) {
+export function SiteFooter({
+  activeCategoryIndex,
+  onCategoryChange,
+  scrollTo,
+  onAboutUsClick,
+  onFooterNavigate,
+  isFooterSwiping = false,
+  style,
+}) {
   // scrollY (raw pixels), not scrollYProgress. Three earlier versions of
   // this measured something — the footer's own height via ResizeObserver,
   // the document height during render, a target element's rect through
@@ -172,6 +180,11 @@ export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, on
   })
   const pointerEvents = useTransform(rawProgress, (p) => (Number.isFinite(p) && p > 0.4 ? 'auto' : 'none'))
 
+  const displayOpacity = isFooterSwiping ? 1 : opacity
+  const displayScale = isFooterSwiping ? 1 : scale
+  const displayFilter = isFooterSwiping ? 'none' : filter
+  const displayPointerEvents = isFooterSwiping ? 'none' : pointerEvents
+
   return (
     <>
       {/* The scroll room the footer is revealed through: FOOTER_MAX_VH,
@@ -194,13 +207,18 @@ export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, on
           wrapper in GlassLogoPreview), which is what makes this a reveal
           rather than an overlay — they're opaque navy, so the footer is
           only ever visible through the transparent spacer above. */}
-      <footer
+      <motion.footer
         style={{
           height: `${FOOTER_MAX_VH}vh`,
           paddingLeft: `${PAGE_MARGIN_VH}vh`,
           paddingRight: `${PAGE_MARGIN_VH}vh`,
+          willChange: isFooterSwiping ? 'transform' : 'auto',
+          transform: isFooterSwiping ? 'translateZ(0)' : 'none',
+          ...style,
         }}
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-0 flex flex-col justify-end pb-10"
+        className={`pointer-events-none fixed inset-x-0 bottom-0 flex flex-col justify-end pb-10 ${
+          isFooterSwiping ? 'z-20 bg-[#0F172B]' : 'z-0'
+        }`}
       >
         {/* Opacity and scale on the content, not the <footer> box itself —
             the box is a positioning shell that should stay exactly where it
@@ -218,13 +236,28 @@ export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, on
             position visibly drifts left/down as scale grows toward 1,
             settling into its resting spot only once the zoom finishes,
             rather than sitting still through the whole reveal. */}
-        <motion.div style={{ opacity, scale, filter, pointerEvents }} className="pointer-events-auto">
+        <motion.div
+          style={{
+            opacity: displayOpacity,
+            scale: displayScale,
+            filter: displayFilter,
+            pointerEvents: displayPointerEvents,
+            transformOrigin: '50% 50%',
+          }}
+          className={isFooterSwiping ? 'pointer-events-none' : 'pointer-events-auto'}
+        >
           {/* Everything left-justified against the page's shared left margin
               — the same edge the hero's title, About Us's copy, and the
               highlighted grid cell all start from (see pageMargin.js). */}
           <XxentaWordmark
-            className={`block text-xs font-medium text-white/40 ${scrollTo ? 'cursor-pointer hover:text-white/70 transition-colors duration-200' : ''}`}
-            onClick={() => scrollTo?.(0)}
+            className={`block text-xs font-medium text-white/40 cursor-pointer hover:text-white/70 transition-colors duration-200`}
+            onClick={() => {
+              if (onFooterNavigate) {
+                onFooterNavigate({ target: 'hero', categoryIndex: activeCategoryIndex ?? 0 })
+              } else {
+                scrollTo?.(0)
+              }
+            }}
           />
 
           <p className="mt-6 max-w-[340px] text-xs leading-[1.9] font-extralight text-white/35">
@@ -253,6 +286,20 @@ export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, on
                 <div className="mt-5 flex flex-col gap-3">
                   {column.links.map((label) => {
                     const handleClick = () => {
+                      if (onFooterNavigate) {
+                        if (label === 'AI for Education') {
+                          onFooterNavigate({ target: 'hero', categoryIndex: 0 })
+                        } else if (label === 'AI for Enterprises') {
+                          onFooterNavigate({ target: 'hero', categoryIndex: 1 })
+                        } else if (label === 'AI for Achievers') {
+                          onFooterNavigate({ target: 'hero', categoryIndex: 2 })
+                        } else if (label === 'About Us') {
+                          onFooterNavigate({ target: 'about-us' })
+                        } else if (label === 'Meet the Team') {
+                          onFooterNavigate({ target: 'meet-the-team' })
+                        }
+                        return
+                      }
                       if (label === 'AI for Education') {
                         onCategoryChange?.(0)
                         scrollTo?.(0)
@@ -291,7 +338,7 @@ export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, on
             © {new Date().getFullYear()} xXenta. All rights reserved.
           </p>
         </motion.div>
-      </footer>
+      </motion.footer>
     </>
   )
 }

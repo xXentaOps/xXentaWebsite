@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { animate, useMotionValue } from 'framer-motion'
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
 import { SCROLL_LERP, useLenis } from '../../lib/useLenis'
 import {
   ABOUT_US_CLOSE_TRANSITION,
@@ -120,11 +120,19 @@ export default function GlassLogoPreview() {
   // scroll back and forth. Sharing the value itself, not the recipe for it,
   // is what makes them incapable of disagreeing.
   const aboutUsProgress = useMotionValue(0)
+  const [openDirection, setOpenDirection] = useState('from-top')
+  const [initialTeamOpen, setInitialTeamOpen] = useState(false)
+  const isFooterSwipingRef = useRef(false)
+  const [isFooterSwiping, setIsFooterSwiping] = useState(false)
+  const outgoingY = useTransform(aboutUsProgress, (p) => {
+    return isFooterSwipingRef.current ? `${-p * 100}vh` : '0vh'
+  })
   // Whatever animation is currently driving that value, so the scroll-lock
   // effect below can stop it and take the reveal over by hand — see
   // driveCloseWithScroll. Written on every start, including its own.
   const progressAnimRef = useRef(null)
   useEffect(() => {
+    if (isFooterSwipingRef.current) return
     const controls = animate(aboutUsProgress, isAboutUsOpen ? 1 : 0, getAboutUsTransition(isAboutUsOpen))
     progressAnimRef.current = controls
     return () => controls.stop()
@@ -141,7 +149,7 @@ export default function GlassLogoPreview() {
   // through useLenis's own lock/stop()/start() keeps Lenis's bookkeeping
   // authoritative, the same as Achievers already relies on.
   const [scrollLockActive, setScrollLockActive] = useState(false)
-  const { scrollTo, resize, getTargetScroll, setDetent } = useLenis(scrollLocked || scrollLockActive, isForceScrollingRef)
+  const { scrollTo, resize, getTargetScroll, setDetent, stop } = useLenis(scrollLocked || scrollLockActive, isForceScrollingRef)
 
   useEffect(() => {
     resize?.()
@@ -744,6 +752,7 @@ export default function GlassLogoPreview() {
     }
 
     function onWheel(event) {
+      if (isFooterSwipingRef.current) return
       const delta = event.deltaY
       const absDelta = Math.abs(delta)
       const now = eventTime(event)
@@ -936,6 +945,10 @@ export default function GlassLogoPreview() {
     // Keyboard scrolling has no momentum tail, so each keypress is its own
     // discrete gesture and none of the per-gesture guards above apply.
     function onKeyDown(event) {
+      if (isFooterSwipingRef.current) {
+        event.preventDefault()
+        return
+      }
       if (isOpenNow) {
         if (DOWNWARD_KEYS.has(event.key)) dismiss()
         return
@@ -944,7 +957,13 @@ export default function GlassLogoPreview() {
       if (UPWARD_KEYS.has(event.key) && getTargetScroll() <= TOP_EPSILON_PX) open()
     }
 
-    lockApiRef.current = { open, dismiss }
+    function enterAboutUs() {
+      isOpenNow = true
+      setIsAboutUsOpen(true)
+      lock()
+    }
+
+    lockApiRef.current = { open, dismiss, lock, unlock, enterAboutUs }
     window.addEventListener('wheel', onWheel, { passive: true })
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -1000,6 +1019,57 @@ export default function GlassLogoPreview() {
     [handleCategoryChange, scrollTo]
   )
 
+  const handleFooterNavigate = useCallback(
+    ({ target, categoryIndex }) => {
+      if (target === 'about-us' || target === 'meet-the-team') {
+        if (isFooterSwipingRef.current) return
+        isFooterSwipingRef.current = true
+        setIsFooterSwiping(true)
+        stop()
+
+        aboutUsSectionRef.current?.setOpenDirection('from-bottom')
+        setOpenDirection('from-bottom')
+        if (target === 'meet-the-team') {
+          setInitialTeamOpen(true)
+          aboutUsSectionRef.current?.openTeam(true)
+        } else {
+          setInitialTeamOpen(false)
+          aboutUsSectionRef.current?.closeTeam(true)
+        }
+        setIsAboutUsOpen(true)
+        aboutUsProgress.set(0)
+
+        const swipeTransition = { duration: 1.25, ease: [0.4, 0, 0.1, 1] }
+        const anim = animate(aboutUsProgress, 1, swipeTransition)
+
+        anim.then(() => {
+          if (lockApiRef.current?.enterAboutUs) {
+            lockApiRef.current.enterAboutUs()
+          } else {
+            lockApiRef.current?.lock()
+          }
+          window.scrollTo(0, 0)
+          scrollTo(0, { immediate: true })
+          setOpenDirection('from-top')
+          aboutUsSectionRef.current?.setOpenDirection('from-top')
+          isFooterSwipingRef.current = false
+          setIsFooterSwiping(false)
+        })
+        return
+      }
+
+      if (target === 'hero') {
+        const nextCategory = categoryIndex ?? 0
+        handleCategoryChange(nextCategory)
+        scrollTo(0, {
+          duration: 1.4,
+          easing: (t) => 1 - Math.pow(1 - t, 3),
+        })
+      }
+    },
+    [handleCategoryChange, scrollTo, stop, aboutUsProgress]
+  )
+
   return (
     <>
       <SiteNavbar
@@ -1047,7 +1117,14 @@ export default function GlassLogoPreview() {
           would win that. AboutUsSection is also z-10 and stays a later
           sibling than this, so it still covers the page when open, and the
           navbar's z-20 still covers everything. */}
-      <div className="relative z-10">
+      <motion.div
+        className="relative z-10"
+        style={{
+          y: outgoingY,
+          willChange: isFooterSwiping ? 'transform' : 'auto',
+          transform: isFooterSwiping ? 'translateZ(0)' : 'none',
+        }}
+      >
         <GlassLogoHero
           openScrollComp={openScrollComp}
           aboutUsProgress={aboutUsProgress}
@@ -1056,6 +1133,7 @@ export default function GlassLogoPreview() {
           onCategoryChange={handleCategoryChange}
           activeCategoryIndex={activeCategoryIndex}
           onCategorySelect={handleHeroCategorySelect}
+          isFooterSwiping={isFooterSwiping}
         />
         <ClientLogoCarousel sectionRef={carouselRef} />
         <div className="relative w-full">
@@ -1072,6 +1150,7 @@ export default function GlassLogoPreview() {
               setDetent={setDetent}
               isActive={activeCategoryIndex !== 1}
               isForceScrollingRef={isForceScrollingRef}
+              isFooterSwiping={isFooterSwiping}
             />
           </div>
           <div
@@ -1088,12 +1167,15 @@ export default function GlassLogoPreview() {
             />
           </div>
         </div>
-      </div>
+      </motion.div>
       <SiteFooter
         key={activeCategoryIndex}
         activeCategoryIndex={activeCategoryIndex}
         onCategoryChange={handleCategoryChange}
         scrollTo={scrollTo}
+        style={{ y: outgoingY }}
+        isFooterSwiping={isFooterSwiping}
+        onFooterNavigate={handleFooterNavigate}
         onAboutUsClick={() => {
           if (isAboutUsOpen) {
             aboutUsSectionRef.current?.closeTeam()
@@ -1108,6 +1190,9 @@ export default function GlassLogoPreview() {
         isOpen={isAboutUsOpen}
         openScrollComp={openScrollComp}
         aboutUsProgress={aboutUsProgress}
+        openDirection={openDirection}
+        initialTeamOpen={initialTeamOpen}
+        isFooterSwiping={isFooterSwiping}
       />
     </>
   )

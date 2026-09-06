@@ -41,7 +41,7 @@ export function SiteNavbar({ isAboutUsActive, isDrpActive = false, onAboutUsClic
   const effectiveDrp = isDrpActive && !isAboutUsActive
 
   return (
-    <div className="pointer-events-none fixed inset-x-6 top-5 z-20 flex items-center justify-between md:inset-x-8 md:top-6">
+    <div className="pointer-events-none fixed inset-x-6 top-5 z-30 flex items-center justify-between md:inset-x-8 md:top-6">
       {/* A shared flex row (items-center), rather than two independently
           absolute-positioned elements at the same `top`, is what actually
           guarantees xXenta and the nav links land on the same visual

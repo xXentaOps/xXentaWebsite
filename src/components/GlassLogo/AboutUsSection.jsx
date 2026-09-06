@@ -1,4 +1,4 @@
-import { forwardRef, Suspense, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, Suspense, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { shaderMaterial, Text } from '@react-three/drei'
 import { Canvas, extend, useFrame, useThree } from '@react-three/fiber'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
@@ -905,7 +905,11 @@ function useDomAnchorRect(ref, containerRef) {
     }
   }, [ref, containerRef])
 
-  return [rect, () => measureRef.current()]
+  const remeasure = useCallback(() => {
+    measureRef.current()
+  }, [])
+
+  return [rect, remeasure]
 }
 
 // Same measurement useDomAnchorRect does (container-relative
@@ -976,7 +980,17 @@ const SHOW_GRID_LINES = new URLSearchParams(window.location.search).has('gridlin
 // An imperative handle is the narrow way to reach in for that one action
 // without lifting isTeamOpen itself (and everything that already reads/sets
 // it below) out of this component.
-export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openScrollComp, aboutUsProgress }, ref) {
+export const AboutUsSection = forwardRef(function AboutUsSection(
+  {
+    isOpen,
+    openScrollComp,
+    aboutUsProgress,
+    openDirection = 'from-top',
+    initialTeamOpen = false,
+    isFooterSwiping = false,
+  },
+  ref
+) {
   const tier = usePerformanceTier()
   const sectionRef = useRef(null)
   const badgeAnchorRef = useRef(null)
@@ -1002,6 +1016,16 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
   const gridMetricsRef = useRef(null)
   const [badgeRect, remeasureBadgeRect] = useDomAnchorRect(badgeAnchorRef, sectionRef)
   const [photoRect, remeasurePhotoRect] = useDomAnchorRect(photoWindowRef, sectionRef)
+
+  const wasFooterSwipingRef = useRef(false)
+  useEffect(() => {
+    if (isFooterSwiping && !wasFooterSwipingRef.current) {
+      remeasureBadgeRect()
+      remeasurePhotoRect()
+    }
+    wasFooterSwipingRef.current = isFooterSwiping
+  }, [isFooterSwiping, remeasureBadgeRect, remeasurePhotoRect])
+
   // Which photo (if any) AboutUsIntro's own slideshow is currently showing —
   // reported up via onPhotoChange (see its own comment there) so
   // PhotoBackdropCapture refracts whatever's actually behind the badge
@@ -1023,11 +1047,17 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
   }
-  // Down from just above the viewport as About Us opens — the exact opposite
-  // of GlassLogoHero's own offset, derived from the same shared number so the
-  // pair is one screen apart at every value it can take (see aboutUsProgress
-  // in GlassLogoPreview).
-  const slideY = useTransform(aboutUsProgress, (p) => `${(p - 1) * 100}%`)
+  const openDirectionRef = useRef(openDirection)
+  openDirectionRef.current = openDirection
+
+  // Down from just above the viewport as About Us opens (or up from below when
+  // navigating from the footer) — derived from the shared progress value.
+  const slideY = useTransform(aboutUsProgress, (p) => {
+    if (openDirectionRef.current === 'from-bottom') {
+      return `${(1 - p) * 100}vh`
+    }
+    return `${(p - 1) * 100}%`
+  })
   // Remeasure the badge anchor once the slide has genuinely landed, which is
   // what this used to get from the section's own onAnimationComplete before
   // the slide moved out to a shared motion value. A settling spring lands
@@ -1086,8 +1116,8 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
   // anyway.
   const [sceneReady, setSceneReady] = useState(false)
   useEffect(() => {
-    if (isOpen) setSceneReady(true)
-  }, [isOpen])
+    if (isOpen || isFooterSwiping) setSceneReady(true)
+  }, [isOpen, isFooterSwiping])
   useEffect(() => {
     if (sceneReady) return
     // The timeout is what guarantees it still happens on a page that never
@@ -1119,10 +1149,18 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
   // the grid's x phase above). isTeamOpen exists alongside it only for the
   // things that genuinely are discrete: which way the next animation runs,
   // and what the arrows do when clicked.
-  const [isTeamOpen, setIsTeamOpen] = useState(false)
-  const teamProgress = useMotionValue(0)
+  const [isTeamOpen, setIsTeamOpen] = useState(initialTeamOpen)
+  const teamProgress = useMotionValue(initialTeamOpen ? 1 : 0)
   useEffect(() => {
-    const controls = animate(teamProgress, isTeamOpen ? 1 : 0, TEAM_SLIDE_TRANSITION)
+    if (initialTeamOpen) {
+      setIsTeamOpen(true)
+      teamProgress.set(1)
+    }
+  }, [initialTeamOpen, teamProgress])
+  useEffect(() => {
+    const target = isTeamOpen ? 1 : 0
+    if (teamProgress.get() === target) return
+    const controls = animate(teamProgress, target, TEAM_SLIDE_TRANSITION)
     return () => controls.stop()
   }, [isTeamOpen, teamProgress])
   // Closing About Us entirely (scrolling back down to the hero) leaves the
@@ -1154,8 +1192,21 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
   }, [isTeamOpen])
   useImperativeHandle(
     ref,
-    () => ({ closeTeam: () => setIsTeamOpen(false), isTeamOpen: () => isTeamOpenRef.current }),
-    [],
+    () => ({
+      closeTeam: (immediate = false) => {
+        setIsTeamOpen(false)
+        if (immediate) teamProgress.set(0)
+      },
+      openTeam: (immediate = false) => {
+        setIsTeamOpen(true)
+        if (immediate) teamProgress.set(1)
+      },
+      setOpenDirection: (dir) => {
+        openDirectionRef.current = dir
+      },
+      isTeamOpen: () => isTeamOpenRef.current,
+    }),
+    [teamProgress],
   )
 
   // Which member's enlarged profile is showing, or null for the seven-photo
@@ -1209,13 +1260,20 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
     // section is absolute within it, which is the same geometry with none
     // of that. pointer-events-none because this covers the viewport even
     // while closed; the section re-enables them for itself when open.
-    <motion.div className="pointer-events-none fixed inset-0 z-10" style={{ y: openScrollComp }}>
+    <motion.div
+      className={`pointer-events-none fixed inset-0 ${isFooterSwiping ? 'z-20' : 'z-10'}`}
+      style={{ y: openScrollComp }}
+    >
     <motion.section
       ref={sectionRef}
-      style={{ y: slideY }}
+      style={{
+        y: slideY,
+        willChange: isFooterSwiping ? 'transform' : 'auto',
+        transform: isFooterSwiping ? 'translateZ(0)' : 'none',
+      }}
       aria-hidden={!isOpen}
       className={`absolute inset-0 h-full w-full overflow-hidden bg-[#0F172B] ${
-        isOpen ? 'pointer-events-auto' : 'pointer-events-none'
+        isOpen && !isFooterSwiping ? 'pointer-events-auto' : 'pointer-events-none'
       }`}
     >
       <Canvas dpr={tier === 'high' ? [1, 2] : 1} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
@@ -1405,6 +1463,7 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
         onTeamPrev={teamPrev}
         onTeamNext={teamNext}
         teamNextDisabled={selectedMember == null}
+        isFooterSwiping={isFooterSwiping}
       />
       {/* The stage About Us hands over to — parked one slide-distance to the
           right until teamProgress moves. Sits here, before the badge's own
@@ -1454,7 +1513,11 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: isOpen ? 1 : 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut', delay: isOpen ? 0.5 : 0 }}
+        transition={{
+          duration: isFooterSwiping ? 0.3 : 0.5,
+          ease: 'easeOut',
+          delay: isFooterSwiping ? 0 : (isOpen ? 0.5 : 0),
+        }}
         className="pointer-events-none absolute inset-0 z-[60]"
       >
         <Canvas

@@ -366,7 +366,7 @@ const EXAMS_LOGO_NUDGE_EM = 0.05
 // How much world space the squares' own slide spends catching up to its
 // target each frame — gentler than the zoom's own lambda (8), appropriate
 // for a slower, more deliberate motion than the zoom's.
-const PAN_LAMBDA = 6
+const _PAN_LAMBDA = 6
 // How much of the pan's own 0..1 the "previous page" fade-outs spend —
 // shared between the chat UI's own opacity (a DOM motion value, see
 // chatOpacity in BackgroundGlowSection) and the active callout's (a WebGL
@@ -2633,9 +2633,9 @@ function SeamlessBackdrop({
 // uses, minus its OVERLAY_LAYER handling, which this scene has no need for
 // (no glass here, so nothing is doing a backdrop capture that a layer split
 // would have to hide from).
-function SceneRenderGate({ isVisibleRef, isActive = true }) {
+function SceneRenderGate({ isVisibleRef, isActive = true, isFooterSwiping = false }) {
   useFrame((state) => {
-    if (!isActive || !isVisibleRef.current) return
+    if (!isActive || !isVisibleRef.current || isFooterSwiping) return
     state.gl.render(state.scene, state.camera)
   }, 1)
   return null
@@ -2944,7 +2944,7 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef, 
   }
 }
 
-export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent, isActive = true, isForceScrollingRef }) {
+export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent, isActive = true, isForceScrollingRef, isFooterSwiping = false }) {
   const sectionRef = useRef(null)
   const simIntroPanelRef = useRef(null)
   const introWrapperRef = useRef(null)
@@ -3028,7 +3028,7 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
     if (a >= 1) return 1
     return STAGE_SETTLE_SCALE + (1 - STAGE_SETTLE_SCALE) * a
   })
-  const stageScale = useSpring(stageScaleTransform, STAGE_SETTLE_SPRING)
+  const _stageScale = useSpring(stageScaleTransform, STAGE_SETTLE_SPRING)
 
   // Simulation Intro Panel arrival (slides up gently as section reaches top of screen)
   const simIntroArrivalOpacity = useTransform(arrival, (a) => {
@@ -3130,7 +3130,7 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
             isActive={isActive}
             isForceScrollingRef={isForceScrollingRef}
           />
-          <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} />
+          <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} isFooterSwiping={isFooterSwiping} />
         </Canvas>
 
         {/* Unified Introduction & Floren Showcase Chat Overlay */}

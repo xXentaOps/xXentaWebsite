@@ -55,6 +55,7 @@ export function GlassLogoHero({
   onCategoryChange,
   activeCategoryIndex,
   onCategorySelect,
+  isFooterSwiping = false,
 }) {
   const tier = usePerformanceTier()
   const breakpoint = useBreakpoint()
@@ -119,7 +120,7 @@ export function GlassLogoHero({
     let isIntersecting = true
     const updateVisibility = () => {
       const isSlidAway = Boolean(aboutUsProgress && aboutUsProgress.get() >= 0.99)
-      isHeroVisibleRef.current = !isSlidAway && isIntersecting
+      isHeroVisibleRef.current = !isSlidAway && isIntersecting && !isFooterSwiping
     }
 
     const observer = new IntersectionObserver(([entry]) => {
@@ -138,7 +139,7 @@ export function GlassLogoHero({
       observer.disconnect()
       unsub()
     }
-  }, [aboutUsProgress])
+  }, [aboutUsProgress, isFooterSwiping])
 
   return (
     // The outer wrapper carries one thing only: openScrollComp, the offset

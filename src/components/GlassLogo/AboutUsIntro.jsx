@@ -113,6 +113,7 @@ export function AboutUsIntro({
   onTeamPrev,
   onTeamNext,
   teamNextDisabled,
+  isFooterSwiping = false,
 }) {
   const blockRef = useRef(null)
   const imageRef = useRef(null)
@@ -530,7 +531,11 @@ export function AboutUsIntro({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: isOpen ? 1 : 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut', delay: isOpen ? 0.5 : 0 }}
+      transition={{
+        duration: isFooterSwiping ? 0.3 : 0.5,
+        ease: 'easeOut',
+        delay: isFooterSwiping ? 0 : (isOpen ? 0.5 : 0),
+      }}
       style={{ x: mainX, willChange: 'transform' }}
       className="pointer-events-none absolute inset-0 z-50"
     >
