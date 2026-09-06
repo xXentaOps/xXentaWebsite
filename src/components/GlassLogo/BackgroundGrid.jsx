@@ -506,8 +506,14 @@ function ButtonHitZone({ x, y, z, size, onHover, onLeave, onSelect }) {
   return (
     <mesh
       position={[x, y, z]}
-      onPointerEnter={onHover}
-      onPointerLeave={onLeave}
+      onPointerEnter={(e) => {
+        document.body.style.cursor = 'pointer'
+        onHover?.(e)
+      }}
+      onPointerLeave={(e) => {
+        document.body.style.cursor = 'auto'
+        onLeave?.(e)
+      }}
       onClick={onSelect}
     >
       <planeGeometry args={[size, size]} />
@@ -555,7 +561,7 @@ const LABEL_START_X_FACTOR = 0.4
 // the interactive area and the label both land precisely on the visible
 // cross regardless of window size — the same "compute once, share" approach
 // that avoided drift everywhere else this piece uses derived layout math.
-export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress, activeIndex }) {
+export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress, activeIndex, onCategorySelect }) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
   const size = useThree((state) => state.size)
@@ -729,11 +735,10 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
           buttonColumnRightUV={buttonColumnRightUV}
           buttonBottomUV={buttonBottomUV}
           buttonTopUV={buttonTopUV}
-          // hoveredIndex, not visibleIndex — the color brighten is a pure
-          // hover cue. Selecting a button keeps its label/hero-title tie-in
-          // (see visibleIndex below) but its corners fall back to the same
-          // base blue as the other two once the pointer leaves it.
-          activeIndex={hoveredIndex}
+          // visibleIndex = hoveredIndex ?? selectedIndex — keeps the selected
+          // category button's corners highlighted while still responding smoothly
+          // to hovering over the other options.
+          activeIndex={visibleIndex}
           aboutUsProgress={aboutUsProgress}
         />
 
@@ -751,7 +756,10 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
             style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
           >
             <span
-              onClick={() => setSelectedIndex(i)}
+              onClick={() => {
+                setSelectedIndex(i)
+                onCategorySelect?.(i)
+              }}
               // fadeInUp (see index.css) is a first-load-only entrance, kept
               // separate from the transition-colors hover/select fade below —
               // that one needs to keep firing on every hover, this one only
@@ -864,7 +872,10 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
             setSelectedIndex(i)
           }}
           onLeave={() => setHoveredIndex((current) => (current === i ? null : current))}
-          onSelect={() => setSelectedIndex(i)}
+          onSelect={() => {
+            setSelectedIndex(i)
+            onCategorySelect?.(i)
+          }}
         />
       ))}
 

@@ -357,24 +357,28 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
   )
 }
 
-function SceneRenderGate({ isVisibleRef }) {
+function SceneRenderGate({ isVisibleRef, isActive = true }) {
   useFrame((state) => {
-    if (!isVisibleRef.current) return
+    if (!isActive || !isVisibleRef.current) return
     state.gl.render(state.scene, state.camera)
   }, 1)
   return null
 }
 
-function usePinnedProgress(sectionRef, carouselRef) {
+function usePinnedProgress(sectionRef, carouselRef, isActive = true) {
   const { scrollY } = useScroll()
   const initialVh = typeof window !== 'undefined' ? (window.innerHeight || 800) : 800
   const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: -initialVh })
 
   useLayoutEffect(() => {
+    if (!isActive) return
     const section = sectionRef.current
     if (!section) return
     function measure() {
-      const start = section.getBoundingClientRect().top + window.scrollY
+      const carousel = carouselRef?.current
+      const start = carousel
+        ? carousel.offsetTop + carousel.offsetHeight
+        : section.getBoundingClientRect().top + window.scrollY
       rangeRef.current = {
         start,
         distance: Math.max(1, window.innerHeight * (SHOWCASE_SCROLL_VH / 100)),
@@ -390,7 +394,7 @@ function usePinnedProgress(sectionRef, carouselRef) {
       window.removeEventListener('resize', measure)
       observer?.disconnect()
     }
-  }, [sectionRef, carouselRef])
+  }, [sectionRef, carouselRef, isActive])
 
   const progress = useTransform(scrollY, (latest) => {
     const { start, distance } = rangeRef.current
@@ -418,12 +422,12 @@ function usePinnedProgress(sectionRef, carouselRef) {
   return { progress, progressRef, arrival }
 }
 
-export function NoordhuysShowcase({ carouselRef }) {
+export function NoordhuysShowcase({ carouselRef, isActive = true }) {
   const sectionRef = useRef(null)
   const designRef = useRef(null)
   const emblemRef = useRef(null)
   const choxRef = useRef(null)
-  const { progress, progressRef, arrival } = usePinnedProgress(sectionRef, carouselRef)
+  const { progress, progressRef, arrival } = usePinnedProgress(sectionRef, carouselRef, isActive)
   const isVisibleRef = useRef(true)
 
   useEffect(() => {
@@ -537,7 +541,7 @@ export function NoordhuysShowcase({ carouselRef }) {
             emblemRef={emblemRef}
             choxRef={choxRef}
           />
-          <SceneRenderGate isVisibleRef={isVisibleRef} />
+          <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} />
         </Canvas>
 
         {/* Floating Showcase Stage: Background Video Container & Foreground Mobile App */}

@@ -2613,9 +2613,9 @@ function SeamlessBackdrop({
 // uses, minus its OVERLAY_LAYER handling, which this scene has no need for
 // (no glass here, so nothing is doing a backdrop capture that a layer split
 // would have to hide from).
-function SceneRenderGate({ isVisibleRef }) {
+function SceneRenderGate({ isVisibleRef, isActive = true }) {
   useFrame((state) => {
-    if (!isVisibleRef.current) return
+    if (!isActive || !isVisibleRef.current) return
     state.gl.render(state.scene, state.camera)
   }, 1)
   return null
@@ -2676,7 +2676,7 @@ const SIM_INTRO_RISE_PX = 32
 // child, and put its window in the wrong place badly enough to need a live
 // debug overlay to find — see that file's own note. Arithmetic against one
 // measured number is a thing that can be reasoned about from the outside.
-function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) {
+function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef, isActive = true) {
   const { scrollY } = useScroll()
 
   // Measured on mount and whenever anything could have moved this section,
@@ -2697,10 +2697,17 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) 
     plannerDistance: 1,
   })
   useLayoutEffect(() => {
+    if (!isActive) {
+      setDetent?.(null)
+      return
+    }
     const section = sectionRef.current
     if (!section) return
     function measure() {
-      const start = section.getBoundingClientRect().top + window.scrollY
+      const carousel = carouselRef?.current
+      const start = carousel
+        ? carousel.offsetTop + carousel.offsetHeight
+        : section.getBoundingClientRect().top + window.scrollY
       const introEl = introWrapperRef?.current
       const dock = introEl?.offsetHeight || Math.round(window.innerHeight * (SIM_INTRO_VH / 100))
       // 1:1 speed with page scroll: travel distance equals the physical height of the intro section
@@ -2765,7 +2772,7 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) 
       introObserver?.disconnect()
       setDetent?.(null)
     }
-  }, [sectionRef, carouselRef, setDetent, introWrapperRef])
+  }, [sectionRef, carouselRef, setDetent, introWrapperRef, isActive])
 
   // Simulation App Intro explore progress
   const simIntroProgress = useTransform(scrollY, (latest) => {
@@ -2917,7 +2924,7 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) 
   }
 }
 
-export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent }) {
+export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent, isActive = true }) {
   const sectionRef = useRef(null)
   const simIntroPanelRef = useRef(null)
   const introWrapperRef = useRef(null)
@@ -2935,7 +2942,7 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
     hoverProgressRef,
     revealProgressRef,
     plannerProgressRef,
-  } = usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef)
+  } = usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef, isActive)
 
   useEffect(() => {
     if (!onDrpActiveChange) return
@@ -3108,7 +3115,7 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
             dimRef={dimRef}
             angryRef={angryRef}
           />
-          <SceneRenderGate isVisibleRef={isVisibleRef} />
+          <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} />
         </Canvas>
 
         {/* Unified Introduction & Floren Showcase Chat Overlay */}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { animate, useMotionValue } from 'framer-motion'
 import { SCROLL_LERP, useLenis } from '../../lib/useLenis'
 import {
@@ -52,12 +52,12 @@ export default function GlassLogoPreview() {
   const [isAboutUsOpen, setIsAboutUsOpen] = useState(false)
   const [isDrpActive, setIsDrpActive] = useState(false)
 
-  const handleCategoryChange = (index) => {
+  const handleCategoryChange = useCallback((index) => {
     setActiveCategoryIndex(index)
     if (index !== 0) {
       setIsDrpActive(false)
     }
-  }
+  }, [])
   // Written by useLenis itself, for exactly as long as the forced
   // scroll-back-to-top animation (triggered by scrollLocked turning on) is
   // actually in flight — threaded back down to BackgroundGrid so it can
@@ -145,6 +145,7 @@ export default function GlassLogoPreview() {
 
   useEffect(() => {
     resize?.()
+    window.dispatchEvent(new Event('resize'))
   }, [activeCategoryIndex, resize])
   // Everything about the About Us scroll-lock/dismiss state machine lives
   // in one persistent, mount-once effect using plain closure variables
@@ -969,6 +970,36 @@ export default function GlassLogoPreview() {
   // ever changes.
   const carouselRef = useRef(null)
 
+  const handleHeroCategorySelect = useCallback(
+    (index) => {
+      if (index === 0 || index === 1) {
+        handleCategoryChange(index)
+        setScrollLocked(false)
+
+        const targetScroll = carouselRef.current
+          ? carouselRef.current.offsetTop + carouselRef.current.offsetHeight
+          : window.innerHeight
+
+        if (isForceScrollingRef) isForceScrollingRef.current = true
+        requestAnimationFrame(() => {
+          scrollTo(targetScroll, {
+            duration: 2.2,
+            easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+            lock: true,
+            force: true,
+            onComplete: () => {
+              if (isForceScrollingRef) isForceScrollingRef.current = false
+            },
+          })
+        })
+      } else if (index === 2) {
+        handleCategoryChange(2)
+        setScrollLocked(true)
+      }
+    },
+    [handleCategoryChange, scrollTo]
+  )
+
   return (
     <>
       <SiteNavbar
@@ -1024,17 +1055,37 @@ export default function GlassLogoPreview() {
           isForceScrollingRef={isForceScrollingRef}
           onCategoryChange={handleCategoryChange}
           activeCategoryIndex={activeCategoryIndex}
+          onCategorySelect={handleHeroCategorySelect}
         />
         <ClientLogoCarousel sectionRef={carouselRef} />
-        {activeCategoryIndex === 1 ? (
-          <NoordhuysShowcase carouselRef={carouselRef} />
-        ) : (
-          <BackgroundGlowSection
-            carouselRef={carouselRef}
-            onDrpActiveChange={setIsDrpActive}
-            setDetent={setDetent}
-          />
-        )}
+        <div className="relative w-full">
+          <div
+            style={
+              activeCategoryIndex === 1
+                ? { position: 'absolute', top: 0, left: 0, width: '100%', visibility: 'hidden', pointerEvents: 'none' }
+                : { position: 'relative', width: '100%', visibility: 'visible' }
+            }
+          >
+            <BackgroundGlowSection
+              carouselRef={carouselRef}
+              onDrpActiveChange={setIsDrpActive}
+              setDetent={setDetent}
+              isActive={activeCategoryIndex !== 1}
+            />
+          </div>
+          <div
+            style={
+              activeCategoryIndex === 1
+                ? { position: 'relative', width: '100%', visibility: 'visible' }
+                : { position: 'absolute', top: 0, left: 0, width: '100%', visibility: 'hidden', pointerEvents: 'none' }
+            }
+          >
+            <NoordhuysShowcase
+              carouselRef={carouselRef}
+              isActive={activeCategoryIndex === 1}
+            />
+          </div>
+        </div>
       </div>
       <SiteFooter
         key={activeCategoryIndex}

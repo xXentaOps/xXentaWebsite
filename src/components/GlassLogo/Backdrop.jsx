@@ -6,7 +6,7 @@ import { BLOB_WIDTH_OVERSCALE, PLANE_SIZE, PLANE_Z } from './sceneConstants'
 // Lives inside the Canvas: a real scene-space gradient (not CSS) so
 // MeshTransmissionMaterial's backbuffer sampling can actually pick it up and
 // blur/refract it through the glass.
-export function Backdrop({ onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress, activeIndex }) {
+export function Backdrop({ onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress, activeIndex, onCategorySelect }) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
 
@@ -34,6 +34,7 @@ export function Backdrop({ onActiveIndexChange, onScrollLockChange, isForceScrol
         onScrollLockChange={onScrollLockChange}
         isForceScrollingRef={isForceScrollingRef}
         activeIndex={activeIndex}
+        onCategorySelect={onCategorySelect}
       />
       {/* Lower than it was — with the glass now less transmissive (see
           GlassLogoGroup), more of its diffuse/specular response to real

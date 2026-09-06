@@ -144,8 +144,13 @@ export function useLenis(locked = false, isForceScrollingRef) {
   // with no locking behavior of its own once it gets there. SCROLL_LERP
   // as the default (not Lenis's own, brisker default) gives it the same
   // "weighted" pace as the rest of this piece's scroll-linked motion.
-  const scrollTo = useCallback((target, options) => {
-    lenisRef.current?.scrollTo(target, { lerp: SCROLL_LERP, ...options })
+  const scrollTo = useCallback((target, options = {}) => {
+    const { duration, easing, lerp, ...rest } = options
+    if (duration !== undefined) {
+      lenisRef.current?.scrollTo(target, { duration, easing, ...rest })
+    } else {
+      lenisRef.current?.scrollTo(target, { lerp: lerp ?? SCROLL_LERP, ...rest })
+    }
   }, [])
 
   // Forces Lenis to re-measure its own cached scroll dimensions — needed by

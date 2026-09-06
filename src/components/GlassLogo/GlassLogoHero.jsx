@@ -47,7 +47,15 @@ function createFixedPointerEvents(store) {
   return { ...events(store), compute: computeClientPointer }
 }
 
-export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScrollComp, aboutUsProgress, onCategoryChange, activeCategoryIndex }) {
+export function GlassLogoHero({
+  onScrollLockChange,
+  isForceScrollingRef,
+  openScrollComp,
+  aboutUsProgress,
+  onCategoryChange,
+  activeCategoryIndex,
+  onCategorySelect,
+}) {
   const tier = usePerformanceTier()
   const breakpoint = useBreakpoint()
   const targetSize = TARGET_SIZE_BY_BREAKPOINT[breakpoint] ?? 4
@@ -174,6 +182,7 @@ export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScr
           onScrollLockChange={onScrollLockChange}
           isForceScrollingRef={isForceScrollingRef}
           activeIndex={activeIndex}
+          onCategorySelect={onCategorySelect}
         />
         <Suspense fallback={null}>
           <HeroTitle targetSize={targetSize} highQuality={tier === 'high'} activeIndex={activeIndex} isHeroVisibleRef={isHeroVisibleRef} />
