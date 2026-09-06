@@ -599,7 +599,7 @@ export function NoordhuysShowcase({ carouselRef }) {
             <div className="relative w-full h-full rounded-[24px] overflow-hidden border border-white/15 bg-[#2F323B] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-md">
               {/* Subtle top edge glass reflection */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent z-40" />
-              <WeeklyPlanningDashboard />
+              <WeeklyPlanningDashboard scrollProgress={progress} />
             </div>
           </div>
         </motion.div>

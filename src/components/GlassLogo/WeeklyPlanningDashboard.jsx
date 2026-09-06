@@ -149,7 +149,342 @@ const LOCATIONS_LIST = [
   'Cold Storage',
 ]
 
-export function WeeklyPlanningDashboard() {
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAY_FULL_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const X_COORDS = [60, 165, 270, 375, 480, 580, 680]
+const HARVEST_BASE_Y = [55, 45, 36, 32, 28, 26, 27]
+const PACKING_BASE_Y = [72, 62, 53, 48, 44, 42, 43]
+
+function getCatmullRomBezier(points, tension = 1) {
+  if (points.length < 2) return ''
+  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`
+  const f = tension / 6
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = i > 0 ? points[i - 1] : points[i]
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const p3 = i < points.length - 2 ? points[i + 2] : p2
+
+    const cp1x = p1.x + (p2.x - p0.x) * f
+    const cp1y = p1.y + (p2.y - p0.y) * f
+    const cp2x = p2.x - (p3.x - p1.x) * f
+    const cp2y = p2.y - (p3.y - p1.y) * f
+
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+  }
+  return d
+}
+
+function yToPercentage(y) {
+  return Math.max(0, Math.min(100, Math.round(((130 - y) / 115) * 100)))
+}
+
+function computeChartState(phase) {
+  const harvestPoints = []
+  const packingPoints = []
+  const harvestPcts = []
+  const packingPcts = []
+
+  for (let i = 0; i < 7; i++) {
+    // Balanced, organic undulation waves (tuned to a graceful sweet spot)
+    const waveH = 5.0 * Math.sin(phase + i * 0.55) + 1.8 * Math.cos(phase * 1.3 + i * 0.8)
+    const waveP = 4.2 * Math.sin(phase + i * 0.55 + 0.6) + 1.5 * Math.cos(phase * 1.2 + i * 0.7)
+
+    let hy = Math.max(18, Math.min(115, HARVEST_BASE_Y[i] + waveH))
+    let py = Math.max(hy + 8, Math.min(124, PACKING_BASE_Y[i] + waveP))
+
+    harvestPoints.push({ x: X_COORDS[i], y: hy })
+    packingPoints.push({ x: X_COORDS[i], y: py })
+
+    harvestPcts.push(yToPercentage(hy))
+    packingPcts.push(yToPercentage(py))
+  }
+
+  const harvestLineD = getCatmullRomBezier(harvestPoints)
+  const harvestFillD = `${harvestLineD} L 680 130 L 60 130 Z`
+
+  const packingLineD = getCatmullRomBezier(packingPoints)
+  const packingFillD = `${packingLineD} L 680 130 L 60 130 Z`
+
+  const avgEfficiency = Math.round(harvestPcts.reduce((sum, val) => sum + val, 0) / 7)
+
+  return {
+    harvestPoints,
+    packingPoints,
+    harvestPcts,
+    packingPcts,
+    harvestLineD,
+    harvestFillD,
+    packingLineD,
+    packingFillD,
+    avgEfficiency,
+  }
+}
+
+function ProductionPerformanceChart({ scrollProgress }) {
+  const [hoveredDay, setHoveredDay] = useState(null)
+  const hoveredDayRef = useRef(null)
+  hoveredDayRef.current = hoveredDay
+
+  const harvestLineRef = useRef(null)
+  const harvestFillRef = useRef(null)
+  const packingLineRef = useRef(null)
+  const packingFillRef = useRef(null)
+  const harvestCircleRefs = useRef([])
+  const packingCircleRefs = useRef([])
+  const avgTextRef = useRef(null)
+  const tooltipHarvestRef = useRef(null)
+  const tooltipPackingRef = useRef(null)
+  const liveStateRef = useRef(computeChartState(0))
+
+  const updateDOM = (state) => {
+    liveStateRef.current = state
+
+    if (harvestLineRef.current) harvestLineRef.current.setAttribute('d', state.harvestLineD)
+    if (harvestFillRef.current) harvestFillRef.current.setAttribute('d', state.harvestFillD)
+    if (packingLineRef.current) packingLineRef.current.setAttribute('d', state.packingLineD)
+    if (packingFillRef.current) packingFillRef.current.setAttribute('d', state.packingFillD)
+
+    state.harvestPoints.forEach((pt, i) => {
+      const el = harvestCircleRefs.current[i]
+      if (el) el.setAttribute('cy', pt.y.toFixed(1))
+    })
+    state.packingPoints.forEach((pt, i) => {
+      const el = packingCircleRefs.current[i]
+      if (el) el.setAttribute('cy', pt.y.toFixed(1))
+    })
+
+    if (avgTextRef.current) {
+      avgTextRef.current.textContent = `${state.avgEfficiency}%`
+    }
+
+    const d = hoveredDayRef.current
+    if (d !== null) {
+      if (tooltipHarvestRef.current) tooltipHarvestRef.current.textContent = `${state.harvestPcts[d]}%`
+      if (tooltipPackingRef.current) tooltipPackingRef.current.textContent = `${state.packingPcts[d]}%`
+    }
+  }
+
+  useEffect(() => {
+    if (scrollProgress && typeof scrollProgress.on === 'function') {
+      const unsubscribe = scrollProgress.on('change', (latest) => {
+        // Balanced phase progression: smooth, responsive, but not frantic
+        const phase = latest * 24
+        updateDOM(computeChartState(phase))
+      })
+      const initialPhase = (scrollProgress.get?.() ?? 0) * 24
+      updateDOM(computeChartState(initialPhase))
+      return () => unsubscribe()
+    } else {
+      const handleScroll = () => {
+        const scrollY = window.scrollY || window.pageYOffset || 0
+        const phase = (scrollY / 1400) * (2 * Math.PI)
+        updateDOM(computeChartState(phase))
+      }
+      window.addEventListener('scroll', handleScroll, { passive: true })
+      handleScroll()
+      return () => window.removeEventListener('scroll', handleScroll)
+    }
+  }, [scrollProgress])
+
+  const initial = liveStateRef.current
+
+  return (
+    <div className="lg:col-span-9 flex flex-col justify-between h-full min-h-0 gap-2">
+      <div className="relative w-full flex-1 min-h-[135px] max-h-[175px]">
+        {/* Floating Tooltip when hovering over a day */}
+        {hoveredDay !== null && (
+          <div
+            className="pointer-events-none absolute z-30 flex flex-col gap-0.5 rounded-lg border border-white/20 bg-[#18181B]/95 px-2.5 py-1.5 shadow-xl backdrop-blur-md transition-all duration-75"
+            style={{
+              left: `${(X_COORDS[hoveredDay] / 700) * 100}%`,
+              top: '4px',
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <div className="text-[10px] font-semibold text-white/90">
+              {DAY_FULL_NAMES[hoveredDay]}
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <div className="flex items-center gap-1 text-[#A5B4FC]">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#6366F1]" />
+                <span>Harvest:</span>
+                <span ref={tooltipHarvestRef} className="font-semibold text-white">
+                  {liveStateRef.current.harvestPcts[hoveredDay]}%
+                </span>
+              </div>
+              <div className="flex items-center gap-1 text-[#E9D5FF]">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#C27AFF]" />
+                <span>Packing:</span>
+                <span ref={tooltipPackingRef} className="font-semibold text-white">
+                  {liveStateRef.current.packingPcts[hoveredDay]}%
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SVG Chart */}
+        <svg className="w-full h-full overflow-visible" viewBox="0 0 700 135" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="harvestGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#6366F1" stopOpacity="0.35" />
+              <stop offset="95%" stopColor="#6366F1" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="packingGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#C27AFF" stopOpacity="0.35" />
+              <stop offset="95%" stopColor="#C27AFF" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* Horizontal Dashed Gridlines */}
+          {[15, 45, 75, 105, 130].map((y) => (
+            <line
+              key={y}
+              x1="45"
+              y1={y}
+              x2="690"
+              y2={y}
+              stroke="#3F3F47"
+              strokeDasharray="4 4"
+              strokeWidth="0.8"
+            />
+          ))}
+
+          {/* Y-Axis Labels */}
+          <text x="35" y="19" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">100%</text>
+          <text x="35" y="49" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">75%</text>
+          <text x="35" y="79" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">50%</text>
+          <text x="35" y="109" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">25%</text>
+          <text x="35" y="134" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">0%</text>
+
+          {/* Vertical guideline on hover */}
+          {hoveredDay !== null && (
+            <line
+              x1={X_COORDS[hoveredDay]}
+              y1="15"
+              x2={X_COORDS[hoveredDay]}
+              y2="130"
+              stroke="#A1A1AA"
+              strokeOpacity="0.4"
+              strokeDasharray="3 3"
+              strokeWidth="1"
+            />
+          )}
+
+          {/* Area 1: Harvest Efficiency (Fill & Line) */}
+          <path
+            ref={harvestFillRef}
+            d={initial.harvestFillD}
+            fill="url(#harvestGrad)"
+          />
+          <path
+            ref={harvestLineRef}
+            d={initial.harvestLineD}
+            fill="none"
+            stroke="#6366F1"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+
+          {/* Area 2: Packing Output (Fill & Line) */}
+          <path
+            ref={packingFillRef}
+            d={initial.packingFillD}
+            fill="url(#packingGrad)"
+          />
+          <path
+            ref={packingLineRef}
+            d={initial.packingLineD}
+            fill="none"
+            stroke="#C27AFF"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+
+          {/* Data Points */}
+          {initial.harvestPoints.map((pt, i) => (
+            <circle
+              key={`h-${i}`}
+              ref={(el) => (harvestCircleRefs.current[i] = el)}
+              cx={pt.x}
+              cy={pt.y}
+              r={hoveredDay === i ? 4.5 : 3}
+              fill="#6366F1"
+              stroke={hoveredDay === i ? '#FFFFFF' : 'none'}
+              strokeWidth={hoveredDay === i ? 1.5 : 0}
+            />
+          ))}
+          {initial.packingPoints.map((pt, i) => (
+            <circle
+              key={`p-${i}`}
+              ref={(el) => (packingCircleRefs.current[i] = el)}
+              cx={pt.x}
+              cy={pt.y}
+              r={hoveredDay === i ? 4.5 : 3}
+              fill="#C27AFF"
+              stroke={hoveredDay === i ? '#FFFFFF' : 'none'}
+              strokeWidth={hoveredDay === i ? 1.5 : 0}
+            />
+          ))}
+
+          {/* Interactive Hover Columns */}
+          {DAY_LABELS.map((_, i) => {
+            const xLeft = i === 0 ? 45 : (X_COORDS[i - 1] + X_COORDS[i]) / 2
+            const xRight = i === 6 ? 690 : (X_COORDS[i] + X_COORDS[i + 1]) / 2
+            return (
+              <rect
+                key={`col-${i}`}
+                x={xLeft}
+                y="0"
+                width={xRight - xLeft}
+                height="135"
+                fill="transparent"
+                className="cursor-pointer"
+                onMouseEnter={() => setHoveredDay(i)}
+                onMouseLeave={() => setHoveredDay((curr) => (curr === i ? null : curr))}
+              />
+            )
+          })}
+        </svg>
+      </div>
+
+      {/* X-Axis Day Labels */}
+      <div className="flex justify-between pl-12 pr-4 text-[10px] text-[#A1A1A1]" style={{ fontFamily: "'Inter', sans-serif" }}>
+        {DAY_LABELS.map((day, i) => (
+          <span
+            key={day}
+            className={`transition-colors duration-150 ${hoveredDay === i ? 'text-white font-semibold' : ''}`}
+          >
+            {day}
+          </span>
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center justify-between pt-1.5 border-t border-white/5 text-[11px] text-[#9F9FA9]">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-[#6366F1]" />
+            <span>Harvest Efficiency</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-[#C27AFF]" />
+            <span>Packing Output</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <span>Avg. Efficiency:</span>
+          <span ref={avgTextRef} className="font-semibold text-[#E4E4E7]">
+            {initial.avgEfficiency}%
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function WeeklyPlanningDashboard({ scrollProgress }) {
   const [activeNav, setActiveNav] = useState('Planning')
   const [selectedStaff, setSelectedStaff] = useState('Ahmet Yılmaz')
   const [selectedTask, setSelectedTask] = useState(TASKS_LIST[0])
@@ -740,108 +1075,8 @@ export function WeeklyPlanningDashboard() {
             <span className="text-sm font-semibold text-[#F4F4F5] shrink-0">Production Performance</span>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center flex-1 min-h-0">
-              {/* Left Column: Productivity Area Chart */}
-              <div className="lg:col-span-9 flex flex-col justify-between h-full min-h-0 gap-2">
-                <div className="relative w-full flex-1 min-h-[135px] max-h-[175px]">
-                  {/* SVG Chart */}
-                  <svg className="w-full h-full overflow-visible" viewBox="0 0 700 135" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="harvestGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366F1" stopOpacity="0.35" />
-                        <stop offset="95%" stopColor="#6366F1" stopOpacity="0" />
-                      </linearGradient>
-                      <linearGradient id="packingGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#C27AFF" stopOpacity="0.35" />
-                        <stop offset="95%" stopColor="#C27AFF" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Horizontal Dashed Gridlines */}
-                    {[15, 45, 75, 105, 130].map((y) => (
-                      <line
-                        key={y}
-                        x1="45"
-                        y1={y}
-                        x2="690"
-                        y2={y}
-                        stroke="#3F3F47"
-                        strokeDasharray="4 4"
-                        strokeWidth="0.8"
-                      />
-                    ))}
-
-                    {/* Y-Axis Labels */}
-                    <text x="35" y="19" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">100%</text>
-                    <text x="35" y="49" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">75%</text>
-                    <text x="35" y="79" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">50%</text>
-                    <text x="35" y="109" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">25%</text>
-                    <text x="35" y="134" fill="#A1A1A1" fontSize="10" textAnchor="end" fontFamily="'Inter', sans-serif">0%</text>
-
-                    {/* Area 1: Harvest Efficiency (Line & Fill) */}
-                    <path
-                      d="M 60 100 C 130 85, 200 58, 270 45 C 340 34, 410 54, 480 36 C 550 22, 620 41, 680 29 L 680 130 L 60 130 Z"
-                      fill="url(#harvestGrad)"
-                    />
-                    <path
-                      d="M 60 100 C 130 85, 200 58, 270 45 C 340 34, 410 54, 480 36 C 550 22, 620 41, 680 29"
-                      fill="none"
-                      stroke="#6366F1"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-
-                    {/* Area 2: Packing Output (Line & Fill) */}
-                    <path
-                      d="M 60 115 C 130 105, 200 82, 270 68 C 340 59, 410 72, 480 54 C 550 43, 620 52, 680 41 L 680 130 L 60 130 Z"
-                      fill="url(#packingGrad)"
-                    />
-                    <path
-                      d="M 60 115 C 130 105, 200 82, 270 68 C 340 59, 410 72, 480 54 C 550 43, 620 52, 680 41"
-                      fill="none"
-                      stroke="#C27AFF"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-
-                    {/* Data Points */}
-                    {[[60, 100], [165, 72], [270, 45], [375, 41], [480, 36], [580, 31], [680, 29]].map(([cx, cy], i) => (
-                      <circle key={`h-${i}`} cx={cx} cy={cy} r="3" fill="#6366F1" />
-                    ))}
-                    {[[60, 115], [165, 93], [270, 68], [375, 65], [480, 54], [580, 47], [680, 41]].map(([cx, cy], i) => (
-                      <circle key={`p-${i}`} cx={cx} cy={cy} r="3" fill="#C27AFF" />
-                    ))}
-                  </svg>
-                </div>
-
-                {/* X-Axis Day Labels */}
-                <div className="flex justify-between pl-12 pr-4 text-[10px] text-[#A1A1A1]" style={{ fontFamily: "'Inter', sans-serif" }}>
-                  <span>Mon</span>
-                  <span>Tue</span>
-                  <span>Wed</span>
-                  <span>Thu</span>
-                  <span>Fri</span>
-                  <span>Sat</span>
-                  <span>Sun</span>
-                </div>
-
-                {/* Legend */}
-                <div className="flex flex-wrap items-center justify-between pt-1.5 border-t border-white/5 text-[11px] text-[#9F9FA9]">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-[#6366F1]" />
-                      <span>Harvest Efficiency</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-[#C27AFF]" />
-                      <span>Packing Output</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span>Avg. Efficiency:</span>
-                    <span className="font-semibold text-[#E4E4E7]">85%</span>
-                  </div>
-                </div>
-              </div>
+              {/* Left Column: Productivity Area Chart with Scroll-Driven Dynamic Curves & Tooltip */}
+              <ProductionPerformanceChart scrollProgress={scrollProgress} />
 
               {/* Right Column: Storage Space Donut Chart */}
               <div
