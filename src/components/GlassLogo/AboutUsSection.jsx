@@ -1,4 +1,4 @@
-import { forwardRef, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, Suspense, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { shaderMaterial, Text } from '@react-three/drei'
 import { Canvas, extend, useFrame, useThree } from '@react-three/fiber'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
@@ -651,6 +651,7 @@ function SeamlessGridBackdrop({
   // as long as the bake takes. This plane can't depend on that finishing to
   // be legible.
   throughGlassOpacityScale = 1,
+  layer = 0,
 }) {
   const { size, blobWidth, blobY, gridWidth, gridHeight, repeat, yPhaseShiftCells } = useSeamlessGrid(-1)
   // Only the grid planes, not the blob — leaving the blob's own much
@@ -703,14 +704,14 @@ function SeamlessGridBackdrop({
           internal capture, and would paint over that canvas's alpha:true
           transparency with solid navy. */}
       {includeBackground && <color attach="background" args={['#0F172B']} />}
-      <GradientBlob position={[0, blobY, PLANE_Z]} scale={[blobWidth * BLOB_WIDTH_OVERSCALE, PLANE_SIZE, 1]} />
+      <GradientBlob position={[0, blobY, PLANE_Z]} scale={[blobWidth * BLOB_WIDTH_OVERSCALE, PLANE_SIZE, 1]} layer={layer} />
       {/* Same layer-0-only, THROUGH_GLASS_STYLE-then-DIRECT_STYLE pairing
           BackgroundGlowSection uses for the same reason — there's no glass
           logo in this canvas either, so both planes composite into what's
           actually seen directly, and the soft plane alone is what gives the
           crisp lines their glow. */}
       <group ref={gridGroupRef}>
-        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(THROUGH_GLASS_STYLE, ABOUT_US_GRID_ZOOM_SCALE, throughGlassOpacityScale)} layer={0} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
+        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(THROUGH_GLASS_STYLE, ABOUT_US_GRID_ZOOM_SCALE, throughGlassOpacityScale)} layer={layer} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
         {/* Skipped for the badge's own capture-only copy (see
             CaptureGridBackdrop) — the hero's own glass logo never refracts
             this crisp plane either (see BackgroundGrid.jsx, where it sits on
@@ -720,7 +721,7 @@ function SeamlessGridBackdrop({
             includeCrispLines, same as always, since only this prop (not the
             layer) decides whether it renders at all in a given copy. */}
         {includeCrispLines && (
-          <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(DIRECT_STYLE, ABOUT_US_GRID_ZOOM_SCALE)} layer={0} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
+          <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(DIRECT_STYLE, ABOUT_US_GRID_ZOOM_SCALE)} layer={layer} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
         )}
       </group>
     </>
@@ -734,9 +735,7 @@ function SeamlessGridBackdrop({
 // its own canvas, lost when that canvas's only backdrop content became the
 // photo. On CAPTURE_LAYER only (see PhotoBackdropCapture's own top
 // comment): invisible in this canvas's real render, present only for
-// TransmissionMaterial's internal capture pass. A group-traverse rather
-// than per-mesh layer props because GradientBlob doesn't expose one the way
-// GridPlane does, and traversing once covers both uniformly regardless.
+// TransmissionMaterial's internal capture pass.
 //
 // includeCrispLines={false} — confirmed directly against BackgroundGrid.jsx
 // (the hero's own grid): its crisp DIRECT_STYLE plane sits on OVERLAY_LAYER
@@ -754,17 +753,12 @@ function SeamlessGridBackdrop({
 // mesh itself in this same canvas). Those are two different questions: this
 // copy stands in for "what does the grid look like right now," which is the
 // same everywhere on the page regardless of who's looking at it, while the
-// badge's own SlideGroup answers "where does the badge itself sit." Omitting
-// this prop entirely (tried first) left this copy frozen at its rest phase
-// while the two real, on-screen grid layers kept sliding — reported directly
-// as a third, blurrier grid that looked like it "stopped earlier in the
-// slide animation," which is exactly what a phase stuck at 0 while
-// everything else advances looks like.
+// badge's own SlideGroup answers "where does the badge itself sit."
 function CaptureGridBackdrop({ aboutUsProgress, teamProgress }) {
   const groupRef = useRef(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     groupRef.current?.traverse((obj) => obj.layers.set(CAPTURE_LAYER))
-  }, [])
+  })
   return (
     <group ref={groupRef}>
       <SeamlessGridBackdrop
@@ -772,6 +766,7 @@ function CaptureGridBackdrop({ aboutUsProgress, teamProgress }) {
         teamProgress={teamProgress}
         includeBackground={false}
         includeCrispLines={false}
+        layer={CAPTURE_LAYER}
       />
     </group>
   )
@@ -808,10 +803,16 @@ function SceneRenderGate({
 }) {
   const warmFramesRef = useRef(0)
   const isWarmedRef = useRef(false)
+  const isClearedRef = useRef(false)
   useFrame((state) => {
     if (pauseWhenTeamOpen && isTeamOpen && teamProgress && teamProgress.get() >= 0.7) {
+      if (!isClearedRef.current) {
+        state.gl.clear()
+        isClearedRef.current = true
+      }
       return
     }
+    isClearedRef.current = false
     const isMoving = Boolean(aboutUsProgress && aboutUsProgress.get() > 0)
     const isVisible = isOpen || isMoving || (isVisibleRef && isVisibleRef.current)
     if (!isVisible) {
@@ -1537,10 +1538,9 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
                   and needs the same treatment to stay visible through it. */}
               {sceneReady && tier === 'high' && <CornerBracketCapture windowRect={photoRect} />}
             </SlideGroup>
-            {/* See CaptureGridBackdrop's own top comment — the other half
-                of what the badge's glass refracts, alongside the photo
-                above. */}
-            {sceneReady && tier === 'high' && <CaptureGridBackdrop aboutUsProgress={aboutUsProgress} teamProgress={teamProgress} />}
+            {sceneReady && tier === 'high' && !(isTeamOpen && teamProgress && teamProgress.get() >= 0.7) && (
+              <CaptureGridBackdrop aboutUsProgress={aboutUsProgress} teamProgress={teamProgress} />
+            )}
             {/* Gated on sceneReady (see above), not isOpen, unlike the badge
                 — this is a one-time bake (see its own bakedRef guard), not
                 an ongoing per-frame cost, so conditionally

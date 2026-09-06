@@ -149,6 +149,7 @@ export function GradientBlob({
   revealRef,
   centerColorRef,
   edgeColorRef,
+  layer = 0,
 }) {
   const materialRef = useRef(null)
   // Set on this blob's own first frame — same one-time-only entrance
@@ -208,7 +209,13 @@ export function GradientBlob({
   })
 
   return (
-    <mesh position={position} scale={scale}>
+    <mesh
+      position={position}
+      scale={scale}
+      ref={(el) => {
+        if (el) el.layers.set(layer)
+      }}
+    >
       <planeGeometry args={[1, 1]} />
       <gradientBlobMaterial ref={materialRef} toneMapped={false} />
     </mesh>
