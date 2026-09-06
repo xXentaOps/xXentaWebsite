@@ -517,6 +517,8 @@ function SeamlessBackdrop({
   plannerProgressRef,
   dimRef,
   angryRef,
+  isActive = true,
+  isForceScrollingRef,
 }) {
   // screenOffset 1 — this section continues the pattern one screen *below*
   // the hero (see useSeamlessGrid for the shared derivation of
@@ -973,7 +975,9 @@ function SeamlessBackdrop({
     // smoothing already eases the scroll position itself, but damping the
     // *zoom* on top keeps it from ever snapping if a frame's scroll delta
     // is unusually large (a fast flick, a jump-to-anchor).
-    const nextScale = MathUtils.damp(group.scale.x, targetScale, 8, delta)
+    const nextScale = isForceScrollingRef?.current
+      ? targetScale
+      : MathUtils.damp(group.scale.x, targetScale, 28, delta)
     group.scale.set(nextScale, nextScale, 1)
     // Mirrored onto the callouts' own group too — same zoom, just never the
     // X pan (see calloutGroupRef's own comment).
@@ -1066,7 +1070,9 @@ function SeamlessBackdrop({
     // flick through this stretch still catches up smoothly rather than
     // snapping the instant scroll outruns a plain lerp.
     const panT = smoothstepEase(panProgressRef.current)
-    group.position.x = MathUtils.damp(group.position.x, panWorldDistance * panT, PAN_LAMBDA, delta)
+    group.position.x = isForceScrollingRef?.current
+      ? panWorldDistance * panT
+      : MathUtils.damp(group.position.x, panWorldDistance * panT, 28, delta)
     // The DRP Intro, hover and reveal phases' own progress — see DRP_INTRO_VH/HOVER_VH/REVEAL_VH.
     const rawIntro = drpIntroProgressRef.current
     const hoverT = smoothstepEase(hoverProgressRef.current)
@@ -1080,7 +1086,9 @@ function SeamlessBackdrop({
     // the shared part is copied exactly, so the two groups can never
     // disagree about it.
     if (revealGroupRef.current) {
-      revealOffsetRef.current = MathUtils.damp(revealOffsetRef.current, revealWorldDistance * slideT, PAN_LAMBDA, delta)
+      revealOffsetRef.current = isForceScrollingRef?.current
+        ? revealWorldDistance * slideT
+        : MathUtils.damp(revealOffsetRef.current, revealWorldDistance * slideT, 28, delta)
       revealGroupRef.current.position.x = group.position.x + revealOffsetRef.current
     }
 
@@ -1108,8 +1116,16 @@ function SeamlessBackdrop({
     // justified, so both are genuinely visible together for the width of
     // the transition, which only reads as one shape morphing into the other
     // because the squares underneath are sliding at the same time.
-    if (punchRef.current) punchRef.current.style.opacity = `${(1 - panT) * PUNCH_TEXT_BASE_OPACITY}`
-    if (examsPunchRef.current) examsPunchRef.current.style.opacity = `${panT}`
+    if (punchRef.current) {
+      punchRef.current.style.display = isActive ? 'flex' : 'none'
+      punchRef.current.style.visibility = isActive ? 'visible' : 'hidden'
+      punchRef.current.style.opacity = `${(1 - panT) * PUNCH_TEXT_BASE_OPACITY}`
+    }
+    if (examsPunchRef.current) {
+      examsPunchRef.current.style.display = isActive ? 'flex' : 'none'
+      examsPunchRef.current.style.visibility = isActive ? 'visible' : 'hidden'
+      examsPunchRef.current.style.opacity = `${panT}`
+    }
     if (placeholderMeshRef.current) placeholderMeshRef.current.material.opacity = panT
 
     // Simulation Intro Panel is positioned and animated vertically via Framer Motion
@@ -2328,20 +2344,22 @@ function SeamlessBackdrop({
             natural content width. No default font-size here — useFrame
             sets a real size on the very first visible frame, well before
             paint is likely to matter. */}
-        <Html
-          position={[litSquareRightX, litSquareRowY, GRID_Z + 0.02]}
-          zIndexRange={[0, 0]}
-          style={{ transform: `translate(calc(-100% - ${TEXT_RIGHT_MARGIN_PX}px), -50%)`, pointerEvents: 'none' }}
-        >
-          <div ref={punchRef} className="flex flex-col items-end" style={{ opacity: PUNCH_TEXT_BASE_OPACITY }}>
-            <span ref={logoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
-              <XxentaWordmark />
-            </span>
-            <p ref={simTextRef} className="leading-none font-semibold whitespace-nowrap">
-              {SIM_TEXT}
-            </p>
-          </div>
-        </Html>
+        {isActive && (
+          <Html
+            position={[litSquareRightX, litSquareRowY, GRID_Z + 0.02]}
+            zIndexRange={[0, 0]}
+            style={{ transform: `translate(calc(-100% - ${TEXT_RIGHT_MARGIN_PX}px), -50%)`, pointerEvents: 'none' }}
+          >
+            <div id="education-punch-text" ref={punchRef} className="flex flex-col items-end" style={{ opacity: PUNCH_TEXT_BASE_OPACITY }}>
+              <span ref={logoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
+                <XxentaWordmark />
+              </span>
+              <p ref={simTextRef} className="leading-none font-semibold whitespace-nowrap">
+                {SIM_TEXT}
+              </p>
+            </div>
+          </Html>
+        )}
 
         {/* "Exams & Syllabi" — the same two squares' own incoming label,
             left-justified this time: no translateX in the transform below
@@ -2353,32 +2371,34 @@ function SeamlessBackdrop({
             the text itself never quite touches it. Starts at opacity 0
             (see examsPunchRef's own write in the frame loop) — it isn't
             there until the crossfade brings it in. */}
-        <Html
-          position={[edgeXB, litSquareRowY, GRID_Z + 0.02]}
-          zIndexRange={[0, 0]}
-          style={{ transform: `translate(${EXAMS_TEXT_LEFT_MARGIN_PX}px, -50%)`, pointerEvents: 'none' }}
-        >
-          <div ref={examsPunchRef} className="flex flex-col items-start" style={{ opacity: 0 }}>
-            {/* Nudged right by EXAMS_LOGO_NUDGE_EM (see the frame loop,
-                where the actual per-frame value is written, as a fraction
-                of this line's own font-size — has to scale with the zoom
-                the same way the font-size does, so it can't just be a
-                static style prop here) — XxentaWordmark's own "x"
-                doesn't start flush with its own box's left edge (a normal
-                font-metrics gap, the same kind HeroTitle's own per-word
-                left-bearing correction exists for elsewhere), which read as
-                very slightly left of "Exams & Syllabi"'s own E underneath
-                it. Local to this one span, not a change to XxentaWordmark
-                itself — the navbar and footer's own copies of this mark are
-                flush already and shouldn't move. */}
-            <span ref={examsLogoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
-              <XxentaWordmark />
-            </span>
-            <p ref={examsTextRef} className="leading-none font-semibold whitespace-nowrap">
-              {EXAMS_TEXT}
-            </p>
-          </div>
-        </Html>
+        {isActive && (
+          <Html
+            position={[edgeXB, litSquareRowY, GRID_Z + 0.02]}
+            zIndexRange={[0, 0]}
+            style={{ transform: `translate(${EXAMS_TEXT_LEFT_MARGIN_PX}px, -50%)`, pointerEvents: 'none' }}
+          >
+            <div id="education-exams-punch-text" ref={examsPunchRef} className="flex flex-col items-start" style={{ opacity: 0 }}>
+              {/* Nudged right by EXAMS_LOGO_NUDGE_EM (see the frame loop,
+                  where the actual per-frame value is written, as a fraction
+                  of this line's own font-size — has to scale with the zoom
+                  the same way the font-size does, so it can't just be a
+                  static style prop here) — XxentaWordmark's own "x"
+                  doesn't start flush with its own box's left edge (a normal
+                  font-metrics gap, the same kind HeroTitle's own per-word
+                  left-bearing correction exists for elsewhere), which read as
+                  very slightly left of "Exams & Syllabi"'s own E underneath
+                  it. Local to this one span, not a change to XxentaWordmark
+                  itself — the navbar and footer's own copies of this mark are
+                  flush already and shouldn't move. */}
+              <span ref={examsLogoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
+                <XxentaWordmark />
+              </span>
+              <p ref={examsTextRef} className="leading-none font-semibold whitespace-nowrap">
+                {EXAMS_TEXT}
+              </p>
+            </div>
+          </Html>
+        )}
 
       </group>
 
@@ -2924,7 +2944,7 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef, 
   }
 }
 
-export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent, isActive = true }) {
+export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent, isActive = true, isForceScrollingRef }) {
   const sectionRef = useRef(null)
   const simIntroPanelRef = useRef(null)
   const introWrapperRef = useRef(null)
@@ -2974,24 +2994,17 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
     update(progress.get())
     return progress.on('change', update)
   }, [progress])
-  // Whether this section is painting anywhere on screen. Until this existed
-  // it simply never stopped: GlassLogoHero and AboutUsSection each gate their
-  // own canvas on exactly this, and this one — a full-screen canvas a whole
-  // viewport below the fold — was drawing every frame for as long as the tab
-  // stayed open, including the entire time a visitor is sitting at the top
-  // looking at the hero. Roughly double the fill cost of the thing they were
-  // actually looking at, spent on something a screen away.
-  //
-  // A ref rather than state, and an IntersectionObserver rather than scroll
-  // math, for the same reasons the other two gates give: no re-render per
-  // frame, and it tracks where the section really paints.
+
+  // Section visibility tracking — avoids wasting canvas render when the section
+  // is completely off-screen, with a generous rootMargin so it's already ready
+  // before scrolling into view.
   const isVisibleRef = useRef(true)
   useEffect(() => {
     const section = sectionRef.current
     if (!section) return
     const observer = new IntersectionObserver(([entry]) => {
       isVisibleRef.current = entry.isIntersecting
-    })
+    }, { rootMargin: '1000px 0px' })
     observer.observe(section)
     return () => observer.disconnect()
   }, [])
@@ -3091,7 +3104,7 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
           normal-flow position, which a transform never changes, so the
           cushion rides along without touching *where* it sticks, only how
           the catch itself feels. */}
-      <motion.div className="sticky top-0 h-screen w-full overflow-hidden" style={{ scale: stageScale }}>
+      <div className="sticky top-0 h-screen w-full overflow-hidden">
         {/* Capped the same way GlassLogoHero's own canvas is — left uncapped,
             this renders at the browser's raw devicePixelRatio, which on a 3x
             phone/laptop panel is a lot of extra fill rate for a plain grid +
@@ -3114,44 +3127,48 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
             plannerProgressRef={plannerProgressRef}
             dimRef={dimRef}
             angryRef={angryRef}
+            isActive={isActive}
+            isForceScrollingRef={isForceScrollingRef}
           />
           <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} />
         </Canvas>
 
         {/* Unified Introduction & Floren Showcase Chat Overlay */}
-        <motion.div
-          className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-start"
-          style={{
-            opacity: simIntroArrivalOpacity,
-            y: simIntroArrivalY,
-          }}
-        >
+        <div style={{ display: isActive ? 'block' : 'none' }}>
           <motion.div
+            className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-start"
             style={{
-              width: '100%',
-              y: unifiedScrollY,
-              opacity: chatOpacity,
-              pointerEvents: 'auto',
+              opacity: simIntroArrivalOpacity,
+              y: simIntroArrivalY,
             }}
           >
-            {/* Step 1: Introduction Section (Hero + Retention Card + Scenario Engine Card) */}
-            <div
-              ref={introWrapperRef}
-              style={{ paddingTop: 'clamp(92px, 11vh, 132px)' }}
+            <motion.div
+              style={{
+                width: '100%',
+                y: unifiedScrollY,
+                opacity: chatOpacity,
+                pointerEvents: 'auto',
+              }}
             >
-              <SimulationsIntroPanel ref={simIntroPanelRef} />
-            </div>
+              {/* Step 1: Introduction Section (Hero + Retention Card + Scenario Engine Card) */}
+              <div
+                ref={introWrapperRef}
+                style={{ paddingTop: 'clamp(92px, 11vh, 132px)' }}
+              >
+                <SimulationsIntroPanel ref={simIntroPanelRef} />
+              </div>
 
-            {/* Step 2: Floren Showcase Trauma Bay App (flows directly beneath the last card) */}
-            <div
-              ref={chatContainerRef}
-              className="relative flex h-screen w-full justify-center"
-            >
-              <ChatShowcase progress={progress} />
-            </div>
+              {/* Step 2: Floren Showcase Trauma Bay App (flows directly beneath the last card) */}
+              <div
+                ref={chatContainerRef}
+                className="relative flex h-screen w-full justify-center"
+              >
+                <ChatShowcase progress={progress} />
+              </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </section>
   )
 }

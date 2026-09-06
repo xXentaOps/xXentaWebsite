@@ -115,7 +115,17 @@ const CHOX_DESIGN_HEIGHT = 810
 const COLOR_TRIGGER_START = 0.40
 const COLOR_TRIGGER_END = 0.80
 
-function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, designRef, sectionRef, emblemRef, choxRef }) {
+function NoordhuysBackdrop({
+  carouselRef,
+  isVisibleRef,
+  pinnedProgressRef,
+  designRef,
+  sectionRef,
+  emblemRef,
+  choxRef,
+  isActive = true,
+  isForceScrollingRef,
+}) {
   const { size, blobWidth, blobHeight, gridWidth, gridHeight, cellSize, repeat, yPhaseShiftCells, blobY } = useSeamlessGrid(1)
   const blobMeshHeight = Math.max(PLANE_SIZE * 1.6, blobHeight * 2.5)
   const gridGroupRef = useRef(null)
@@ -139,12 +149,13 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
   const finalZoomScale = targetEdgeLeftX / (edgeX - edgeHalfWidthWorld)
   const driftWorld = Math.max(0, ((gridHeight * (OVERSCALE * finalZoomScale - 1)) / 2) * DRIFT_SLACK_FRACTION)
 
-  // 2 rows below row 3 (k = 2) geometry
   const centerPhase = 0.5 + yPhaseShiftCells
   const edgeBottomY = cellSize * (Math.floor(centerPhase) - centerPhase)
   const edgeTopY = edgeBottomY + cellSize
   const ROW_K = 2
   const targetRowY = (edgeBottomY + edgeTopY) / 2 - ROW_K * cellSize
+
+  // Exactly two lit squares next to the edge line:
   const litSquareCenters = [
     { x: edgeX + 0.5 * cellSize, y: targetRowY },
     { x: edgeX + 1.5 * cellSize, y: targetRowY },
@@ -160,7 +171,9 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
     const totalTravel = window.innerHeight + rect.height
     const progress = MathUtils.clamp((window.innerHeight - rect.top) / totalTravel, 0, 1)
     const targetScale = MathUtils.lerp(1, finalZoomScale, smoothstepEase(progress))
-    const nextScale = MathUtils.damp(group.scale.x, targetScale, 8, delta)
+    const nextScale = isForceScrollingRef?.current
+      ? targetScale
+      : MathUtils.damp(group.scale.x, targetScale, 28, delta)
     group.scale.set(nextScale, nextScale, 1)
 
     // Trigger background glow & backdrop transition a bit after scrolling begins
@@ -170,7 +183,9 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
       1
     )
     const targetColorT = smoothstepEase(rawColorT)
-    colorProgressRef.current = MathUtils.damp(colorProgressRef.current, targetColorT, 8, delta)
+    colorProgressRef.current = isForceScrollingRef?.current
+      ? targetColorT
+      : MathUtils.damp(colorProgressRef.current, targetColorT, 28, delta)
 
     const pinned = pinnedProgressRef.current
     const rawChoxColorT = MathUtils.clamp(
@@ -179,7 +194,9 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
       1
     )
     const targetChoxColorT = smoothstepEase(rawChoxColorT)
-    choxColorProgressRef.current = MathUtils.damp(choxColorProgressRef.current, targetChoxColorT, 8, delta)
+    choxColorProgressRef.current = isForceScrollingRef?.current
+      ? targetChoxColorT
+      : MathUtils.damp(choxColorProgressRef.current, targetChoxColorT, 28, delta)
 
     // Step 1: Base entrance transition: Navy/Blue -> Noordhuys Green
     tempCenterColor.lerpColors(BLOB_CENTER_BLUE, NOORDHUYS_GLOW_GREEN, colorProgressRef.current)
@@ -202,20 +219,30 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
     // Nudge the background grid (all grid layers) so that the edge where the
     // line was lands flush against the left edge of the screen (-gridWidth / 2)
     const targetX = -heroMarginWorld * smoothstepEase(progress)
-    group.position.x = MathUtils.damp(group.position.x, targetX, 8, delta)
+    group.position.x = isForceScrollingRef?.current
+      ? targetX
+      : MathUtils.damp(group.position.x, targetX, 28, delta)
 
     const targetY = driftWorld * pinned
-    group.position.y = MathUtils.damp(group.position.y, targetY, 8, delta)
+    group.position.y = isForceScrollingRef?.current
+      ? targetY
+      : MathUtils.damp(group.position.y, targetY, 28, delta)
 
     // Synchronous world matrix update so Html doesn't lag 1 frame behind
     group.updateMatrixWorld(true)
 
     // Match text color to the Three.js scene background color (cutout punch-through effect)
-    // Punch text stays permanently visible alongside both stages
-    if (punchRef.current && backgroundRef.current) {
-      punchRef.current.style.color = backgroundRef.current.getStyle()
-      punchRef.current.style.opacity = `${PUNCH_TEXT_BASE_OPACITY}`
-      punchRef.current.style.visibility = 'visible'
+    // Only show punch text if this showcase is active
+    if (punchRef.current) {
+      if (!isActive) {
+        punchRef.current.style.display = 'none'
+        punchRef.current.style.visibility = 'hidden'
+      } else if (backgroundRef.current) {
+        punchRef.current.style.display = 'flex'
+        punchRef.current.style.visibility = 'visible'
+        punchRef.current.style.color = backgroundRef.current.getStyle()
+        punchRef.current.style.opacity = `${PUNCH_TEXT_BASE_OPACITY}`
+      }
     }
 
     // Keep lit squares updated with lit color and opacity
@@ -338,20 +365,22 @@ function NoordhuysBackdrop({ carouselRef, isVisibleRef, pinnedProgressRef, desig
         ))}
 
         {/* Lockup with xXenta logo and 'Noordhuys' below, matching DRP Showcase */}
-        <Html
-          zIndexRange={[10, 0]}
-          position={[edgeX, targetRowY, GRID_Z + 0.02]}
-          style={{ transform: `translate(${EXAMS_TEXT_LEFT_MARGIN_PX}px, -50%)`, pointerEvents: 'none' }}
-        >
-          <div id="noordhuys-punch-text" ref={punchRef} className="flex flex-col items-start" style={{ opacity: PUNCH_TEXT_BASE_OPACITY }}>
-            <span ref={logoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
-              <XxentaWordmark />
-            </span>
-            <p ref={titleTextRef} className="leading-none font-semibold whitespace-nowrap">
-              {TITLE_TEXT}
-            </p>
-          </div>
-        </Html>
+        {isActive && (
+          <Html
+            zIndexRange={[10, 0]}
+            position={[edgeX, targetRowY, GRID_Z + 0.02]}
+            style={{ transform: `translate(${EXAMS_TEXT_LEFT_MARGIN_PX}px, -50%)`, pointerEvents: 'none' }}
+          >
+            <div id="noordhuys-punch-text" ref={punchRef} className="flex flex-col items-start" style={{ opacity: PUNCH_TEXT_BASE_OPACITY }}>
+              <span ref={logoTextRef} className="font-medium tracking-[0.2em] whitespace-nowrap">
+                <XxentaWordmark />
+              </span>
+              <p ref={titleTextRef} className="leading-none font-semibold whitespace-nowrap">
+                {TITLE_TEXT}
+              </p>
+            </div>
+          </Html>
+        )}
       </group>
     </>
   )
@@ -422,7 +451,7 @@ function usePinnedProgress(sectionRef, carouselRef, isActive = true) {
   return { progress, progressRef, arrival }
 }
 
-export function NoordhuysShowcase({ carouselRef, isActive = true }) {
+export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrollingRef }) {
   const sectionRef = useRef(null)
   const designRef = useRef(null)
   const emblemRef = useRef(null)
@@ -435,7 +464,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true }) {
     if (!section) return
     const observer = new IntersectionObserver(([entry]) => {
       isVisibleRef.current = entry.isIntersecting
-    })
+    }, { rootMargin: '1000px 0px' })
     observer.observe(section)
     return () => observer.disconnect()
   }, [])
@@ -526,7 +555,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true }) {
 
   return (
     <section ref={sectionRef} className="relative w-full bg-[#0F172B]" style={{ height: `${SECTION_VH}vh` }}>
-      <motion.div className="sticky top-0 h-screen w-full overflow-hidden" style={{ scale: stageScale }}>
+      <div className="sticky top-0 h-screen w-full overflow-hidden">
         <Canvas
           dpr={[1, 2]}
           camera={{ position: [0, 0, 8], fov: 35 }}
@@ -540,96 +569,100 @@ export function NoordhuysShowcase({ carouselRef, isActive = true }) {
             sectionRef={sectionRef}
             emblemRef={emblemRef}
             choxRef={choxRef}
+            isActive={isActive}
+            isForceScrollingRef={isForceScrollingRef}
           />
           <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} />
         </Canvas>
 
         {/* Floating Showcase Stage: Background Video Container & Foreground Mobile App */}
-        <motion.div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center z-10"
-          style={{
-            opacity: mobileArriveOpacity,
-            y: mobileArriveY,
-          }}
-        >
+        <div style={{ display: isActive ? 'block' : 'none' }}>
           <motion.div
-            className="w-full h-full flex items-center justify-center"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center z-10"
             style={{
-              opacity: mobileExitOpacity,
-              y: mobileExitY,
-              scale: mobileExitScale,
-              pointerEvents: mobilePointerEvents,
+              opacity: mobileArriveOpacity,
+              y: mobileArriveY,
+            }}
+          >
+            <motion.div
+              className="w-full h-full flex items-center justify-center"
+              style={{
+                opacity: mobileExitOpacity,
+                y: mobileExitY,
+                scale: mobileExitScale,
+                pointerEvents: mobilePointerEvents,
+              }}
+            >
+              <div
+                ref={designRef}
+                id="noordhuys-design-stage"
+                className="transform-gpu relative flex items-center justify-center"
+                style={{
+                  width: 960,
+                  height: 838.67,
+                  transform: `translate3d(${initialDeltaX}px, 0px, 0) scale(${initialBaseScale})`,
+                  transformOrigin: 'center center',
+                }}
+              >
+                {/* Large Noordhuys Geometric Emblem behind both video and phone */}
+                <div
+                  ref={emblemRef}
+                  id="noordhuys-bg-emblem"
+                  className="pointer-events-none absolute z-0 select-none flex items-center justify-center transition-opacity duration-500"
+                  style={{
+                    left: -280,
+                    top: 30,
+                    width: 1200,
+                    height: 470,
+                    color: 'rgba(108, 161, 248, 0.05)',
+                  }}
+                >
+                  <NoordhuysEmblem className="w-full h-full" />
+                </div>
+
+                {/* Background Video Container underneath app */}
+                <div className="absolute z-10 flex items-center justify-center">
+                  <NoordhuysVideoContainer width={960} height={540} />
+                </div>
+
+                {/* Foreground Mobile App Panel */}
+                <div className="relative z-20">
+                  <NoordhuysAppPanel />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+
+          {/* ChoXPro Weekly Planning Stage: Glides up from below into place beside 'xXenta Custom Apps' */}
+          <motion.div
+            id="weekly-planning-stage"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center z-20"
+            style={{
+              y: choxY,
+              opacity: choxOpacity,
+              pointerEvents: choxPointerEvents,
             }}
           >
             <div
-              ref={designRef}
-              id="noordhuys-design-stage"
+              ref={choxRef}
+              id="choxpro-design-stage"
               className="transform-gpu relative flex items-center justify-center"
               style={{
-                width: 960,
-                height: 838.67,
-                transform: `translate3d(${initialDeltaX}px, 0px, 0) scale(${initialBaseScale})`,
+                width: CHOX_DESIGN_WIDTH,
+                height: CHOX_DESIGN_HEIGHT,
+                transform: `translate3d(${initialChoxDeltaX}px, 0px, 0) scale(${initialChoxBaseScale})`,
                 transformOrigin: 'center center',
               }}
             >
-              {/* Large Noordhuys Geometric Emblem behind both video and phone */}
-              <div
-                ref={emblemRef}
-                id="noordhuys-bg-emblem"
-                className="pointer-events-none absolute z-0 select-none flex items-center justify-center transition-opacity duration-500"
-                style={{
-                  left: -280,
-                  top: 30,
-                  width: 1200,
-                  height: 470,
-                  color: 'rgba(108, 161, 248, 0.05)',
-                }}
-              >
-                <NoordhuysEmblem className="w-full h-full" />
-              </div>
-
-              {/* Background Video Container underneath app */}
-              <div className="absolute z-10 flex items-center justify-center">
-                <NoordhuysVideoContainer width={960} height={540} />
-              </div>
-
-              {/* Foreground Mobile App Panel */}
-              <div className="relative z-20">
-                <NoordhuysAppPanel />
+              <div className="relative w-full h-full rounded-[24px] overflow-hidden border border-white/15 bg-[#2F323B] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-md">
+                {/* Subtle top edge glass reflection */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent z-40" />
+                <WeeklyPlanningDashboard scrollProgress={progress} />
               </div>
             </div>
           </motion.div>
-        </motion.div>
-
-        {/* ChoXPro Weekly Planning Stage: Glides up from below into place beside 'xXenta Custom Apps' */}
-        <motion.div
-          id="weekly-planning-stage"
-          className="pointer-events-none absolute inset-0 flex items-center justify-center z-20"
-          style={{
-            y: choxY,
-            opacity: choxOpacity,
-            pointerEvents: choxPointerEvents,
-          }}
-        >
-          <div
-            ref={choxRef}
-            id="choxpro-design-stage"
-            className="transform-gpu relative flex items-center justify-center"
-            style={{
-              width: CHOX_DESIGN_WIDTH,
-              height: CHOX_DESIGN_HEIGHT,
-              transform: `translate3d(${initialChoxDeltaX}px, 0px, 0) scale(${initialChoxBaseScale})`,
-              transformOrigin: 'center center',
-            }}
-          >
-            <div className="relative w-full h-full rounded-[24px] overflow-hidden border border-white/15 bg-[#2F323B] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-md">
-              {/* Subtle top edge glass reflection */}
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent z-40" />
-              <WeeklyPlanningDashboard scrollProgress={progress} />
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </section>
   )
 }

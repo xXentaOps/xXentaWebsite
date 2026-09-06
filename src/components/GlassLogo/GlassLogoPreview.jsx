@@ -1062,8 +1062,8 @@ export default function GlassLogoPreview() {
           <div
             style={
               activeCategoryIndex === 1
-                ? { position: 'absolute', top: 0, left: 0, width: '100%', visibility: 'hidden', pointerEvents: 'none' }
-                : { position: 'relative', width: '100%', visibility: 'visible' }
+                ? { position: 'absolute', top: 0, left: 0, width: '100%', display: 'none', visibility: 'hidden', pointerEvents: 'none' }
+                : { position: 'relative', width: '100%', display: 'block', visibility: 'visible' }
             }
           >
             <BackgroundGlowSection
@@ -1071,18 +1071,20 @@ export default function GlassLogoPreview() {
               onDrpActiveChange={setIsDrpActive}
               setDetent={setDetent}
               isActive={activeCategoryIndex !== 1}
+              isForceScrollingRef={isForceScrollingRef}
             />
           </div>
           <div
             style={
               activeCategoryIndex === 1
-                ? { position: 'relative', width: '100%', visibility: 'visible' }
-                : { position: 'absolute', top: 0, left: 0, width: '100%', visibility: 'hidden', pointerEvents: 'none' }
+                ? { position: 'relative', width: '100%', display: 'block', visibility: 'visible' }
+                : { position: 'absolute', top: 0, left: 0, width: '100%', display: 'none', visibility: 'hidden', pointerEvents: 'none' }
             }
           >
             <NoordhuysShowcase
               carouselRef={carouselRef}
               isActive={activeCategoryIndex === 1}
+              isForceScrollingRef={isForceScrollingRef}
             />
           </div>
         </div>
