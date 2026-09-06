@@ -318,7 +318,7 @@ const GRID_GLOW_Z = GRID_Z + 0.1
 // Cell math mirrors DecorativeGridSquares/BoardTitleWord exactly — same
 // computeLayout, same "resting" CSS-px coordinate space, same SlideGroup
 // travel — just at fixed columns/rows of its own instead of member cells.
-function RandomGridGlow({ teamProgress }) {
+function RandomGridGlow({ teamProgress, hideForDetail = false }) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
   const size = useThree((state) => state.size)
@@ -336,7 +336,7 @@ function RandomGridGlow({ teamProgress }) {
     const p = teamProgress.get()
     for (let i = 0; i < GRID_GLOWS.length; i++) {
       const mesh = meshRefs.current[i]
-      if (mesh) mesh.material.uOpacity = GRID_GLOWS[i].opacity * p
+      if (mesh) mesh.material.uOpacity = hideForDetail ? 0 : GRID_GLOWS[i].opacity * p
     }
   })
 
@@ -827,6 +827,9 @@ function SceneRenderGate({
       } else {
         return
       }
+    } else if (sceneReady && !isWarmedRef.current) {
+      isWarmedRef.current = true
+      onWarmed?.()
     }
     state.camera.layers.enable(OVERLAY_LAYER)
     state.gl.render(state.scene, state.camera)
@@ -1217,7 +1220,13 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
         isOpen ? 'pointer-events-auto' : 'pointer-events-none'
       }`}
     >
-      <Canvas dpr={tier === 'high' ? [1, 2] : 1} camera={{ position: [0, 0, 8], fov: 35 }} gl={{ antialias: true, alpha: false }}>
+      <Canvas
+        dpr={tier === 'high' ? [1, 2] : 1}
+        camera={{ position: [0, 0, 8], fov: 35 }}
+        gl={{ antialias: true, alpha: false }}
+        eventSource={document.body}
+        eventPrefix="client"
+      >
         <SeamlessGridBackdrop aboutUsProgress={aboutUsProgress} teamProgress={teamProgress} gridMetricsRef={gridMetricsRef} />
         {/* Same modest white light the badge's own canvas gives its glass
             (see GoogleCloudGlassBadge) — enough for GlassCircle's edges to
@@ -1311,6 +1320,7 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
                   domRect={nameIconDomRect(nameIconMarkerRect)}
                   isOpen={isOpen}
                   highQuality={tier === 'high'}
+                  baseTilt={{ x: 0, y: 0 }}
                 />
               </SlideGroup>
             </Suspense>
@@ -1360,7 +1370,7 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
               BoardTitleWord and for the same reason — see RandomGridGlow's
               own comment: mounting/unmounting with isTeamOpen prevented it
               from ever sliding with the grid at all. */}
-          {sceneReady && <RandomGridGlow teamProgress={teamProgress} />}
+          {sceneReady && <RandomGridGlow teamProgress={teamProgress} hideForDetail={selectedMember != null} />}
           {/* The same faint squares on About Us's own side of the slide —
               mounted unconditionally for the identical reason, so it can
               ride the slide out rather than popping. */}

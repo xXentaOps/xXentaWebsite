@@ -239,7 +239,7 @@ export function GlassIcon({
 
     const elapsed = performance.now() - mountedAtRef.current
     const delaying = elapsed < REVEAL_DELAY_MS
-    group.visible = isWarming || (!delaying && visible)
+    group.visible = Boolean(visible && (isWarming || !delaying))
     if (delaying) return
 
     revealScaleRef.current = MathUtils.damp(revealScaleRef.current, 1, REVEAL_LAMBDA, delta)
