@@ -191,6 +191,18 @@ function splitName(fullName) {
 export const MEMBERS = TEAM_MEMBERS.filter((member) => !member.isDog)
 export const TEAM_MEMBER_COUNT = MEMBERS.length
 
+export function preloadTeamImages() {
+  if (typeof window === 'undefined') return
+  MEMBERS.forEach((m) => {
+    const src = `/team/${m.photo || `${m.id}.jpg`}`
+    const img = new Image()
+    img.src = src
+    if (img.decode) {
+      img.decode().catch(() => {})
+    }
+  })
+}
+
 // Same family as the rest of the page's motion (see aboutUsTransition's own
 // note on why everything here is a critically-damped spring rather than a
 // bezier), just scaled to a tile growing rather than a whole page sliding.
@@ -480,7 +492,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
     // while About Us is up so seven member names aren't announced from a
     // stage nobody has opened yet.
     <motion.div
-      style={{ x }}
+      style={{ x, willChange: 'transform' }}
       aria-hidden={!isTeamOpen}
       className="pointer-events-none absolute inset-0 z-50"
     >
@@ -505,6 +517,8 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
           lineHeight: 1,
           opacity: membersOpacity,
           filter: `blur(${MEMBERS_BLUR_PX}px)`,
+          transform: 'translateZ(0)',
+          willChange: 'transform, opacity',
         }}
       >
         Members
@@ -604,6 +618,8 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
                 src={`/team/${member.photo || `${member.id}.jpg`}`}
                 alt={member.name}
                 draggable={false}
+                decoding="async"
+                loading="eager"
                 className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
               />
             </motion.button>

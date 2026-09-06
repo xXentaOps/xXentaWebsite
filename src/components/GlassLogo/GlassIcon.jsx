@@ -257,7 +257,7 @@ export function GlassIcon({
               thickness={extrudeSettings.depth}
               {...glassMaterialProps}
               {...glassOverrides}
-              active={isOpen || isWarming}
+              active={(isOpen && visible) || isWarming}
             />
           ) : (
             <meshPhysicalMaterial

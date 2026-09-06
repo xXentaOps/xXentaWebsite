@@ -473,7 +473,7 @@ export function AboutUsIntro({
   // Only the parallax runs per frame now — the layout above is fixed until
   // the window resizes, so there is nothing about it to recompute.
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen || isTeamOpen) return
     let frame = 0
     let last = performance.now()
 
@@ -508,7 +508,7 @@ export function AboutUsIntro({
 
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
-  }, [isOpen])
+  }, [isOpen, isTeamOpen])
 
   return (
     // A fade with no movement in it, deliberately. This used to rise 12px as
@@ -531,7 +531,7 @@ export function AboutUsIntro({
       initial={{ opacity: 0 }}
       animate={{ opacity: isOpen ? 1 : 0 }}
       transition={{ duration: 0.5, ease: 'easeOut', delay: isOpen ? 0.5 : 0 }}
-      style={{ x: mainX }}
+      style={{ x: mainX, willChange: 'transform' }}
       className="pointer-events-none absolute inset-0 z-50"
     >
       {/* Left: headline and body copy. A fixed 280px (tried first, for the
@@ -759,7 +759,7 @@ export function AboutUsIntro({
               stage wants needs no vertical move at all, only this
               horizontal one. */}
           <motion.div
-            style={{ x: arrowsX }}
+            style={{ x: arrowsX, willChange: 'transform' }}
             className="pointer-events-none absolute top-full left-0 flex w-full justify-center mt-24"
           >
           {/* Centred via real flexbox (justify-center on the wrapper above),

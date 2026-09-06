@@ -78,7 +78,7 @@ const TILT_LAMBDA = 4
 // whenever sceneReady first turns on) while still skipping its ongoing
 // per-frame backdrop-capture cost for the large majority of this section's
 // life that it spends closed.
-export function GoogleCloudGlassBadge({ domRect, isOpen, isWarming = false, highQuality }) {
+export function GoogleCloudGlassBadge({ domRect, isOpen, isWarming = false, highQuality, teamProgress, isTeamOpen }) {
   const groupRef = useRef(null)
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
@@ -100,7 +100,13 @@ export function GoogleCloudGlassBadge({ domRect, isOpen, isWarming = false, high
   const worldY = domRect ? -(domRect.top + domRect.height / 2 - size.height / 2) * perPx : 0
   const scale = badgeWorldSize / Math.max(shapeSize.x, shapeSize.y, 0.0001)
 
+  const isActiveRef = useRef(true)
+
   useFrame((_, delta) => {
+    const isOffscreen = Boolean(isTeamOpen && teamProgress && teamProgress.get() > 0.65)
+    isActiveRef.current = (isOpen || isWarming) && !isOffscreen
+    if (isOffscreen) return
+
     const group = groupRef.current
     if (!group) return
     const desiredX = BASE_TILT.x - pointer.y * MAX_TILT
@@ -122,7 +128,12 @@ export function GoogleCloudGlassBadge({ domRect, isOpen, isWarming = false, high
             mount/unmount. */}
         <mesh geometry={mergedGeometry}>
           {highQuality ? (
-            <TransmissionMaterial thickness={EXTRUDE_SETTINGS.depth} {...glassMaterialProps} active={isTransmissionActive} />
+            <TransmissionMaterial
+              thickness={EXTRUDE_SETTINGS.depth}
+              {...glassMaterialProps}
+              active={isTransmissionActive}
+              activeRef={isActiveRef}
+            />
           ) : (
             <meshPhysicalMaterial
               color="#e2e8f0"

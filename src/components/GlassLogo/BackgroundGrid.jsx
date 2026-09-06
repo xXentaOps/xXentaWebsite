@@ -381,6 +381,7 @@ export function GridPlane({
   edgeXUV,
   edgeBottomUV,
   edgeTopUV,
+  aboutUsProgress,
 }) {
   const pxToFraction = (px) => px / TARGET_CELL_PX
   const buttonsEnabled = buttonColumnLeftUV != null
@@ -398,6 +399,7 @@ export function GridPlane({
   const entranceStartRef = useRef(null)
 
   useFrame((state, delta) => {
+    if (aboutUsProgress && aboutUsProgress.get() >= 0.99) return
     const material = materialRef.current
     if (!material) return
 
@@ -593,6 +595,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
   const gridGroupRef = useRef(null)
 
   useFrame(() => {
+    if (aboutUsProgress && aboutUsProgress.get() >= 0.99) return
     const group = gridGroupRef.current
     if (!group) return
     const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, aboutUsProgress.get())
@@ -714,7 +717,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
           behind About Us, so there's no reason to re-derive their raycast
           geometry against a second, moving scale. */}
       <group ref={gridGroupRef}>
-        <GridPlane z={z} width={width} height={height} repeat={repeat} style={THROUGH_GLASS_STYLE} layer={0} />
+        <GridPlane z={z} width={width} height={height} repeat={repeat} style={THROUGH_GLASS_STYLE} layer={0} aboutUsProgress={aboutUsProgress} />
         <GridPlane
           z={z}
           width={width}
@@ -731,6 +734,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
           // (see visibleIndex below) but its corners fall back to the same
           // base blue as the other two once the pointer leaves it.
           activeIndex={hoveredIndex}
+          aboutUsProgress={aboutUsProgress}
         />
 
         {buttonPositions.map((pos, i) => (

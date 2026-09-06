@@ -106,7 +106,7 @@ function sharedTextProps(fontSize) {
 // this exact, real render — see useTextRevealMaterial there for why that's
 // what makes the hidden-behind-glass portion guaranteed to align: it's a
 // picture of this literal text, not a re-implementation of it).
-function CrispLine({ text, x, y, fontSize, revealed, isTextMovingRef }) {
+function CrispLine({ text, x, y, fontSize, revealed, isTextMovingRef, isHeroVisibleRef }) {
   const meshRef = useRef(null)
   // Set on this line's own first frame (see the identical pattern in
   // AnimatedWordLine/GlassLogoGroup) — a one-time entrance, never reset, so
@@ -121,6 +121,7 @@ function CrispLine({ text, x, y, fontSize, revealed, isTextMovingRef }) {
   const { clock } = useThree()
 
   useFrame(() => {
+    if (isHeroVisibleRef && !isHeroVisibleRef.current) return
     const node = meshRef.current
     if (!node) return
     if (!revealed) {
@@ -293,7 +294,7 @@ function useWordBlurOverlayMaterial() {
 // below) rather than sharing CrispLine's "both layers, one mesh" contract —
 // deliberately *not* the same rendering contract, despite looking similar
 // at a glance. See that copy's own comment for why.
-function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revealed, isTextMovingRef }) {
+function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revealed, isTextMovingRef, isHeroVisibleRef }) {
   const meshRef = useRef(null)
   const sourceMeshRef = useRef(null)
   const overlayMeshRef = useRef(null)
@@ -335,6 +336,7 @@ function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revea
   }, [text, clock])
 
   useFrame((state) => {
+    if (isHeroVisibleRef && !isHeroVisibleRef.current) return
     const node = meshRef.current
     if (!node) return
     const isInitial = isInitialRevealRef.current
@@ -731,6 +733,7 @@ export function HeroTitle({ targetSize, highQuality, activeIndex, isHeroVisibleR
   // ref), so the two run independently even though they share the same
   // scroll-progress shape.
   useFrame((_, delta) => {
+    if (isHeroVisibleRef && !isHeroVisibleRef.current) return
     const group = titleGroupRef.current
     if (!group) return
 
@@ -757,6 +760,7 @@ export function HeroTitle({ targetSize, highQuality, activeIndex, isHeroVisibleR
               maxTopY={maxTopY}
               revealed={revealed}
               isTextMovingRef={isTextMovingRef}
+              isHeroVisibleRef={isHeroVisibleRef}
             />
           ) : (
             <CrispLine
@@ -767,6 +771,7 @@ export function HeroTitle({ targetSize, highQuality, activeIndex, isHeroVisibleR
               fontSize={line.fontSize}
               revealed={revealed}
               isTextMovingRef={isTextMovingRef}
+              isHeroVisibleRef={isHeroVisibleRef}
             />
           ),
         )}

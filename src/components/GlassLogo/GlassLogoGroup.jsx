@@ -258,6 +258,7 @@ export function GlassLogoGroup({ targetSize = 4, highQuality = true, blurredText
   const blurVFBO = useFBO(textCaptureWidth, textCaptureHeight)
 
   useFrame((_, delta) => {
+    if (isHeroVisibleRef && !isHeroVisibleRef.current) return
     const group = groupRef.current
     if (!group) return
 

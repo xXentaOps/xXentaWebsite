@@ -47,7 +47,7 @@ const TILT_LAMBDA = 4
 // rig the way the badge's does: the grid and blob it should refract already
 // live in this same canvas, so a plain unprioritized capture picks them up
 // exactly like the hero's own logo does.
-export function GlassCircle({ domRect, isOpen, isWarming = false, highQuality }) {
+export function GlassCircle({ domRect, isOpen, isWarming = false, highQuality, teamProgress, isTeamOpen }) {
   const groupRef = useRef(null)
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
@@ -79,7 +79,13 @@ export function GlassCircle({ domRect, isOpen, isWarming = false, highQuality })
   const worldY = domRect ? -(domRect.top + domRect.height / 2 - size.height / 2) * perPx : 0
   const scale = worldSize / SHAPE_SIZE
 
+  const isActiveRef = useRef(true)
+
   useFrame((_, delta) => {
+    const isOffscreen = Boolean(isTeamOpen && teamProgress && teamProgress.get() > 0.65)
+    isActiveRef.current = (isOpen || isWarming) && !isOffscreen
+    if (isOffscreen) return
+
     const group = groupRef.current
     if (!group) return
     const desiredX = BASE_TILT.x - pointer.y * MAX_TILT
@@ -97,7 +103,12 @@ export function GlassCircle({ domRect, isOpen, isWarming = false, highQuality })
       <group scale={[scale, -scale, scale]}>
         <mesh geometry={mergedGeometry}>
           {highQuality ? (
-            <TransmissionMaterial thickness={EXTRUDE_SETTINGS.depth} {...glassMaterialProps} active={isTransmissionActive} />
+            <TransmissionMaterial
+              thickness={EXTRUDE_SETTINGS.depth}
+              {...glassMaterialProps}
+              active={isTransmissionActive}
+              activeRef={isActiveRef}
+            />
           ) : (
             <meshPhysicalMaterial
               color="#e2e8f0"

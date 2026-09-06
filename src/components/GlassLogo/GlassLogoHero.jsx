@@ -108,18 +108,29 @@ export function GlassLogoHero({ onScrollLockChange, isForceScrollingRef, openScr
   useEffect(() => {
     const section = eventSourceRef.current
     if (!section) return
-    // IntersectionObserver tracks the section's actual *painted* position,
-    // CSS transforms included — so this keeps working unchanged once
-    // isAboutUsOpen starts translating the section off-screen below (see
-    // the motion.section below): the render-pause correctly engages the
-    // moment it's fully slid out of view, exactly as it already did when a
-    // visitor scrolled past this section the ordinary way.
+    let isIntersecting = true
+    const updateVisibility = () => {
+      const isSlidAway = Boolean(aboutUsProgress && aboutUsProgress.get() >= 0.99)
+      isHeroVisibleRef.current = !isSlidAway && isIntersecting
+    }
+
     const observer = new IntersectionObserver(([entry]) => {
-      isHeroVisibleRef.current = entry.isIntersecting
+      isIntersecting = entry.isIntersecting
+      updateVisibility()
     })
     observer.observe(section)
-    return () => observer.disconnect()
-  }, [])
+
+    const unsub = aboutUsProgress ? aboutUsProgress.on('change', () => {
+      updateVisibility()
+    }) : () => {}
+
+    updateVisibility()
+
+    return () => {
+      observer.disconnect()
+      unsub()
+    }
+  }, [aboutUsProgress])
 
   return (
     // The outer wrapper carries one thing only: openScrollComp, the offset

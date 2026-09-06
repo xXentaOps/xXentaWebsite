@@ -32,7 +32,7 @@ import { OVERLAY_LAYER } from './GlassLogoGroup'
 import { GlassCircle } from './GlassCircle'
 import { GoogleCloudGlassBadge } from './GoogleCloudGlassBadge'
 import { GradientBlob } from './GradientBlob'
-import { computeLayout, MEMBERS, MeetTheTeamGrid, TEAM_MEMBER_COUNT } from './MeetTheTeamGrid'
+import { computeLayout, MEMBERS, MeetTheTeamGrid, preloadTeamImages, TEAM_MEMBER_COUNT } from './MeetTheTeamGrid'
 import {
   CAPTURE_LAYER,
   CaptureLayerGate,
@@ -795,10 +795,23 @@ function CaptureGridBackdrop({ aboutUsProgress, teamProgress }) {
 // which is what makes taking it over here possible at all — and also why
 // the render below has to run unconditionally whenever the section is
 // visible, since nothing else will do it.
-function SceneRenderGate({ isVisibleRef, isOpen, aboutUsProgress, sceneReady = false, tier = 'high', onWarmed }) {
+function SceneRenderGate({
+  isVisibleRef,
+  isOpen,
+  aboutUsProgress,
+  sceneReady = false,
+  tier = 'high',
+  onWarmed,
+  isTeamOpen,
+  teamProgress,
+  pauseWhenTeamOpen = false,
+}) {
   const warmFramesRef = useRef(0)
   const isWarmedRef = useRef(false)
   useFrame((state) => {
+    if (pauseWhenTeamOpen && isTeamOpen && teamProgress && teamProgress.get() >= 0.7) {
+      return
+    }
     const isMoving = Boolean(aboutUsProgress && aboutUsProgress.get() > 0)
     const isVisible = isOpen || isMoving || (isVisibleRef && isVisibleRef.current)
     if (!isVisible) {
@@ -1035,6 +1048,9 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
     }),
     [aboutUsProgress],
   )
+  useEffect(() => {
+    preloadTeamImages()
+  }, [])
   // Whether this section is actually painting anywhere on screen — see
   // SceneRenderGate. An IntersectionObserver rather than the isOpen prop:
   // it tracks the section's real painted position, CSS transform included,
@@ -1227,7 +1243,16 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
               two glass objects asked to leave at their own pace (see
               teamTransition). */}
           <SlideGroup progress={teamProgress} speed={ACCENT_SPEED}>
-            {sceneReady && <GlassCircle domRect={circleRect} isOpen={isOpen} isWarming={isCanvas1Warming} highQuality={tier === 'high'} />}
+            {sceneReady && (
+              <GlassCircle
+                domRect={circleRect}
+                isOpen={isOpen}
+                isWarming={isCanvas1Warming}
+                highQuality={tier === 'high'}
+                teamProgress={teamProgress}
+                isTeamOpen={isTeamOpen}
+              />
+            )}
           </SlideGroup>
           {/* A glass icon beside whichever member's name is open in the Meet
               the Team detail view (see MEMBERS[...].nameIcon in teamData.js).
@@ -1311,7 +1336,7 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
           {sceneReady && (
             <DecorativeGridSquares
               teamProgress={teamProgress}
-              isOpen={isOpen}
+              isOpen={isTeamOpen}
               isWarming={isCanvas1Warming}
               highQuality={tier === 'high'}
               visible={selectedMember == null}
@@ -1478,7 +1503,16 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
                 the photo it normally hangs off as it goes, which is the whole
                 point of giving the two different speeds. */}
             <SlideGroup progress={teamProgress} speed={ACCENT_SPEED}>
-              {sceneReady && <GoogleCloudGlassBadge domRect={badgeRect} isOpen={isOpen} isWarming={isCanvas2Warming} highQuality={tier === 'high'} />}
+              {sceneReady && (
+                <GoogleCloudGlassBadge
+                  domRect={badgeRect}
+                  isOpen={isOpen}
+                  isWarming={isCanvas2Warming}
+                  highQuality={tier === 'high'}
+                  teamProgress={teamProgress}
+                  isTeamOpen={isTeamOpen}
+                />
+              )}
             </SlideGroup>
             {/* Gives the badge's glass an actual backdrop to refract — see
                 PhotoBackdropCapture's own top comment. Gated on tier==='high'
@@ -1537,6 +1571,9 @@ export const AboutUsSection = forwardRef(function AboutUsSection({ isOpen, openS
             sceneReady={sceneReady}
             tier={tier}
             onWarmed={() => setWarmedCanvases((prev) => ({ ...prev, c2: true }))}
+            isTeamOpen={isTeamOpen}
+            teamProgress={teamProgress}
+            pauseWhenTeamOpen={true}
           />
         </Canvas>
       </motion.div>

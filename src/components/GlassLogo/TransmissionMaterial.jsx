@@ -330,6 +330,17 @@ export const TransmissionMaterial = /* @__PURE__ */ React.forwardRef(
       if (active && (!activeRef || activeRef.current) && ref.current.buffer === fboMain.texture && !transmissionSampler) {
         parent = ref.current.__r3f?.parent?.object
         if (parent) {
+          let isObjVisible = true
+          let cur = parent
+          while (cur) {
+            if (cur.visible === false) {
+              isObjVisible = false
+              break
+            }
+            cur = cur.parent
+          }
+          if (!isObjVisible) return
+
           oldTone = state.gl.toneMapping
           oldBg = state.scene.background
           oldEnvMapIntensity = ref.current.envMapIntensity
