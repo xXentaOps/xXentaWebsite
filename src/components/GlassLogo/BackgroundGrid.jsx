@@ -668,8 +668,8 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
   // default instead of only on interaction.
   const [selectedIndex, setSelectedIndex] = useState(activeIndex ?? 0)
   useEffect(() => {
-    if (activeIndex !== undefined && activeIndex !== selectedIndex) {
-      setSelectedIndex(activeIndex)
+    if (activeIndex !== undefined) {
+      setSelectedIndex((prev) => (prev !== activeIndex ? activeIndex : prev))
     }
   }, [activeIndex])
   const visibleIndex = hoveredIndex ?? selectedIndex

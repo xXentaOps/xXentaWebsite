@@ -4,7 +4,6 @@ export const DRP_INTRO_PANEL_DESIGN_WIDTH = 883
 export const DRP_INTRO_PANEL_DESIGN_HEIGHT = 525
 export const DRP_INTRO_PANEL_MARGIN = 40
 
-const CARD_BG = 'rgba(241, 245, 249, 0.24)'
 const INNER_CARD_BG = 'rgba(255, 255, 255, 0.26)'
 const BORDER_COLOR = 'rgba(255, 255, 255, 0.26)'
 const TEXT_COLOR = '#645A57'

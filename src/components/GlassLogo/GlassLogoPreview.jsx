@@ -34,7 +34,7 @@ export default function GlassLogoPreview() {
       const cat = params.get('category')
       if (cat !== null) {
         const parsed = parseInt(cat, 10)
-        if (!isNaN(parsed)) return parsed
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 2) return parsed
       }
     }
     return 0

@@ -425,7 +425,7 @@ export function AboutUsIntro({
       statsRef.current.style.height = `${cell}px`
     }
     return imageHeight - windowHeight
-  }, [])
+  }, [windowRef])
 
   // Laid out against the *settled* grid — the size and phase it rests at
   // once About Us is open — and never against the live, mid-zoom one, which

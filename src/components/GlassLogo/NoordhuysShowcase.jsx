@@ -74,8 +74,6 @@ export const SAVED_NOORDHUYS_CALLOUT = {
   edgeStyle: EDGE_STYLE,
 }
 
-const ROW_DRIVE_START = 0.0
-const ROW_DRIVE_END = 0.9
 const EDGE_COLUMN_FROM_LEFT = 3
 const DRIFT_SLACK_FRACTION = 0.5
 const STAGE_SETTLE_SCALE = 0.985
@@ -369,7 +367,8 @@ function SceneRenderGate({ isVisibleRef }) {
 
 function usePinnedProgress(sectionRef, carouselRef) {
   const { scrollY } = useScroll()
-  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: 0 })
+  const initialVh = typeof window !== 'undefined' ? (window.innerHeight || 800) : 800
+  const rangeRef = useRef({ start: 0, distance: 1, arrivalStart: -initialVh })
 
   useLayoutEffect(() => {
     const section = sectionRef.current
@@ -395,12 +394,17 @@ function usePinnedProgress(sectionRef, carouselRef) {
 
   const progress = useTransform(scrollY, (latest) => {
     const { start, distance } = rangeRef.current
-    return MathUtils.clamp((latest - start) / distance, 0, 1)
+    if (distance <= 0 || !Number.isFinite(distance)) return 0
+    const val = (latest - start) / distance
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   const arrival = useTransform(scrollY, (latest) => {
     const { arrivalStart, start } = rangeRef.current
-    return MathUtils.clamp((latest - arrivalStart) / (start - arrivalStart), 0, 1)
+    const span = start - arrivalStart
+    if (span <= 0 || !Number.isFinite(span)) return 0
+    const val = (latest - arrivalStart) / span
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   const progressRef = useRef(0)
@@ -432,12 +436,30 @@ export function NoordhuysShowcase({ carouselRef }) {
     return () => observer.disconnect()
   }, [])
 
-  const stageScale = useSpring(useTransform(arrival, [0, 1], [STAGE_SETTLE_SCALE, 1]), STAGE_SETTLE_SPRING)
-  const entry = useTransform(arrival, easeOutQuad)
+  const stageScaleTransform = useTransform(arrival, (a) => {
+    if (!Number.isFinite(a) || a <= 0) return STAGE_SETTLE_SCALE
+    if (a >= 1) return 1
+    return STAGE_SETTLE_SCALE + (1 - STAGE_SETTLE_SCALE) * a
+  })
+  const stageScale = useSpring(stageScaleTransform, STAGE_SETTLE_SPRING)
+  const entry = useTransform(arrival, (a) => {
+    if (!Number.isFinite(a) || a <= 0) return 0
+    if (a >= 1) return 1
+    return easeOutQuad(a)
+  })
 
   // Mobile stage arrival and exit motion: cleanly separated for rock-solid Framer Motion evaluation
-  const mobileArriveOpacity = useTransform(entry, [0, 0.35, 1], [0, 0.8, 1])
-  const mobileArriveY = useTransform(entry, [0, 1], [ENTRY_RISE_PX, 0])
+  const mobileArriveOpacity = useTransform(entry, (e) => {
+    if (!Number.isFinite(e) || e <= 0) return 0
+    if (e >= 1) return 1
+    if (e < 0.35) return (e / 0.35) * 0.8
+    return 0.8 + ((e - 0.35) / 0.65) * 0.2
+  })
+  const mobileArriveY = useTransform(entry, (e) => {
+    if (!Number.isFinite(e) || e <= 0) return ENTRY_RISE_PX
+    if (e >= 1) return 0
+    return (1 - e) * ENTRY_RISE_PX
+  })
 
   const transitionSpan = TRANSITION_END - TRANSITION_START
   const mobileExitOpacity = useTransform(

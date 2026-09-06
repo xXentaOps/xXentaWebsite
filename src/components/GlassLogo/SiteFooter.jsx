@@ -94,7 +94,13 @@ export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, on
   // here instead — measured on mount, resize, and whenever the showcase category
   // changes or content resizes — keeps the per-frame read down to a plain
   // property lookup, no layout cost at all.
-  const dimsRef = useRef({ viewport: 0, maxScroll: 0 })
+  const dimsRef = useRef({
+    viewport: typeof window !== 'undefined' ? (window.innerHeight || 1) : 1,
+    maxScroll:
+      typeof window !== 'undefined'
+        ? Math.max(0, (document.documentElement.scrollHeight || 1) - (window.innerHeight || 1))
+        : 0,
+  })
   useLayoutEffect(() => {
     function measure() {
       const viewport = window.innerHeight
@@ -136,22 +142,35 @@ export function SiteFooter({ activeCategoryIndex, onCategoryChange, scrollTo, on
   // scroll frame.
   const rawProgress = useTransform(scrollY, (latest) => {
     const { viewport, maxScroll } = dimsRef.current
-    const revealDistance = viewport * (FOOTER_MAX_VH / 100)
+    const vh = viewport || (typeof window !== 'undefined' ? window.innerHeight : 0) || 1
+    const revealDistance = vh * (FOOTER_MAX_VH / 100)
+    if (!revealDistance || revealDistance <= 0) return 0
     // The spacer below is the last `revealDistance` px of the document, so
     // its top edge reaches the bottom of the screen — the instant the
     // footer starts being uncovered — exactly this far down.
     const revealStart = maxScroll - revealDistance
-    return Math.min(1, Math.max(0, (latest - revealStart) / revealDistance))
+    const p = (latest - revealStart) / revealDistance
+    if (!Number.isFinite(p)) return 0
+    return Math.min(1, Math.max(0, p))
   })
-  const opacity = useTransform(rawProgress, (p) => Math.min(1, p / FADE_FRACTION))
-  const zoomProgress = useTransform(rawProgress, (p) => Math.min(1, p / ZOOM_FADE_FRACTION))
+  const opacity = useTransform(rawProgress, (p) => {
+    if (!Number.isFinite(p)) return 0
+    return Math.min(1, Math.max(0, p / FADE_FRACTION))
+  })
+  const zoomProgress = useTransform(rawProgress, (p) => {
+    if (!Number.isFinite(p)) return 0
+    return Math.min(1, Math.max(0, p / ZOOM_FADE_FRACTION))
+  })
   const scale = useTransform(zoomProgress, [0, 1], [CONTENT_START_SCALE, 1])
   // A real filter string, not a number — framer-motion animates `filter`
   // like any other CSS value as long as it's handed a valid one on every
   // frame, so this derives the whole `blur(...)` string directly rather
   // than animating a bare px number that would need converting separately.
-  const filter = useTransform(zoomProgress, (p) => `blur(${(1 - p) * CONTENT_START_BLUR_PX}px)`)
-  const pointerEvents = useTransform(rawProgress, (p) => (p > 0.4 ? 'auto' : 'none'))
+  const filter = useTransform(zoomProgress, (p) => {
+    const val = Number.isFinite(p) ? p : 0
+    return `blur(${(1 - val) * CONTENT_START_BLUR_PX}px)`
+  })
+  const pointerEvents = useTransform(rawProgress, (p) => (Number.isFinite(p) && p > 0.4 ? 'auto' : 'none'))
 
   return (
     <>

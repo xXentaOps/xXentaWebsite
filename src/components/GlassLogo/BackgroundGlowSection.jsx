@@ -2684,7 +2684,18 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) 
   // transform below. getBoundingClientRect forces a synchronous layout
   // reflow, and doing that on every scroll frame is exactly the main-thread
   // (see SiteFooter's dimsRef for the longer version of this same argument).
-  const rangeRef = useRef({ start: 0, simIntroDistance: 1, distance: 1, arrivalStart: 0, panDistance: 1, drpIntroDistance: 1, hoverDistance: 1, revealDistance: 1, plannerDistance: 1 })
+  const initialVh = typeof window !== 'undefined' ? (window.innerHeight || 800) : 800
+  const rangeRef = useRef({
+    start: 0,
+    simIntroDistance: 1,
+    distance: 1,
+    arrivalStart: -initialVh,
+    panDistance: 1,
+    drpIntroDistance: 1,
+    hoverDistance: 1,
+    revealDistance: 1,
+    plannerDistance: 1,
+  })
   useLayoutEffect(() => {
     const section = sectionRef.current
     if (!section) return
@@ -2759,12 +2770,16 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) 
   // Simulation App Intro explore progress
   const simIntroProgress = useTransform(scrollY, (latest) => {
     const { start, simIntroDistance } = rangeRef.current
-    return MathUtils.clamp((latest - start) / simIntroDistance, 0, 1)
+    if (simIntroDistance <= 0 || !Number.isFinite(simIntroDistance)) return 0
+    const val = (latest - start) / simIntroDistance
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   const progress = useTransform(scrollY, (latest) => {
     const { start, simIntroDistance, distance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + simIntroDistance)) / distance, 0, 1)
+    if (distance <= 0 || !Number.isFinite(distance)) return 0
+    const val = (latest - (start + simIntroDistance)) / distance
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   // 0 the instant this section's own top touches the *bottom* of the screen
@@ -2778,7 +2793,10 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) 
   // than snapping in fully-formed only once the section has already arrived.
   const arrival = useTransform(scrollY, (latest) => {
     const { arrivalStart, start } = rangeRef.current
-    return MathUtils.clamp((latest - arrivalStart) / (start - arrivalStart), 0, 1)
+    const span = start - arrivalStart
+    if (span <= 0 || !Number.isFinite(span)) return 0
+    const val = (latest - arrivalStart) / span
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   // 0 for the entire chat (progress hasn't reached 1 yet, so there's nothing
@@ -2789,13 +2807,17 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) 
   // has.
   const panProgress = useTransform(scrollY, (latest) => {
     const { start, simIntroDistance, distance, panDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + simIntroDistance + distance)) / panDistance, 0, 1)
+    if (panDistance <= 0 || !Number.isFinite(panDistance)) return 0
+    const val = (latest - (start + simIntroDistance + distance)) / panDistance
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   // Page 0 Intro pitch & statistics explore window
   const drpIntroProgress = useTransform(scrollY, (latest) => {
     const { start, simIntroDistance, distance, panDistance, drpIntroDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + simIntroDistance + distance + panDistance)) / drpIntroDistance, 0, 1)
+    if (drpIntroDistance <= 0 || !Number.isFinite(drpIntroDistance)) return 0
+    const val = (latest - (start + simIntroDistance + distance + panDistance)) / drpIntroDistance
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   // 0 until drpIntroProgress itself has finished (Page 0 has handed off to
@@ -2804,21 +2826,27 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef) 
   // window starts exactly where the one before it ends.
   const hoverProgress = useTransform(scrollY, (latest) => {
     const { start, simIntroDistance, distance, panDistance, drpIntroDistance, hoverDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance)) / hoverDistance, 0, 1)
+    if (hoverDistance <= 0 || !Number.isFinite(hoverDistance)) return 0
+    const val = (latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance)) / hoverDistance
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   // 0 until hoverProgress itself has finished, then 1 - 0 across
   // revealDistance — see REVEAL_VH's own comment.
   const revealProgress = useTransform(scrollY, (latest) => {
     const { start, simIntroDistance, distance, panDistance, drpIntroDistance, hoverDistance, revealDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance + hoverDistance)) / revealDistance, 0, 1)
+    if (revealDistance <= 0 || !Number.isFinite(revealDistance)) return 0
+    const val = (latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance + hoverDistance)) / revealDistance
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   // 0 until revealProgress itself has finished, then 1 - 0 across
   // plannerDistance.
   const plannerProgress = useTransform(scrollY, (latest) => {
     const { start, simIntroDistance, distance, panDistance, drpIntroDistance, hoverDistance, revealDistance, plannerDistance } = rangeRef.current
-    return MathUtils.clamp((latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance + hoverDistance + revealDistance)) / plannerDistance, 0, 1)
+    if (plannerDistance <= 0 || !Number.isFinite(plannerDistance)) return 0
+    const val = (latest - (start + simIntroDistance + distance + panDistance + drpIntroDistance + hoverDistance + revealDistance)) / plannerDistance
+    return Number.isFinite(val) ? MathUtils.clamp(val, 0, 1) : 0
   })
 
   // The same numbers again, as plain refs, for the WebGL side — useFrame runs
@@ -2975,11 +3003,24 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
   // overshot past 1 in one hard flick) — the same "absorbs the stop rather
   // than hitting a wall" cue a physical spring gives, standing in for one
   // CSS itself has no way to add to the catch.
-  const stageScale = useSpring(useTransform(arrival, [0, 1], [STAGE_SETTLE_SCALE, 1]), STAGE_SETTLE_SPRING)
+  const stageScaleTransform = useTransform(arrival, (a) => {
+    if (!Number.isFinite(a) || a <= 0) return STAGE_SETTLE_SCALE
+    if (a >= 1) return 1
+    return STAGE_SETTLE_SCALE + (1 - STAGE_SETTLE_SCALE) * a
+  })
+  const stageScale = useSpring(stageScaleTransform, STAGE_SETTLE_SPRING)
 
   // Simulation Intro Panel arrival (slides up gently as section reaches top of screen)
-  const simIntroArrivalOpacity = useTransform(arrival, [0.2, 1], [0, 1])
-  const simIntroArrivalY = useTransform(arrival, [0.2, 1], [SIM_INTRO_RISE_PX, 0])
+  const simIntroArrivalOpacity = useTransform(arrival, (a) => {
+    if (!Number.isFinite(a) || a <= 0.2) return 0
+    if (a >= 1) return 1
+    return (a - 0.2) / 0.8
+  })
+  const simIntroArrivalY = useTransform(arrival, (a) => {
+    if (!Number.isFinite(a) || a <= 0.2) return SIM_INTRO_RISE_PX
+    if (a >= 1) return 0
+    return (1 - (a - 0.2) / 0.8) * SIM_INTRO_RISE_PX
+  })
 
   useLayoutEffect(() => {
     const el = chatContainerRef.current
@@ -3008,7 +3049,11 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
   // Row 1 and Row 2 of the Introduction section scroll upward, and immediately
   // below Row 2, the Floren Showcase app scrolls into view, docking perfectly
   // in the center of the viewport at simIntroProgress = 1.
-  const unifiedScrollY = useTransform(simIntroProgress, [0, 1], [0, -dockDistance])
+  const unifiedScrollY = useTransform(simIntroProgress, (p) => {
+    if (!Number.isFinite(p) || p <= 0) return 0
+    const dist = Number.isFinite(dockDistance) ? dockDistance : 760
+    return -p * dist
+  })
 
   // The chat UI has no idea the pan exists — left alone, it would still be
   // sitting fully opaque over the whole stage for the entire pan, hiding the
@@ -3016,7 +3061,11 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
   // first third, well before the second lockup is meant to be the thing a
   // visitor is actually looking at, and back in just as fast if they scroll
   // back up into it.
-  const chatOpacity = useTransform(panProgress, [0, PAN_FADE_END], [1, 0])
+  const chatOpacity = useTransform(panProgress, (p) => {
+    if (!Number.isFinite(p) || p <= 0) return 1
+    if (p >= PAN_FADE_END) return 0
+    return 1 - p / PAN_FADE_END
+  })
 
   return (
     // No overflow-hidden here, unlike the h-screen version this replaces —

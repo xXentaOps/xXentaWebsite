@@ -1,5 +1,5 @@
 import { forwardRef } from 'react'
-import { MacroPlannerHeader, MacroPlannerContainer, MacroPlannerView } from './MacroPlannerPanel'
+import { MacroPlannerView } from './MacroPlannerPanel'
 import { SyllabusProductionPanel } from './SyllabusProductionPanel'
 
 export const AI_IMPACT_PANEL_DESIGN_WIDTH = 883

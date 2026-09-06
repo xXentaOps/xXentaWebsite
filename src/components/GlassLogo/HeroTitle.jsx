@@ -590,7 +590,7 @@ const METRICS_PX_FONT_SIZE = 640
 let scratchCtx = null
 function useLeftBearingCorrection(text, fontSize, ready) {
   return useMemo(() => {
-    if (!ready) return 0
+    if (!ready || !text || !text[0]) return 0
     scratchCtx ??= document.createElement('canvas').getContext('2d')
     scratchCtx.font = `400 ${METRICS_PX_FONT_SIZE}px ${CANVAS_FONT_FAMILY}`
     scratchCtx.textAlign = 'left'
@@ -654,7 +654,11 @@ const LEARNING_WORDS = ['Learning', 'Managing', 'Growing']
 function useHeroTitleLines(activeIndex) {
   const { width, height } = useViewportAt(Z)
   const fontReady = useCanvasFontReady()
-  const learningWord = LEARNING_WORDS[activeIndex ?? 0]
+  const safeIndex =
+    activeIndex != null && activeIndex >= 0 && activeIndex < LEARNING_WORDS.length
+      ? activeIndex
+      : 0
+  const learningWord = LEARNING_WORDS[safeIndex]
   const breakpoint = useBreakpoint()
   const fontFractionScale = FONT_FRACTION_SCALE_BY_BREAKPOINT[breakpoint] ?? 1
 

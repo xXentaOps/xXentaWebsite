@@ -2,17 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // --- SVG Icons ---
-function DashboardIcon({ className = "w-4 h-4", color = "currentColor" }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="2" width="5" height="5" rx="1" stroke={color} strokeWidth="1.3" />
-      <rect x="9" y="2" width="5" height="5" rx="1" stroke={color} strokeWidth="1.3" />
-      <rect x="2" y="9" width="5" height="5" rx="1" stroke={color} strokeWidth="1.3" />
-      <rect x="9" y="9" width="5" height="5" rx="1" stroke={color} strokeWidth="1.3" />
-    </svg>
-  )
-}
-
 function OverviewIcon({ className = "w-4 h-4", color = "currentColor" }) {
   return (
     <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -504,18 +493,6 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  const [viewportH, setViewportH] = useState(typeof window !== 'undefined' ? window.innerHeight : 1080)
-
-  useEffect(() => {
-    function handleResize() {
-      setViewportH(window.innerHeight)
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  const contentScale = Math.min(1, Math.max(0.65, (viewportH - 84) / 950))
 
   return (
     <div
