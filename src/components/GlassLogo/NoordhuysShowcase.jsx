@@ -120,7 +120,9 @@ function NoordhuysBackdrop({
   designRef,
   sectionRef,
   emblemRef,
+  agriTextRef,
   choxRef,
+  choxTextRef,
   isActive = true,
   isForceScrollingRef,
 }) {
@@ -273,15 +275,18 @@ function NoordhuysBackdrop({
     let currentDesignScale = 1
     if (designRef?.current) {
       const zoomFactor = nextScale / finalZoomScale
-      const marginPx = Math.max(24, (PAGE_MARGIN_VH / 100) * size.height)
-      const baseScale = Math.min(1, (0.86 * size.height) / 838.67, (0.92 * size.width) / 960)
-      const designWidthPx = 960 * baseScale
+      const marginPx = Math.max(24, pageMarginPx(size.height))
+      const availableWidth = Math.max(300, size.width - 2 * marginPx)
+      const baseScale = Math.min(
+        1,
+        (0.86 * size.height) / 838.67,
+        (0.95 * availableWidth) / 1440
+      )
+      currentDesignScale = baseScale * zoomFactor
+      const designWidthPx = 960 * currentDesignScale
       const screenCenterX = (size.width - marginPx) - designWidthPx / 2
       const finalDeltaX = screenCenterX - size.width / 2
-
       const currentDeltaX = finalDeltaX * zoomFactor
-      currentDesignScale = baseScale * zoomFactor
-
       designRef.current.style.transform = `translate3d(${currentDeltaX}px, 0px, 0) scale(${currentDesignScale})`
     }
 
@@ -295,6 +300,13 @@ function NoordhuysBackdrop({
       emblemRef.current.style.transform = `translate3d(0, ${emblemDeltaY}px, 0)`
     }
 
+    // Keep Agri & Food context block scrolling in lockstep with the background grid
+    if (agriTextRef?.current) {
+      const agriDeltaY = (-group.position.y * (size.height / gridHeight)) / (currentDesignScale || 1)
+      agriTextRef.current.style.transform = `translate3d(0, calc(-50% + ${agriDeltaY}px), 0)`
+    }
+
+    let currentChoxScale = 1
     if (choxRef?.current) {
       const zoomFactor = nextScale / finalZoomScale
       const marginPx = Math.max(24, (PAGE_MARGIN_VH / 100) * size.height)
@@ -310,9 +322,16 @@ function NoordhuysBackdrop({
       const finalChoxDeltaX = choxScreenCenterX - size.width / 2
 
       const currentDeltaX = finalChoxDeltaX * zoomFactor
-      const currentScale = choxScale * zoomFactor
+      currentChoxScale = choxScale * zoomFactor
 
-      choxRef.current.style.transform = `translate3d(${currentDeltaX}px, 0px, 0) scale(${currentScale})`
+      choxRef.current.style.transform = `translate3d(${currentDeltaX}px, 0px, 0) scale(${currentChoxScale})`
+    }
+
+    // Keep ChoXPro Row Tracking context block scrolling in lockstep with the background grid
+    if (choxTextRef?.current) {
+      const choxArrivalWorldY = driftWorld * TRANSITION_END
+      const choxDeltaY = (-(group.position.y - choxArrivalWorldY) * (size.height / gridHeight)) / (currentChoxScale || 1)
+      choxTextRef.current.style.transform = `translate3d(0, ${choxDeltaY}px, 0)`
     }
   })
 
@@ -453,7 +472,9 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
   const sectionRef = useRef(null)
   const designRef = useRef(null)
   const emblemRef = useRef(null)
+  const agriTextRef = useRef(null)
   const choxRef = useRef(null)
+  const choxTextRef = useRef(null)
   const { progress, progressRef, arrival } = usePinnedProgress(sectionRef, carouselRef, isActive)
   const isVisibleRef = useRef(true)
 
@@ -585,12 +606,16 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
 
 
 
-  const initialBaseScale = typeof window !== 'undefined'
-    ? Math.min(1, (0.86 * window.innerHeight) / 838.67, (0.92 * window.innerWidth) / 960)
-    : 1
   const initialMargin = typeof window !== 'undefined'
     ? Math.max(24, (PAGE_MARGIN_VH / 100) * window.innerHeight)
     : 82
+  const initialBaseScale = typeof window !== 'undefined'
+    ? Math.min(
+        1,
+        (0.86 * window.innerHeight) / 838.67,
+        (0.95 * Math.max(300, window.innerWidth - 2 * initialMargin)) / 1440
+      )
+    : 1
   const initialDeltaX = typeof window !== 'undefined'
     ? ((window.innerWidth - initialMargin) - (960 * initialBaseScale) / 2) - window.innerWidth / 2
     : 0
@@ -621,7 +646,9 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
             designRef={designRef}
             sectionRef={sectionRef}
             emblemRef={emblemRef}
+            agriTextRef={agriTextRef}
             choxRef={choxRef}
+            choxTextRef={choxTextRef}
             isActive={isActive}
             isForceScrollingRef={isForceScrollingRef}
           />
@@ -686,6 +713,27 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                   <div className="relative z-20">
                     <NoordhuysAppPanel />
                   </div>
+
+                  {/* Agri & Food context block to the left of phone + video composition */}
+                  <div
+                    id="noordhuys-agri-text"
+                    ref={agriTextRef}
+                    className="pointer-events-auto absolute right-full top-1/2 mr-10 sm:mr-14 lg:mr-20 flex flex-col items-start text-left"
+                    style={{
+                      width: 440,
+                      transform: 'translate3d(0, -50%, 0)',
+                    }}
+                  >
+                    <h3 className="text-xl sm:text-2xl font-light tracking-tight text-white/95 leading-snug">
+                      AI in Agri & Food: Clarity, Quality, and a Better Harvest
+                    </h3>
+                    <p className="mt-4 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                      Growers and agricultural businesses deal daily with strict requirements around quality and food safety. xXenta helps companies make these complex compliance requirements a natural part of daily work, such as in targeted task assignment, row/path tracking, and tailored instructions.
+                    </p>
+                    <p className="mt-3 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                      By using smart technology as a quiet background engine, we create more breathing room for employees and better oversight for managers.
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>
@@ -716,6 +764,31 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                 {/* Subtle top edge glass reflection */}
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent z-40" />
                 <WeeklyPlanningDashboard scrollProgress={progress} />
+              </div>
+
+              {/* ChoXPro Row Tracking context block to the left of the planning dashboard */}
+              <div
+                id="chox-rowtracking-text"
+                ref={choxTextRef}
+                className="pointer-events-auto absolute right-full mr-10 sm:mr-14 lg:mr-20 flex flex-col items-start text-left"
+                style={{
+                  width: 440,
+                  top: 40,
+                  transform: 'translate3d(0, 0px, 0)',
+                }}
+              >
+                <h3 className="text-xl sm:text-2xl font-light tracking-tight text-white/95 leading-snug">
+                  Better Craftsmanship on the Shop Floor with xXenta’s Row Tracking
+                </h3>
+                <p className="mt-4 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                  In sectors like agriculture and horticulture, teams consist of people with diverse language backgrounds. How do you ensure that everyone—from tomato pickers to pruners—executes their work properly without spending endless time on instructions?
+                </p>
+                <p className="mt-3.5 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                  Our row tracking system uses AI to provide a brief instruction in the employee&apos;s native language: Which tools are required? How do you prevent damage to the plant? Afterwards, the employee simply scans a tag at the start and end of their work area.
+                </p>
+                <p className="mt-3.5 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                  It delivers a real-time dashboard which immediately displays key results, such as completion time and harvest yield. Employees know exactly what is expected of them, resulting in higher-quality work and fewer damaged crops, and Supervisors can see at a glance who has mastered a task and who needs guidance.
+                </p>
               </div>
             </div>
           </motion.div>

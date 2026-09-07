@@ -22,10 +22,11 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        padding: '27px 27px 25px',
-        gap: 24,
+        padding: '22px 24px',
+        gap: 16,
         width: '100%',
-        minHeight: 765,
+        minHeight: 575,
+        height: 575,
         background: CARD_BG,
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
@@ -33,10 +34,6 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
         boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
         borderRadius: 24,
         position: 'relative',
-        WebkitMaskImage:
-          'linear-gradient(to bottom, black 0%, black 35%, rgba(0, 0, 0, 0.7) 55%, rgba(0, 0, 0, 0.25) 72%, transparent 88%, transparent 100%)',
-        maskImage:
-          'linear-gradient(to bottom, black 0%, black 35%, rgba(0, 0, 0, 0.7) 55%, rgba(0, 0, 0, 0.25) 72%, transparent 88%, transparent 100%)',
         willChange: 'transform, opacity',
         ...style,
       }}
@@ -186,8 +183,8 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',
-          padding: '24px 28px 24px',
-          gap: 20,
+          padding: '18px 22px',
+          gap: 14,
           width: '100%',
           flex: 1,
           background: INNER_CARD_BG,
@@ -195,11 +192,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
           WebkitBackdropFilter: 'blur(12px)',
           border: `0.666667px solid ${BORDER_COLOR}`,
           boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
-          borderRadius: 24,
-          WebkitMaskImage:
-            'linear-gradient(to bottom, black 0%, black 55%, rgba(0, 0, 0, 0.75) 75%, rgba(0, 0, 0, 0.3) 88%, transparent 100%)',
-          maskImage:
-            'linear-gradient(to bottom, black 0%, black 55%, rgba(0, 0, 0, 0.75) 75%, rgba(0, 0, 0, 0.3) 88%, transparent 100%)',
+          borderRadius: 20,
         }}
       >
         {/* Inner Header Bar: Title + 3 Buttons */}
@@ -391,7 +384,8 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
           style={{
             boxSizing: 'border-box',
             width: '100%',
-            height: 560,
+            height: 365,
+            minHeight: 365,
             background: '#FFFFFF',
             borderRadius: 12,
             border: '0.666667px solid rgba(255, 255, 255, 0.8)',
@@ -401,6 +395,10 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            WebkitMaskImage:
+              'linear-gradient(to bottom, black 0%, black 60%, rgba(0, 0, 0, 0.7) 80%, transparent 100%)',
+            maskImage:
+              'linear-gradient(to bottom, black 0%, black 60%, rgba(0, 0, 0, 0.7) 80%, transparent 100%)',
           }}
         >
           <img
