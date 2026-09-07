@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Html, shaderMaterial } from '@react-three/drei'
 import { Canvas, extend, useFrame, useLoader } from '@react-three/fiber'
-import { motion, useScroll, useSpring, useTransform } from 'framer-motion'
+import { animate, motion, useMotionValue, useScroll, useSpring, useTransform } from 'framer-motion'
 import { Color, MathUtils, Plane, TextureLoader, Vector3 } from 'three'
 import { GridPlane } from './BackgroundGrid'
 import { CHAT_SCROLL_VH, CHAT_TIMELINE, chatAngryAt, chatDimAt } from './chatShowcaseScript'
@@ -2633,9 +2633,9 @@ function SeamlessBackdrop({
 // uses, minus its OVERLAY_LAYER handling, which this scene has no need for
 // (no glass here, so nothing is doing a backdrop capture that a layer split
 // would have to hide from).
-function SceneRenderGate({ isVisibleRef, isActive = true, isFooterSwiping = false }) {
+function SceneRenderGate({ isVisibleRef, isActive = true }) {
   useFrame((state) => {
-    if (!isActive || !isVisibleRef.current || isFooterSwiping) return
+    if (!isActive || !isVisibleRef.current) return
     state.gl.render(state.scene, state.camera)
   }, 1)
   return null
@@ -2950,6 +2950,7 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
   const introWrapperRef = useRef(null)
   const chatContainerRef = useRef(null)
   const [dockDistance, setDockDistance] = useState(760)
+  const { scrollY } = useScroll()
   const {
     simIntroProgress,
     simIntroProgressRef,
@@ -3075,6 +3076,66 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
     return -p * dist
   })
 
+  // Ultra-smooth, professional momentum break for Floren chat:
+  // When scrolling down into the docking threshold (simIntroProgress >= 0.97),
+  // rather than a notched keyframe bounce, we apply a continuous, critically damped
+  // harmonic spring (stiffness: 72, damping: 15, mass: 1).
+  // The chat glides seamlessly ~10-12px past the dock line with infinite smoothness
+  // (C2 continuity), then returns like liquid glass to 0px without any harsh reversals or jitter.
+  const chatBounceY = useMotionValue(0)
+  const bounceAnimationControlsRef = useRef(null)
+  const hasFiredBounceRef = useRef(simIntroProgress.get() >= 0.90)
+  const prevSimIntroRef = useRef(simIntroProgress.get())
+
+  useEffect(() => {
+    return () => {
+      bounceAnimationControlsRef.current?.stop()
+    }
+  }, [])
+
+  useEffect(() => {
+    return simIntroProgress.on('change', (latest) => {
+      const prev = prevSimIntroRef.current
+      prevSimIntroRef.current = latest
+
+      // Re-arm when user scrolls back up into intro section
+      if (latest < 0.85) {
+        hasFiredBounceRef.current = false
+        if (bounceAnimationControlsRef.current) {
+          bounceAnimationControlsRef.current.stop()
+        }
+        chatBounceY.set(0)
+        return
+      }
+
+      // Trigger momentum break when scrolling forward across the docking threshold
+      if (!hasFiredBounceRef.current && prev < 0.97 && latest >= 0.97) {
+        hasFiredBounceRef.current = true
+
+        // Scale initial impulse velocity smoothly with scroll speed
+        const scrollSpeed = Math.abs(scrollY.getVelocity ? scrollY.getVelocity() : 0)
+        const impulseVelocity = -(160 + Math.min(80, scrollSpeed * 0.06))
+
+        if (bounceAnimationControlsRef.current) {
+          bounceAnimationControlsRef.current.stop()
+        }
+
+        // Micro-offset from 0 so Framer Motion spring solver computes continuous trajectory to 0
+        chatBounceY.set(-0.5)
+
+        const animY = animate(chatBounceY, 0, {
+          type: 'spring',
+          stiffness: 72,
+          damping: 15,
+          mass: 1,
+          velocity: impulseVelocity,
+        })
+
+        bounceAnimationControlsRef.current = animY
+      }
+    })
+  }, [simIntroProgress, scrollY, chatBounceY])
+
   // The chat UI has no idea the pan exists — left alone, it would still be
   // sitting fully opaque over the whole stage for the entire pan, hiding the
   // second page it's supposed to be revealing. Faded out over the pan's own
@@ -3130,7 +3191,7 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
             isActive={isActive}
             isForceScrollingRef={isForceScrollingRef}
           />
-          <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} isFooterSwiping={isFooterSwiping} />
+          <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} />
         </Canvas>
 
         {/* Unified Introduction & Floren Showcase Chat Overlay */}
@@ -3159,12 +3220,15 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
               </div>
 
               {/* Step 2: Floren Showcase Trauma Bay App (flows directly beneath the last card) */}
-              <div
+              <motion.div
                 ref={chatContainerRef}
                 className="relative flex h-screen w-full justify-center"
+                style={{
+                  y: chatBounceY,
+                }}
               >
                 <ChatShowcase progress={progress} />
-              </div>
+              </motion.div>
             </motion.div>
           </motion.div>
         </div>

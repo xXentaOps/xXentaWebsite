@@ -365,13 +365,6 @@ export function GridPlane({
   // props below, which this overrides once present. Those props still set
   // the *first* frame's geometry, before this ref's own effect has run.
   edgeGeometryRef,
-  // A multiplier on top of style.lineOpacity/plusOpacity, once again for the
-  // same reason edgeOpacityRef exists: BackgroundGlowSection needs this to
-  // ramp up on scroll (DRP Showcase's own lines, reported as unreadable
-  // against its lighter taupe background — style itself stays untouched, so
-  // every other caller of this exact style constant, hero and About Us
-  // included, is unaffected). Absent (every other caller), the uniforms
-  // keep style's own opacity exactly as given.
   lineOpacityBoostRef,
   buttonColumnLeftUV,
   buttonColumnRightUV,
@@ -382,6 +375,7 @@ export function GridPlane({
   edgeBottomUV,
   edgeTopUV,
   aboutUsProgress,
+  forceVisible,
 }) {
   const pxToFraction = (px) => px / TARGET_CELL_PX
   const buttonsEnabled = buttonColumnLeftUV != null
@@ -403,9 +397,13 @@ export function GridPlane({
     const material = materialRef.current
     if (!material) return
 
-    if (entranceStartRef.current === null) entranceStartRef.current = state.clock.elapsedTime
-    const entranceT = Math.min((state.clock.elapsedTime - entranceStartRef.current) / ENTRANCE_DURATION, 1)
-    material.uniforms.uEntranceOpacity.value = smoothstepEase(entranceT)
+    if (forceVisible) {
+      material.uniforms.uEntranceOpacity.value = 1.0
+    } else {
+      if (entranceStartRef.current === null) entranceStartRef.current = state.clock.elapsedTime
+      const entranceT = Math.min((state.clock.elapsedTime - entranceStartRef.current) / ENTRANCE_DURATION, 1)
+      material.uniforms.uEntranceOpacity.value = smoothstepEase(entranceT)
+    }
 
     if (xPhaseShiftCellsRef) {
       material.uniforms.uXPhaseShiftCells.value = xPhaseShiftCellsRef.current
@@ -510,6 +508,9 @@ function ButtonHitZone({ x, y, z, size, onHover, onLeave, onSelect }) {
         document.body.style.cursor = 'pointer'
         onHover?.(e)
       }}
+      onPointerMove={(e) => {
+        onHover?.(e)
+      }}
       onPointerLeave={(e) => {
         document.body.style.cursor = 'auto'
         onLeave?.(e)
@@ -561,7 +562,7 @@ const LABEL_START_X_FACTOR = 0.4
 // the interactive area and the label both land precisely on the visible
 // cross regardless of window size — the same "compute once, share" approach
 // that avoided drift everywhere else this piece uses derived layout math.
-export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress, activeIndex, onCategorySelect }) {
+export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isForceScrollingRef, aboutUsProgress, activeIndex, onCategorySelect, forceVisible }) {
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
   const size = useThree((state) => state.size)
@@ -666,8 +667,8 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
     const onPointerMove = () => {
       pointerMovedAtRef.current = performance.now()
     }
-    window.addEventListener('pointermove', onPointerMove, { passive: true })
-    return () => window.removeEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointermove', onPointerMove, { capture: true, passive: true })
+    return () => window.removeEventListener('pointermove', onPointerMove, { capture: true })
   }, [])
   // Starts on activeIndex (or 0) rather than nothing selected, so
   // that label — and the hero title's matching "Learning" — show by
@@ -723,7 +724,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
           behind About Us, so there's no reason to re-derive their raycast
           geometry against a second, moving scale. */}
       <group ref={gridGroupRef}>
-        <GridPlane z={z} width={width} height={height} repeat={repeat} style={THROUGH_GLASS_STYLE} layer={0} aboutUsProgress={aboutUsProgress} />
+        <GridPlane z={z} width={width} height={height} repeat={repeat} style={THROUGH_GLASS_STYLE} layer={0} aboutUsProgress={aboutUsProgress} forceVisible={forceVisible} />
         <GridPlane
           z={z}
           width={width}
@@ -740,6 +741,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
           // to hovering over the other options.
           activeIndex={visibleIndex}
           aboutUsProgress={aboutUsProgress}
+          forceVisible={forceVisible}
         />
 
         {buttonPositions.map((pos, i) => (
@@ -759,6 +761,14 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
               onClick={() => {
                 setSelectedIndex(i)
                 onCategorySelect?.(i)
+              }}
+              onPointerEnter={() => {
+                if (isForceScrollingRef?.current) return
+                setHoveredIndex(i)
+                setSelectedIndex(i)
+              }}
+              onPointerLeave={() => {
+                setHoveredIndex((current) => (current === i ? null : current))
               }}
               // fadeInUp (see index.css) is a first-load-only entrance, kept
               // separate from the transition-colors hover/select fade below —

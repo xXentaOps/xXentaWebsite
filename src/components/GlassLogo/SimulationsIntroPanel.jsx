@@ -48,14 +48,14 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
             margin: '0 0 12px 0',
           }}
         >
-          You don&apos;t learn to handle a crisis by reading a textbook.{' '}
+          Simulate any real-world scenario with responsive AI.{' '}
           <span
             style={{
               fontWeight: 600,
               color: MARK_LIT,
             }}
           >
-            You learn by living through it.
+            Real-time practice with live, unscripted consequences.
           </span>
         </h1>
         <p
@@ -68,8 +68,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
             fontWeight: 400,
           }}
         >
-          Instructors configure the exact real-world challenge, setting target learning objectives per simulation.
-          The AI dynamically builds the scenario, character behaviors, and consequences so students develop authentic instinct before it counts.
+          Instructors configure any scenario with specific learning goals and responsive characters, while dynamic AI models handle character behaviors, conversation flow, and live consequences so learners build authentic instinct before it counts.
         </p>
       </div>
 
@@ -117,7 +116,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                   90%
                 </span>
                 <span style={{ fontSize: 15.5, color: NAME, fontWeight: 600 }}>
-                  Knowledge retained through active doing
+                  Knowledge retained through active simulation
                 </span>
               </div>
 
@@ -135,7 +134,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: SELECTED_LABEL, fontWeight: 600, marginBottom: 6 }}>
-                    <span>Active simulation in xXenta</span>
+                    <span>Active practice through simulation</span>
                     <span style={{ color: MARK_LIT, fontWeight: 700 }}>~90%</span>
                   </div>
                   <div style={{ height: 6, width: '100%', background: 'rgba(49, 65, 88, 0.4)', borderRadius: 999, overflow: 'hidden' }}>
@@ -153,7 +152,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               </div>
 
               <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.45 }}>
-                Students forget passive reading within weeks, but build lasting instinct when making decisions under live consequence.
+                Learners forget passive reading within weeks, but build lasting instinct when making decisions in live simulations.
               </div>
             </div>
 
@@ -193,7 +192,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                   <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>90%</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>Lower Cost</div>
                   <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
-                    Replaces $300/hr physical actor labs.
+                    Replaces expensive actor &amp; role-play labs.
                   </div>
                 </div>
 
@@ -201,7 +200,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                   <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>10×</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>Repetitions</div>
                   <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
-                    24/7 on-demand drills on any browser.
+                    24/7 on-demand practice on any browser.
                   </div>
                 </div>
 
@@ -209,7 +208,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                   <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>0%</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>Hallucination</div>
                   <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
-                    Deterministic telemetry &amp; biophysical rules.
+                    Deterministic scoring &amp; dynamic rules.
                   </div>
                 </div>
               </div>
@@ -280,8 +279,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               fontWeight: 400,
             }}
           >
-            Humans retain a fraction of what they read, but internalize nearly everything they experience under live consequence.
-            xXenta converts static study into instinctive, high-fidelity mastery.
+            People retain a fraction of what they read, but internalize skills when navigating live scenarios with real consequence—turning static training into instinctive, real-world mastery.
           </p>
         </div>
       </div>

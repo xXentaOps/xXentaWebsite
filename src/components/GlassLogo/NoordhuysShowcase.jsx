@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Canvas, extend, useFrame } from '@react-three/fiber'
 import { Html, shaderMaterial } from '@react-three/drei'
-import { motion, useScroll, useSpring, useTransform } from 'framer-motion'
+import { animate, motion, useMotionValue, useScroll, useTransform } from 'framer-motion'
 import { Color, MathUtils } from 'three'
 import { GridPlane } from './BackgroundGrid'
 import { GradientBlob } from './GradientBlob'
@@ -76,8 +76,6 @@ export const SAVED_NOORDHUYS_CALLOUT = {
 
 const EDGE_COLUMN_FROM_LEFT = 3
 const DRIFT_SLACK_FRACTION = 0.5
-const STAGE_SETTLE_SCALE = 0.985
-const STAGE_SETTLE_SPRING = { stiffness: 180, damping: 28, mass: 0.6 }
 
 const INTRO_VH = 100
 const MOBILE_STAY_VH = 320
@@ -469,12 +467,6 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
     return () => observer.disconnect()
   }, [])
 
-  const stageScaleTransform = useTransform(arrival, (a) => {
-    if (!Number.isFinite(a) || a <= 0) return STAGE_SETTLE_SCALE
-    if (a >= 1) return 1
-    return STAGE_SETTLE_SCALE + (1 - STAGE_SETTLE_SCALE) * a
-  })
-  const stageScale = useSpring(stageScaleTransform, STAGE_SETTLE_SPRING)
   const entry = useTransform(arrival, (a) => {
     if (!Number.isFinite(a) || a <= 0) return 0
     if (a >= 1) return 1
@@ -531,6 +523,67 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
   const choxPointerEvents = useTransform(progress, (p) =>
     p > TRANSITION_START + transitionSpan * 0.75 ? 'auto' : 'none'
   )
+
+  const { scrollY } = useScroll()
+
+  // 1. Ultra-smooth, professional momentum break for Noordhuys phone + video composition:
+  // When scrolling down, as the composition reaches its fixed layout position (arrival >= 0.97),
+  // it carries restrained physical momentum forward: gently gliding upward ~10px to 12px
+  // on a continuous, critically damped harmonic spring (stiffness: 72, damping: 15, mass: 1),
+  // then effortlessly returning to 0px with liquid smoothness.
+  const noordhuysBounceY = useMotionValue(0)
+  const noordhuysBounceControlsRef = useRef(null)
+  const hasFiredNoordhuysBounceRef = useRef(arrival.get() >= 0.90)
+  const prevArrivalRef = useRef(arrival.get())
+
+  useEffect(() => {
+    return () => {
+      noordhuysBounceControlsRef.current?.stop()
+    }
+  }, [])
+
+  useEffect(() => {
+    return arrival.on('change', (latest) => {
+      const prev = prevArrivalRef.current
+      prevArrivalRef.current = latest
+
+      // Re-arm when user scrolls back up
+      if (latest < 0.85) {
+        hasFiredNoordhuysBounceRef.current = false
+        if (noordhuysBounceControlsRef.current) {
+          noordhuysBounceControlsRef.current.stop()
+        }
+        noordhuysBounceY.set(0)
+        return
+      }
+
+      // Trigger momentum break when scrolling forward across the arrival threshold
+      if (!hasFiredNoordhuysBounceRef.current && prev < 0.97 && latest >= 0.97) {
+        hasFiredNoordhuysBounceRef.current = true
+
+        const scrollSpeed = Math.abs(scrollY.getVelocity ? scrollY.getVelocity() : 0)
+        const impulseVelocity = -(160 + Math.min(80, scrollSpeed * 0.06))
+
+        if (noordhuysBounceControlsRef.current) {
+          noordhuysBounceControlsRef.current.stop()
+        }
+
+        noordhuysBounceY.set(-0.5)
+
+        const animY = animate(noordhuysBounceY, 0, {
+          type: 'spring',
+          stiffness: 72,
+          damping: 15,
+          mass: 1,
+          velocity: impulseVelocity,
+        })
+
+        noordhuysBounceControlsRef.current = animY
+      }
+    })
+  }, [arrival, scrollY, noordhuysBounceY])
+
+
 
   const initialBaseScale = typeof window !== 'undefined'
     ? Math.min(1, (0.86 * window.innerHeight) / 838.67, (0.92 * window.innerWidth) / 960)
@@ -593,43 +646,48 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                 pointerEvents: mobilePointerEvents,
               }}
             >
-              <div
-                ref={designRef}
-                id="noordhuys-design-stage"
-                className="transform-gpu relative flex items-center justify-center"
-                style={{
-                  width: 960,
-                  height: 838.67,
-                  transform: `translate3d(${initialDeltaX}px, 0px, 0) scale(${initialBaseScale})`,
-                  transformOrigin: 'center center',
-                }}
+              <motion.div
+                style={{ y: noordhuysBounceY }}
+                className="flex items-center justify-center"
               >
-                {/* Large Noordhuys Geometric Emblem behind both video and phone */}
                 <div
-                  ref={emblemRef}
-                  id="noordhuys-bg-emblem"
-                  className="pointer-events-none absolute z-0 select-none flex items-center justify-center transition-opacity duration-500"
+                  ref={designRef}
+                  id="noordhuys-design-stage"
+                  className="transform-gpu relative flex items-center justify-center"
                   style={{
-                    left: -280,
-                    top: 30,
-                    width: 1200,
-                    height: 470,
-                    color: 'rgba(108, 161, 248, 0.05)',
+                    width: 960,
+                    height: 838.67,
+                    transform: `translate3d(${initialDeltaX}px, 0px, 0) scale(${initialBaseScale})`,
+                    transformOrigin: 'center center',
                   }}
                 >
-                  <NoordhuysEmblem className="w-full h-full" />
-                </div>
+                  {/* Large Noordhuys Geometric Emblem behind both video and phone */}
+                  <div
+                    ref={emblemRef}
+                    id="noordhuys-bg-emblem"
+                    className="pointer-events-none absolute z-0 select-none flex items-center justify-center transition-opacity duration-500"
+                    style={{
+                      left: -280,
+                      top: 30,
+                      width: 1200,
+                      height: 470,
+                      color: 'rgba(108, 161, 248, 0.05)',
+                    }}
+                  >
+                    <NoordhuysEmblem className="w-full h-full" />
+                  </div>
 
-                {/* Background Video Container underneath app */}
-                <div className="absolute z-10 flex items-center justify-center">
-                  <NoordhuysVideoContainer width={960} height={540} />
-                </div>
+                  {/* Background Video Container underneath app */}
+                  <div className="absolute z-10 flex items-center justify-center">
+                    <NoordhuysVideoContainer width={960} height={540} />
+                  </div>
 
-                {/* Foreground Mobile App Panel */}
-                <div className="relative z-20">
-                  <NoordhuysAppPanel />
+                  {/* Foreground Mobile App Panel */}
+                  <div className="relative z-20">
+                    <NoordhuysAppPanel />
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
           </motion.div>
 

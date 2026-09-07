@@ -106,13 +106,13 @@ function sharedTextProps(fontSize) {
 // this exact, real render — see useTextRevealMaterial there for why that's
 // what makes the hidden-behind-glass portion guaranteed to align: it's a
 // picture of this literal text, not a re-implementation of it).
-function CrispLine({ text, x, y, fontSize, revealed, isTextMovingRef, isHeroVisibleRef }) {
+function CrispLine({ text, x, y, fontSize, revealed, isTextMovingRef, isHeroVisibleRef, forceVisible }) {
   const meshRef = useRef(null)
   // Set on this line's own first frame (see the identical pattern in
   // AnimatedWordLine/GlassLogoGroup) — a one-time entrance, never reset, so
   // resizing afterward (which does change x/y/fontSize here) doesn't replay
   // it.
-  const startRef = useRef(null)
+  const startRef = useRef(forceVisible ? 0 : null)
   // Set true once troika's own onSync confirms real, laid-out geometry
   // exists — see the onSync prop below. Kept separate from `revealed` (the
   // wall-clock delay owned by the parent): both must hold before this ever
@@ -124,11 +124,18 @@ function CrispLine({ text, x, y, fontSize, revealed, isTextMovingRef, isHeroVisi
     if (isHeroVisibleRef && !isHeroVisibleRef.current) return
     const node = meshRef.current
     if (!node) return
-    if (!revealed) {
+    if (!revealed && !forceVisible) {
       // Nothing below has started yet — not even the entrance timer, so it
       // begins counting fresh from the moment `revealed` actually flips,
       // not from whenever this component happened to mount.
       node.visible = false
+      if (isTextMovingRef) isTextMovingRef.current.newWayOf = false
+      return
+    }
+    if (forceVisible) {
+      node.position.y = y
+      node.fillOpacity = TITLE_FILL_OPACITY
+      node.visible = syncedRef.current
       if (isTextMovingRef) isTextMovingRef.current.newWayOf = false
       return
     }
@@ -153,13 +160,12 @@ function CrispLine({ text, x, y, fontSize, revealed, isTextMovingRef, isHeroVisi
       // useFrame ever runs (R3F commits the JSX first, then starts calling
       // per-frame callbacks), so leaving these at the final [x,y,Z]/
       // TITLE_FILL_OPACITY meant the line flashed in fully-settled for a
-      // frame, then jumped down to the entrance's real starting point right
-      // as useFrame took over, before rising back up — a visible stutter
-      // right at page load, worse than not animating at all.
-      position={[x, y - TITLE_ENTRANCE_RISE_EM * fontSize, Z]}
+      // single frame while fonts were syncing, vanished, and then began its
+      // real entrance from below.
+      position={forceVisible ? [x, y, Z] : [x, y - TITLE_ENTRANCE_RISE_EM * fontSize, Z]}
       fontSize={fontSize}
       color="#F8FAFC"
-      fillOpacity={0}
+      fillOpacity={forceVisible ? TITLE_FILL_OPACITY : 0}
       // Stays invisible until troika's own async layout (font load +
       // typesetting, which runs on a worker and can take a noticeable
       // beat on a cold load) actually finishes and this onSync fires —
@@ -294,7 +300,7 @@ function useWordBlurOverlayMaterial() {
 // below) rather than sharing CrispLine's "both layers, one mesh" contract —
 // deliberately *not* the same rendering contract, despite looking similar
 // at a glance. See that copy's own comment for why.
-function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revealed, isTextMovingRef, isHeroVisibleRef }) {
+function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revealed, isTextMovingRef, isHeroVisibleRef, forceVisible }) {
   const meshRef = useRef(null)
   const sourceMeshRef = useRef(null)
   const overlayMeshRef = useRef(null)
@@ -315,7 +321,7 @@ function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revea
   // line's own mount), so t/fadeT would both already read as "finished" on
   // the very first frame — the word would just appear instantly instead of
   // playing the same fade+rise every later switch gets.
-  const startRef = useRef(null)
+  const startRef = useRef(forceVisible ? 0 : null)
   // True until the first *real* switch (a button hover/select actually
   // changing the word) — see the effect below. While true, the durations
   // used are INITIAL_REVEAL_DURATION for both rise and fade instead of the
@@ -323,7 +329,7 @@ function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revea
   // first appearance settles in at the same unhurried pace as "New Way of"
   // right above it, rather than the snappy timing tuned for switching
   // between two already-visible words.
-  const isInitialRevealRef = useRef(true)
+  const isInitialRevealRef = useRef(!forceVisible)
   const { clock } = useThree()
   const overlayMaterial = useWordBlurOverlayMaterial()
 
@@ -340,7 +346,18 @@ function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revea
     const node = meshRef.current
     if (!node) return
     const isInitial = isInitialRevealRef.current
-    if (isInitial && !revealed) {
+    if (forceVisible) {
+      isInitialRevealRef.current = false
+      node.position.y = y
+      if (sourceMeshRef.current) sourceMeshRef.current.position.y = y
+      node.fillOpacity = TITLE_FILL_OPACITY
+      node.visible = syncedRef.current
+      if (sourceMeshRef.current) sourceMeshRef.current.visible = sourceSyncedRef.current
+      if (overlayMeshRef.current) overlayMaterial.uniforms.opacity.value = 0
+      if (isTextMovingRef) isTextMovingRef.current.learning = false
+      return
+    }
+    if (isInitial && !revealed && !forceVisible) {
       // Held entirely, same as CrispLine's identical gate — nothing here
       // has started counting yet, including the entrance timer itself, so
       // it begins fresh once `revealed` actually flips. A real word switch
@@ -442,10 +459,10 @@ function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revea
         // frame before useFrame first runs, so leaving these at the final
         // values meant the word flashed in fully-settled, then jumped down
         // to its real starting point right as useFrame took over.
-        position={[x, y - WORD_SWITCH_RISE_EM * fontSize, Z]}
+        position={forceVisible ? [x, y, Z] : [x, y - WORD_SWITCH_RISE_EM * fontSize, Z]}
         fontSize={fontSize}
         color="#F8FAFC"
-        fillOpacity={0}
+        fillOpacity={forceVisible ? TITLE_FILL_OPACITY : 0}
         // See CrispLine's identical visible={false}/onSync pattern — stays
         // hidden until troika's own async layout finishes, so there's never
         // a stray-geometry/stray-opacity frame to catch on a cold load.
@@ -504,7 +521,7 @@ function AnimatedWordLine({ text, x, y, fontSize, blurredTextRef, maxTopY, revea
         // see the comment above) matches useFrame's own t=0 state, same
         // reason as the two Text elements above: avoids a one-frame jump
         // from the resting position down to the real starting one.
-        position={[x, y - WORD_SWITCH_RISE_EM * fontSize, Z]}
+        position={forceVisible ? [x, y, Z] : [x, y - WORD_SWITCH_RISE_EM * fontSize, Z]}
         fontSize={fontSize}
         color="#F8FAFC"
         fillOpacity={TITLE_FILL_OPACITY}
@@ -694,7 +711,7 @@ function useHeroTitleLines(activeIndex) {
   ]
 }
 
-export function HeroTitle({ targetSize, highQuality, activeIndex, isHeroVisibleRef }) {
+export function HeroTitle({ targetSize, highQuality, activeIndex, isHeroVisibleRef, forceVisible }) {
   const lines = useHeroTitleLines(activeIndex)
   const { height } = useViewportAt(Z)
   const canvasSize = useThree((state) => state.size)
@@ -720,11 +737,12 @@ export function HeroTitle({ targetSize, highQuality, activeIndex, isHeroVisibleR
   // withheld for a solid beat on every load before its entrance starts,
   // regardless of how long font loading/layout/first-paint actually takes
   // on a given machine.
-  const [revealed, setRevealed] = useState(false)
+  const [revealed, setRevealed] = useState(forceVisible || false)
   useEffect(() => {
+    if (forceVisible) return
     const timer = setTimeout(() => setRevealed(true), TITLE_REVEAL_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [])
+  }, [forceVisible])
   // Midpoint between the two lines' own Y positions — see AnimatedWordLine's
   // maxTopY, the hard ceiling that keeps its word-switch blur overlay from
   // ever reaching up into "New Way of"'s own line.
@@ -765,6 +783,7 @@ export function HeroTitle({ targetSize, highQuality, activeIndex, isHeroVisibleR
               revealed={revealed}
               isTextMovingRef={isTextMovingRef}
               isHeroVisibleRef={isHeroVisibleRef}
+              forceVisible={forceVisible}
             />
           ) : (
             <CrispLine
@@ -776,6 +795,7 @@ export function HeroTitle({ targetSize, highQuality, activeIndex, isHeroVisibleR
               revealed={revealed}
               isTextMovingRef={isTextMovingRef}
               isHeroVisibleRef={isHeroVisibleRef}
+              forceVisible={forceVisible}
             />
           ),
         )}

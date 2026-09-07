@@ -55,7 +55,7 @@ const ZOOM_FADE_FRACTION = 0.95
 // this on some viewport (a narrower one wrapping the link columns onto more
 // rows, say) simply extends above the box's own top instead of clipping;
 // this number only has to be *close*, not an exact ceiling.
-const FOOTER_MAX_VH = 50
+export const FOOTER_MAX_VH = 50
 
 // The content's own starting scale, before the reveal has made any
 // progress — small enough to read as a deliberate "zooming in to position"
@@ -213,7 +213,6 @@ export function SiteFooter({
           paddingLeft: `${PAGE_MARGIN_VH}vh`,
           paddingRight: `${PAGE_MARGIN_VH}vh`,
           willChange: isFooterSwiping ? 'transform' : 'auto',
-          transform: isFooterSwiping ? 'translateZ(0)' : 'none',
           ...style,
         }}
         className={`pointer-events-none fixed inset-x-0 bottom-0 flex flex-col justify-end pb-10 ${
@@ -246,99 +245,119 @@ export function SiteFooter({
           }}
           className={isFooterSwiping ? 'pointer-events-none' : 'pointer-events-auto'}
         >
-          {/* Everything left-justified against the page's shared left margin
-              — the same edge the hero's title, About Us's copy, and the
-              highlighted grid cell all start from (see pageMargin.js). */}
-          <XxentaWordmark
-            className={`block text-xs font-medium text-white/40 cursor-pointer hover:text-white/70 transition-colors duration-200`}
-            onClick={() => {
-              if (onFooterNavigate) {
-                onFooterNavigate({ target: 'hero', categoryIndex: activeCategoryIndex ?? 0 })
-              } else {
-                scrollTo?.(0)
-              }
-            }}
+          <SiteFooterContent
+            activeCategoryIndex={activeCategoryIndex}
+            onFooterNavigate={onFooterNavigate}
+            onCategoryChange={onCategoryChange}
+            scrollTo={scrollTo}
+            onAboutUsClick={onAboutUsClick}
           />
-
-          <p className="mt-6 max-w-[340px] text-xs leading-[1.9] font-extralight text-white/35">
-            [ A short paragraph about xXenta — to be added. ]
-          </p>
-
-          {/* 20vw — literally a fifth of the screen, as asked, rather than a
-              fifth of the content column (which sits inside the margins and
-              would read narrower than intended). */}
-          <div className="mt-10 h-px w-[20vw] bg-white/10" />
-
-          {/* Columns sized to their own content and spaced by a real gap,
-              rather than an equal-thirds grid — the three headings then sit
-              in a tight, deliberate group against the left margin instead of
-              being pushed apart to fill a wide desktop viewport. Wraps below
-              md, where three columns of tracked-out labels stop fitting. */}
-          <div className="mt-10 flex flex-wrap gap-x-20 gap-y-10">
-            {LINK_COLUMNS.map((column) => (
-              <div key={column.heading} className="flex flex-col">
-                {/* Uppercase + wide tracking, matching how SiteNavbar sets
-                    its own links apart — here it separates a heading from
-                    the plain sentence-case links under it. */}
-                <span className="text-[11px] font-normal tracking-[0.2em] text-white/50 uppercase">
-                  {column.heading}
-                </span>
-                <div className="mt-5 flex flex-col gap-3">
-                  {column.links.map((label) => {
-                    const handleClick = () => {
-                      if (onFooterNavigate) {
-                        if (label === 'AI for Education') {
-                          onFooterNavigate({ target: 'hero', categoryIndex: 0 })
-                        } else if (label === 'AI for Enterprises') {
-                          onFooterNavigate({ target: 'hero', categoryIndex: 1 })
-                        } else if (label === 'AI for Achievers') {
-                          onFooterNavigate({ target: 'hero', categoryIndex: 2 })
-                        } else if (label === 'About Us') {
-                          onFooterNavigate({ target: 'about-us' })
-                        } else if (label === 'Meet the Team') {
-                          onFooterNavigate({ target: 'meet-the-team' })
-                        }
-                        return
-                      }
-                      if (label === 'AI for Education') {
-                        onCategoryChange?.(0)
-                        scrollTo?.(0)
-                      } else if (label === 'AI for Enterprises') {
-                        onCategoryChange?.(1)
-                        scrollTo?.(0)
-                      } else if (label === 'AI for Achievers') {
-                        onCategoryChange?.(2)
-                        scrollTo?.(0)
-                      } else if (label === 'About Us' || label === 'Meet the Team') {
-                        onAboutUsClick?.()
-                      }
-                    }
-
-                    return (
-                      <span
-                        key={label}
-                        onClick={handleClick}
-                        className="cursor-pointer text-xs font-extralight text-white/30 transition-colors duration-200 hover:text-white/60"
-                      >
-                        {label}
-                      </span>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Full bleed between the two page margins — the footer's own
-              padding is what those margins are, so a plain full-width child
-              lands exactly on them with nothing to calculate. */}
-          <div className="mt-12 h-px w-full bg-white/10" />
-
-          <p className="mt-8 text-[11px] font-extralight tracking-[0.15em] text-white/25">
-            © {new Date().getFullYear()} xXenta. All rights reserved.
-          </p>
         </motion.div>
       </motion.footer>
+    </>
+  )
+}
+
+export function SiteFooterContent({
+  activeCategoryIndex,
+  onFooterNavigate,
+  onCategoryChange,
+  scrollTo,
+  onAboutUsClick,
+}) {
+  return (
+    <>
+      {/* Everything left-justified against the page's shared left margin
+          — the same edge the hero's title, About Us's copy, and the
+          highlighted grid cell all start from (see pageMargin.js). */}
+      <XxentaWordmark
+        className={`block text-xs font-medium text-white/40 cursor-pointer hover:text-white/70 transition-colors duration-200`}
+        onClick={() => {
+          if (onFooterNavigate) {
+            onFooterNavigate({ target: 'hero', categoryIndex: activeCategoryIndex ?? 0 })
+          } else {
+            scrollTo?.(0)
+          }
+        }}
+      />
+
+      <p className="mt-6 max-w-[340px] text-xs leading-[1.9] font-extralight text-white/35">
+        [ A short paragraph about xXenta — to be added. ]
+      </p>
+
+      {/* 20vw — literally a fifth of the screen, as asked, rather than a
+          fifth of the content column (which sits inside the margins and
+          would read narrower than intended). */}
+      <div className="mt-10 h-px w-[20vw] bg-white/10" />
+
+      {/* Columns sized to their own content and spaced by a real gap,
+          rather than an equal-thirds grid — the three headings then sit
+          in a tight, deliberate group against the left margin instead of
+          being pushed apart to fill a wide desktop viewport. Wraps below
+          md, where three columns of tracked-out labels stop fitting. */}
+      <div className="mt-10 flex flex-wrap gap-x-20 gap-y-10">
+        {LINK_COLUMNS.map((column) => (
+          <div key={column.heading} className="flex flex-col">
+            {/* Uppercase + wide tracking, matching how SiteNavbar sets
+                its own links apart — here it separates a heading from
+                the plain sentence-case links under it. */}
+            <span className="text-[11px] font-normal tracking-[0.2em] text-white/50 uppercase">
+              {column.heading}
+            </span>
+            <div className="mt-5 flex flex-col gap-3">
+              {column.links.map((label) => {
+                const handleClick = () => {
+                  if (onFooterNavigate) {
+                    if (label === 'AI for Education') {
+                      onFooterNavigate({ target: 'showcase', categoryIndex: 0 })
+                    } else if (label === 'AI for Enterprises') {
+                      onFooterNavigate({ target: 'showcase', categoryIndex: 1 })
+                    } else if (label === 'AI for Achievers') {
+                      onFooterNavigate({ target: 'hero', categoryIndex: 2 })
+                    } else if (label === 'About Us') {
+                      onFooterNavigate({ target: 'about-us' })
+                    } else if (label === 'Meet the Team') {
+                      onFooterNavigate({ target: 'meet-the-team' })
+                    }
+                    return
+                  }
+                  if (label === 'AI for Education') {
+                    onCategoryChange?.(0)
+                    scrollTo?.(0)
+                  } else if (label === 'AI for Enterprises') {
+                    onCategoryChange?.(1)
+                    scrollTo?.(0)
+                  } else if (label === 'AI for Achievers') {
+                    onCategoryChange?.(2)
+                    scrollTo?.(0)
+                  } else if (label === 'About Us' || label === 'Meet the Team') {
+                    onAboutUsClick?.()
+                  }
+                }
+
+                return (
+                  <span
+                    key={label}
+                    onClick={handleClick}
+                    className="cursor-pointer text-xs font-extralight text-white/30 transition-colors duration-200 hover:text-white/60"
+                  >
+                    {label}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Full bleed between the two page margins — the footer's own
+          padding is what those margins are, so a plain full-width child
+          lands exactly on them with nothing to calculate. */}
+      <div className="mt-12 h-px w-full bg-white/10" />
+
+      <p className="mt-8 text-[11px] font-extralight tracking-[0.15em] text-white/25">
+        © {new Date().getFullYear()} xXenta. All rights reserved.
+      </p>
     </>
   )
 }

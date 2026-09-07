@@ -1,6 +1,6 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas, events } from '@react-three/fiber'
-import { motion, useTransform } from 'framer-motion'
+import { motion, useMotionValue, useTransform } from 'framer-motion'
 import { Backdrop } from './Backdrop'
 import { HeroTitle } from './HeroTitle'
 import { ReflectionEnvironment } from './ReflectionEnvironment'
@@ -56,6 +56,7 @@ export function GlassLogoHero({
   activeCategoryIndex,
   onCategorySelect,
   isFooterSwiping = false,
+  forceVisible = false,
 }) {
   const tier = usePerformanceTier()
   const breakpoint = useBreakpoint()
@@ -71,10 +72,13 @@ export function GlassLogoHero({
     }
   }, [activeCategoryIndex, activeIndex])
 
-  const handleActiveIndexChange = (index) => {
-    setActiveIndex(index)
-    onCategoryChange?.(index)
-  }
+  const handleActiveIndexChange = useCallback(
+    (index) => {
+      setActiveIndex(index)
+      onCategoryChange?.(index)
+    },
+    [onCategoryChange]
+  )
   // R3F normally listens for pointer events on the canvas element itself —
   // fine until a real DOM element (the grid buttons' labels, now clickable;
   // see BackgroundGrid) sits visually on top of it. The browser delivers
@@ -113,14 +117,20 @@ export function GlassLogoHero({
   // value of it — including every value an interrupted, retargeted or
   // hurried transition passes through, which two separately-run animations
   // sharing one spring config cannot promise.
-  const slideY = useTransform(aboutUsProgress, (p) => `${p * 100}%`)
+  const fallbackProgress = useMotionValue(0)
+  const effectiveAboutUsProgress = aboutUsProgress ?? fallbackProgress
+  const slideY = useTransform(effectiveAboutUsProgress, (p) => `${p * 100}%`)
   useEffect(() => {
     const section = eventSourceRef.current
     if (!section) return
     let isIntersecting = true
     const updateVisibility = () => {
+      if (forceVisible) {
+        isHeroVisibleRef.current = true
+        return
+      }
       const isSlidAway = Boolean(aboutUsProgress && aboutUsProgress.get() >= 0.99)
-      isHeroVisibleRef.current = !isSlidAway && isIntersecting && !isFooterSwiping
+      isHeroVisibleRef.current = !isSlidAway && isIntersecting
     }
 
     const observer = new IntersectionObserver(([entry]) => {
@@ -184,9 +194,16 @@ export function GlassLogoHero({
           isForceScrollingRef={isForceScrollingRef}
           activeIndex={activeIndex}
           onCategorySelect={onCategorySelect}
+          forceVisible={forceVisible}
         />
         <Suspense fallback={null}>
-          <HeroTitle targetSize={targetSize} highQuality={tier === 'high'} activeIndex={activeIndex} isHeroVisibleRef={isHeroVisibleRef} />
+          <HeroTitle
+            targetSize={targetSize}
+            highQuality={tier === 'high'}
+            activeIndex={activeIndex}
+            isHeroVisibleRef={isHeroVisibleRef}
+            forceVisible={forceVisible}
+          />
           {tier === 'high' && <ReflectionEnvironment environmentIntensity={1.3} />}
         </Suspense>
       </Canvas>

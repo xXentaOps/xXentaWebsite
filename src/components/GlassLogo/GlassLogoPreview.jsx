@@ -13,8 +13,9 @@ import ClientLogoCarousel from './ClientLogoCarousel'
 import FrameRateMeter from './FrameRateMeter'
 import GlassLogoHero from './GlassLogoHero'
 import NoordhuysShowcase from './NoordhuysShowcase'
+import { PAGE_MARGIN_VH } from './pageMargin'
 import { createGestureClassifier, GESTURE_END_MS } from './scrollGestureClassifier'
-import SiteFooter from './SiteFooter'
+import SiteFooter, { SiteFooterContent, FOOTER_MAX_VH } from './SiteFooter'
 import SiteNavbar from './SiteNavbar'
 
 // Read once, at module scope: it never changes for the life of the page, and
@@ -124,9 +125,23 @@ export default function GlassLogoPreview() {
   const [initialTeamOpen, setInitialTeamOpen] = useState(false)
   const isFooterSwipingRef = useRef(false)
   const [isFooterSwiping, setIsFooterSwiping] = useState(false)
-  const outgoingY = useTransform(aboutUsProgress, (p) => {
-    return isFooterSwipingRef.current ? `${-p * 100}vh` : '0vh'
-  })
+
+  const footerPageProgress = useMotionValue(0)
+  const isFooterPageSwipingRef = useRef(false)
+  const [isFooterPageSwiping, setIsFooterPageSwiping] = useState(false)
+  const [outgoingFooterCategory, setOutgoingFooterCategory] = useState(0)
+
+  const outgoingFooterY = useTransform(footerPageProgress, (p) => `${-p * 100}vh`)
+  const outgoingAboutY = useTransform(aboutUsProgress, (p) => `${-p * 100}vh`)
+
+  const pageSlideY = useTransform(
+    [aboutUsProgress, footerPageProgress],
+    ([pAbout, pPage]) => {
+      if (isFooterSwipingRef.current) return `${-pAbout * 100}vh`
+      if (isFooterPageSwipingRef.current) return `${(1 - pPage) * 100}vh`
+      return '0vh'
+    }
+  )
   // Whatever animation is currently driving that value, so the scroll-lock
   // effect below can stop it and take the reveal over by hand — see
   // driveCloseWithScroll. Written on every start, including its own.
@@ -149,7 +164,7 @@ export default function GlassLogoPreview() {
   // through useLenis's own lock/stop()/start() keeps Lenis's bookkeeping
   // authoritative, the same as Achievers already relies on.
   const [scrollLockActive, setScrollLockActive] = useState(false)
-  const { scrollTo, resize, getTargetScroll, setDetent, stop } = useLenis(scrollLocked || scrollLockActive, isForceScrollingRef)
+  const { scrollTo, resize, getTargetScroll, setDetent, stop, start } = useLenis(scrollLocked || scrollLockActive, isForceScrollingRef)
 
   useEffect(() => {
     resize?.()
@@ -1022,7 +1037,7 @@ export default function GlassLogoPreview() {
   const handleFooterNavigate = useCallback(
     ({ target, categoryIndex }) => {
       if (target === 'about-us' || target === 'meet-the-team') {
-        if (isFooterSwipingRef.current) return
+        if (isFooterSwipingRef.current || isFooterPageSwipingRef.current) return
         isFooterSwipingRef.current = true
         setIsFooterSwiping(true)
         stop()
@@ -1058,16 +1073,50 @@ export default function GlassLogoPreview() {
         return
       }
 
-      if (target === 'hero') {
+      if (target === 'showcase' || target === 'hero') {
+        if (isFooterPageSwipingRef.current || isFooterSwipingRef.current) return
         const nextCategory = categoryIndex ?? 0
+        const isHero = target === 'hero'
+
+        isFooterPageSwipingRef.current = true
+        setIsFooterPageSwiping(true)
+        setOutgoingFooterCategory(activeCategoryIndex)
+        isForceScrollingRef.current = true
+        stop()
+
+        const targetScroll = isHero
+          ? 0
+          : (carouselRef.current ? carouselRef.current.offsetTop + carouselRef.current.offsetHeight : window.innerHeight)
+
         handleCategoryChange(nextCategory)
-        scrollTo(0, {
-          duration: 1.4,
-          easing: (t) => 1 - Math.pow(1 - t, 3),
+
+        // Instantly align scroll to target destination under the hood while the
+        // incoming page container is positioned at 100vh (off-screen)
+        window.scrollTo(0, targetScroll)
+        scrollTo(targetScroll, { immediate: true })
+
+        footerPageProgress.set(0)
+        const swipeTransition = { duration: 1.25, ease: [0.4, 0, 0.1, 1] }
+        const anim = animate(footerPageProgress, 1, swipeTransition)
+
+        anim.then(() => {
+          if (nextCategory === 2) {
+            setScrollLocked(true)
+          } else {
+            setScrollLocked(false)
+          }
+          window.scrollTo(0, targetScroll)
+          scrollTo(targetScroll, { immediate: true })
+          footerPageProgress.set(0)
+          isFooterPageSwipingRef.current = false
+          setIsFooterPageSwiping(false)
+          isForceScrollingRef.current = false
+          start?.()
         })
+        return
       }
     },
-    [handleCategoryChange, scrollTo, stop, aboutUsProgress]
+    [activeCategoryIndex, handleCategoryChange, scrollTo, stop, start, aboutUsProgress, footerPageProgress]
   )
 
   return (
@@ -1120,9 +1169,9 @@ export default function GlassLogoPreview() {
       <motion.div
         className="relative z-10"
         style={{
-          y: outgoingY,
-          willChange: isFooterSwiping ? 'transform' : 'auto',
-          transform: isFooterSwiping ? 'translateZ(0)' : 'none',
+          y: pageSlideY,
+          willChange: isFooterSwiping || isFooterPageSwiping ? 'transform' : 'auto',
+          transform: isFooterSwiping || isFooterPageSwiping ? 'translateZ(0)' : 'none',
         }}
       >
         <GlassLogoHero
@@ -1169,11 +1218,10 @@ export default function GlassLogoPreview() {
         </div>
       </motion.div>
       <SiteFooter
-        key={activeCategoryIndex}
         activeCategoryIndex={activeCategoryIndex}
         onCategoryChange={handleCategoryChange}
         scrollTo={scrollTo}
-        style={{ y: outgoingY }}
+        style={{ y: outgoingAboutY }}
         isFooterSwiping={isFooterSwiping}
         onFooterNavigate={handleFooterNavigate}
         onAboutUsClick={() => {
@@ -1184,6 +1232,30 @@ export default function GlassLogoPreview() {
           }
         }}
       />
+      {isFooterPageSwiping && (
+        <motion.div
+          className="pointer-events-none fixed inset-0 z-20 overflow-hidden bg-[#0F172B]"
+          style={{
+            y: outgoingFooterY,
+            willChange: 'transform',
+            transform: 'translateZ(0)',
+          }}
+        >
+          <div
+            className="absolute inset-x-0 bottom-0 flex flex-col justify-end pb-10"
+            style={{
+              height: `${FOOTER_MAX_VH}vh`,
+              paddingLeft: `${PAGE_MARGIN_VH}vh`,
+              paddingRight: `${PAGE_MARGIN_VH}vh`,
+            }}
+          >
+            <SiteFooterContent
+              activeCategoryIndex={outgoingFooterCategory}
+              onFooterNavigate={() => {}}
+            />
+          </div>
+        </motion.div>
+      )}
       {SHOW_FRAME_RATE && <FrameRateMeter />}
       <AboutUsSection
         ref={aboutUsSectionRef}
