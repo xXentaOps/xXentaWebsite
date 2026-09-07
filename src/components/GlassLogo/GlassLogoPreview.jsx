@@ -17,6 +17,7 @@ import { PAGE_MARGIN_VH } from './pageMargin'
 import { createGestureClassifier, GESTURE_END_MS } from './scrollGestureClassifier'
 import SiteFooter, { SiteFooterContent, FOOTER_MAX_VH } from './SiteFooter'
 import SiteNavbar from './SiteNavbar'
+import { ContactPage } from './ContactPage'
 
 // Read once, at module scope: it never changes for the life of the page, and
 // this keeps it out of every render. See FrameRateMeter — ?fps to show it.
@@ -51,6 +52,9 @@ export default function GlassLogoPreview() {
   // slide-in are derived from directly, so they cannot be anywhere but one
   // screen apart — see the comments on each.
   const [isAboutUsOpen, setIsAboutUsOpen] = useState(false)
+  const [isContactOpen, setIsContactOpen] = useState(false)
+  const isContactOpenRef = useRef(false)
+  isContactOpenRef.current = isContactOpen
   const [isDrpActive, setIsDrpActive] = useState(false)
 
   const handleCategoryChange = useCallback((index) => {
@@ -170,6 +174,16 @@ export default function GlassLogoPreview() {
     resize?.()
     window.dispatchEvent(new Event('resize'))
   }, [activeCategoryIndex, resize])
+
+  useEffect(() => {
+    if (isContactOpen) {
+      stop?.()
+    } else {
+      if (!scrollLocked && !scrollLockActive) {
+        start?.()
+      }
+    }
+  }, [isContactOpen, stop, start, scrollLocked, scrollLockActive])
   // Everything about the About Us scroll-lock/dismiss state machine lives
   // in one persistent, mount-once effect using plain closure variables
   // (isLocked/isOpenNow and the per-gesture flags below), not React state
@@ -460,6 +474,7 @@ export default function GlassLogoPreview() {
         }
       }
       isOpenNow = true
+      setIsContactOpen(false)
       setIsAboutUsOpen(true)
       // Reopening while a close is still playing: drop that close's pending
       // release, or it fires partway through this open and unlocks the page
@@ -767,6 +782,7 @@ export default function GlassLogoPreview() {
     }
 
     function onWheel(event) {
+      if (isContactOpenRef.current) return
       if (isFooterSwipingRef.current) return
       const delta = event.deltaY
       const absDelta = Math.abs(delta)
@@ -960,6 +976,7 @@ export default function GlassLogoPreview() {
     // Keyboard scrolling has no momentum tail, so each keypress is its own
     // discrete gesture and none of the per-gesture guards above apply.
     function onKeyDown(event) {
+      if (isContactOpenRef.current) return
       if (isFooterSwipingRef.current) {
         event.preventDefault()
         return
@@ -1036,6 +1053,11 @@ export default function GlassLogoPreview() {
 
   const handleFooterNavigate = useCallback(
     ({ target, categoryIndex }) => {
+      if (target === 'contact') {
+        setIsContactOpen(true)
+        return
+      }
+
       if (target === 'about-us' || target === 'meet-the-team') {
         if (isFooterSwipingRef.current || isFooterPageSwipingRef.current) return
         isFooterSwipingRef.current = true
@@ -1116,15 +1138,17 @@ export default function GlassLogoPreview() {
         return
       }
     },
-    [activeCategoryIndex, handleCategoryChange, scrollTo, stop, start, aboutUsProgress, footerPageProgress]
+    [activeCategoryIndex, handleCategoryChange, scrollTo, stop, start, aboutUsProgress, footerPageProgress, isAboutUsOpen]
   )
 
   return (
     <>
       <SiteNavbar
         isAboutUsActive={isAboutUsOpen}
+        isContactActive={isContactOpen}
         isDrpActive={isDrpActive}
         onAboutUsClick={() => {
+          if (isContactOpen) setIsContactOpen(false)
           // Clicking "About Us" is only ever a way *in*, never a way out —
           // once inside, it backs out of Meet the Team to the last About Us
           // slide if that stage is open, or does nothing at all if About Us
@@ -1138,7 +1162,11 @@ export default function GlassLogoPreview() {
             lockApiRef.current?.open()
           }
         }}
+        onContactClick={() => {
+          setIsContactOpen((prev) => !prev)
+        }}
         onLogoClick={() => {
+          if (isContactOpen) setIsContactOpen(false)
           // Standard "logo = home" convention — brings you back to the hero
           // from either of the two ways you can currently be away from it:
           // closes the About Us overlay if it's open (via the same
@@ -1224,7 +1252,11 @@ export default function GlassLogoPreview() {
         style={{ y: outgoingAboutY }}
         isFooterSwiping={isFooterSwiping}
         onFooterNavigate={handleFooterNavigate}
+        onContactClick={() => {
+          setIsContactOpen(true)
+        }}
         onAboutUsClick={() => {
+          if (isContactOpen) setIsContactOpen(false)
           if (isAboutUsOpen) {
             aboutUsSectionRef.current?.closeTeam()
           } else {
@@ -1265,6 +1297,10 @@ export default function GlassLogoPreview() {
         openDirection={openDirection}
         initialTeamOpen={initialTeamOpen}
         isFooterSwiping={isFooterSwiping}
+      />
+      <ContactPage
+        isOpen={isContactOpen}
+        onClose={() => setIsContactOpen(false)}
       />
     </>
   )

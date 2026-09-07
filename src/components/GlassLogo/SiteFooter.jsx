@@ -76,6 +76,7 @@ export function SiteFooter({
   onCategoryChange,
   scrollTo,
   onAboutUsClick,
+  onContactClick,
   onFooterNavigate,
   isFooterSwiping = false,
   style,
@@ -251,6 +252,7 @@ export function SiteFooter({
             onCategoryChange={onCategoryChange}
             scrollTo={scrollTo}
             onAboutUsClick={onAboutUsClick}
+            onContactClick={onContactClick}
           />
         </motion.div>
       </motion.footer>
@@ -264,6 +266,7 @@ export function SiteFooterContent({
   onCategoryChange,
   scrollTo,
   onAboutUsClick,
+  onContactClick,
 }) {
   return (
     <>
@@ -318,6 +321,8 @@ export function SiteFooterContent({
                       onFooterNavigate({ target: 'about-us' })
                     } else if (label === 'Meet the Team') {
                       onFooterNavigate({ target: 'meet-the-team' })
+                    } else if (label === 'Contact') {
+                      onFooterNavigate({ target: 'contact' })
                     }
                     return
                   }
@@ -332,12 +337,15 @@ export function SiteFooterContent({
                     scrollTo?.(0)
                   } else if (label === 'About Us' || label === 'Meet the Team') {
                     onAboutUsClick?.()
+                  } else if (label === 'Contact') {
+                    onContactClick?.()
                   }
                 }
 
                 return (
                   <span
                     key={label}
+                    data-footer-link={label}
                     onClick={handleClick}
                     className="cursor-pointer text-xs font-extralight text-white/30 transition-colors duration-200 hover:text-white/60"
                   >

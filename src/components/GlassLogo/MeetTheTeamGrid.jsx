@@ -469,6 +469,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
   useLayoutEffect(() => {
     if (!isDetail) return
     const redirectWheel = (event) => {
+      if (document.querySelector('[data-contact-panel]')) return
       event.stopPropagation()
       const el = bioScrollRef.current
       if (el) {
