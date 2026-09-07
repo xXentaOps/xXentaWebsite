@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
+import { SLIDES } from './aboutUsSlides'
 
 // Placeholder figures — invented for layout, to be replaced with the real
 // numbers later. Kept in the shape the counter actually animates (a plain
@@ -10,9 +11,9 @@ import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
 // must keep its tenth all the way up from 0, and 40 must never show one, and
 // a counter mid-flight has no way to tell those apart from the target alone.
 const STATS = [
-  { value: 12.4, decimals: 1, suffix: 'K', label: 'Daily active users' },
+  { value: 350, decimals: 0, suffix: '+', label: 'Daily active users' },
   { value: 99.8, decimals: 1, suffix: '%', label: 'Platform uptime' },
-  { value: 40, decimals: 0, suffix: '+', label: 'Partner institutions' },
+  { value: 40, decimals: 0, suffix: '+', label: 'Languages covered' },
 ]
 
 // The three stats' own figure/suffix sizes, in px — pulled out to a default
@@ -25,20 +26,16 @@ const FIGURE_SIZE_PX = 64
 const SUFFIX_SIZE_PX = 34
 
 // Slide 2 (De Rooi Pannen) gets one wide figure spanning all three squares
-// instead of three separate ones — asked for directly, about the money that
-// client has saved since signing with us rather than three unrelated
-// numbers. prefix is new for this one: none of the three above need a
-// currency mark before the digits, just a unit after them. Sized bigger too
-// — asked for directly, "like the actual font size" — since it now has a
-// whole row's width to itself rather than sharing it three ways.
+// instead of three separate ones — asked for directly: €74,000+ Avg. Contractor
+// Savings.
 const BIG_STAT = {
-  value: 2.4,
-  decimals: 1,
+  value: 74000,
+  decimals: 0,
   prefix: '€',
-  suffix: 'M',
-  label: 'Saved in operating costs since partnering with us',
-  figureSize: 128,
-  suffixSize: 64,
+  suffix: '+',
+  label: 'Avg. Contractor Savings',
+  figureSize: 104,
+  suffixSize: 54,
 }
 
 // Which slides get the single wide figure instead of the usual three — a
@@ -112,12 +109,21 @@ function Stat({
   hasPlayed,
   onPlayed,
 }) {
+  const isNumeric = typeof value === 'number'
   const count = useMotionValue(0)
   // Formatted here rather than in the JSX so the growing number never passes
   // through React state — the motion value is handed straight to the span as
   // a child and framer writes it to the DOM itself, so a two-second count
   // costs no re-renders at all.
-  const text = useTransform(count, (v) => v.toFixed(decimals))
+  const text = useTransform(count, (v) => {
+    if (!isNumeric) return value
+    if (decimals > 0) {
+      const fixed = v.toFixed(decimals)
+      const [intPart, decPart] = fixed.split('.')
+      return `${Number(intPart).toLocaleString('en-US')}.${decPart}`
+    }
+    return Math.round(v).toLocaleString('en-US')
+  })
   // The arrival's own 0->1 progress, driven on exactly the same duration,
   // delay and easing as the count above. A separate value rather than
   // deriving blur/rise from `count` itself, because count's range is the
@@ -150,14 +156,14 @@ function Stat({
       // repeat view is a plain opacity fade (see REVISIT_FADE_DURATION): a
       // soft appearance in place of an instant, jarring pop-into-place,
       // without restaging the whole arrival a second time.
-      count.set(value)
+      if (isNumeric) count.set(value)
       arrival.set(1)
       opacity.set(0)
       const fadeControls = animate(opacity, 1, { duration: REVISIT_FADE_DURATION, ease: 'easeOut' })
       return () => fadeControls.stop()
     }
     if (!isPlaying) {
-      count.set(0)
+      if (isNumeric) count.set(0)
       arrival.set(0)
       opacity.set(1)
       return
@@ -176,7 +182,7 @@ function Stat({
     // full again next time instead of being replaced by the fade.
     opacity.set(1)
     const options = { duration: COUNT_DURATION, delay, ease: COUNT_EASE }
-    const controls = animate(count, value, options)
+    const controls = isNumeric ? animate(count, value, options) : null
     // Same options object, so the blur/rise cannot drift out of step with
     // the digits they belong to — they are one arrival, not three
     // animations that happen to be configured alike. onComplete on just
@@ -184,7 +190,7 @@ function Stat({
     // twice would be redundant, not wrong, but there's no reason to.
     const arrivalControls = animate(arrival, 1, { ...options, onComplete: () => onPlayed(label) })
     return () => {
-      controls.stop()
+      controls?.stop()
       arrivalControls.stop()
     }
     // onPlayed is a useCallback with an empty dep array in AboutUsStats
@@ -192,7 +198,7 @@ function Stat({
     // sit in this array safely — an inline arrow recreated every render
     // would re-fire this effect (and restart the animation mid-flight) on
     // any unrelated parent re-render, not just a real state change.
-  }, [hasPlayed, isPlaying, value, delay, count, arrival, opacity, label, onPlayed])
+  }, [hasPlayed, isPlaying, value, delay, count, arrival, opacity, label, onPlayed, isNumeric])
 
   return (
     // Each stat occupies exactly one grid square — the parent sizes the row
@@ -238,9 +244,11 @@ function Stat({
         {/* Smaller and set apart from the digits — the unit belongs to the
             number but shouldn't compete with it for the same size. Scaled
             up in step with the figure so the pairing stays as it was. */}
-        <span style={{ fontSize: suffixSize }} className="ml-1 leading-none font-medium">
-          {suffix}
-        </span>
+        {suffix && (
+          <span style={{ fontSize: suffixSize }} className="ml-1 leading-none font-medium">
+            {suffix}
+          </span>
+        )}
       </div>
       {/* Same uppercase/tracked treatment every other small label on this
           page uses (see SiteNavbar's links, the footer's column headings),
@@ -313,6 +321,11 @@ export function AboutUsStats({ aboutUsProgress, slideIndex }) {
   const onStatPlayed = useCallback((label) => {
     playedLabelsRef.current.add(label)
   }, [])
+
+  const slide = SLIDES[slideIndex]
+  if (slide?.hasStats === false || slideIndex === 2) {
+    return null
+  }
 
   // The single wide figure is still just a Stat with flex-1 (see its own
   // JSX) rendered as the *only* child of this flex row — flex-1 on one

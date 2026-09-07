@@ -180,11 +180,11 @@ const CALLOUTS = [
 const DRP_GUIDED_MESSAGES = [
   {
     id: 'overview',
-    text: 'Every syllabus is structured into dynamic competency blocks — allowing faculties to update modules in real time as industry practices evolve.',
+    text: 'We lower the workload by giving teachers their time back—so they can spend it on what technology can never replace: content quality and personal attention for students and professionals.',
   },
   {
     id: 'ai-analysis',
-    text: 'As AI automates routine tasks, learning outcomes automatically elevate from rote recall to high-order ethical evaluation and critical reasoning.',
+    text: 'You control how much AI is integrated into each of your subjects, plus its level of involvement.',
   },
   {
     id: 'planner',
@@ -335,7 +335,7 @@ const SCREEN_EDGE_MARGIN_PX = 20
 // living further along the grid — asked for directly, after an earlier pass
 // tried the second-pair version. "Exams & Syllabi", left-justified, is what
 // the lockup becomes; SIM_TEXT/right-justified is what it still is at rest.
-const EXAMS_TEXT = 'Exams & Syllabi'
+const EXAMS_TEXT = 'xPublisher'
 // Longer than SIM_TEXT and includes a space and an ampersand — both render
 // narrower than a typical letter, which this same-register-per-character
 // estimate doesn't know to discount. That only ever makes the estimate
@@ -1035,7 +1035,7 @@ function SeamlessBackdrop({
       examsLogoTextRef.current.style.marginLeft = `${logoFontPx * EXAMS_LOGO_NUDGE_EM}px`
     }
     if (examsTextRef.current) {
-      const heightPx = onScreenCellPx * 0.58
+      const heightPx = onScreenCellPx * 0.22
       const widthPx = widthBudgetPx / (EXAMS_TEXT.length * EXAMS_AVG_CHAR_EM)
       examsTextRef.current.style.fontSize = `${Math.min(heightPx, widthPx)}px`
     }

@@ -17,11 +17,7 @@ const LINK_COLUMNS = [
   },
   {
     heading: 'Company',
-    links: ['About Us', 'Meet the Team', 'Careers', 'Contact'],
-  },
-  {
-    heading: 'Resources',
-    links: ['Case Studies', 'Google Cloud Partnership', 'Security & Compliance', 'Privacy Policy'],
+    links: ['About Us', 'Meet the Team', 'Security & Compliance', 'Contact'],
   },
 ]
 
@@ -285,7 +281,7 @@ export function SiteFooterContent({
       />
 
       <p className="mt-6 max-w-[340px] text-xs leading-[1.9] font-extralight text-white/35">
-        [ A short paragraph about xXenta — to be added. ]
+        {"It's all about performance."}
       </p>
 
       {/* 20vw — literally a fifth of the screen, as asked, rather than a

@@ -413,7 +413,10 @@ export function AboutUsIntro({
       // photo and the stats are on gets that without a hand-tuned pixel
       // offset, and keeps all three agreeing about where "down" is at any
       // viewport size.
-      textColumnRef.current.style.top = `${phaseY + (row + TEXT_ROW_OFFSET) * cell + TEXT_ROW_NUDGE_PX}px`
+      // When a slide has no stats above it (hasStats === false), the text sits
+      // in row 0 where the stats block used to be rather than row 1.
+      const offset = slide?.hasStats === false ? 0 : TEXT_ROW_OFFSET
+      textColumnRef.current.style.top = `${phaseY + (row + offset) * cell + TEXT_ROW_NUDGE_PX}px`
     }
     // The stats span STATS_CELLS_X whole squares from statsLeftPx, level
     // with the row the photo begins on. Their cell indices come from the
@@ -426,7 +429,7 @@ export function AboutUsIntro({
       statsRef.current.style.height = `${cell}px`
     }
     return imageHeight - windowHeight
-  }, [windowRef])
+  }, [windowRef, slide?.hasStats])
 
   // Laid out against the *settled* grid — the size and phase it rests at
   // once About Us is open — and never against the live, mid-zoom one, which
@@ -470,6 +473,17 @@ export function AboutUsIntro({
     window.addEventListener('resize', layOut)
     return () => window.removeEventListener('resize', layOut)
   }, [applyLayout])
+
+  // Update text column's vertical position when navigating between slides
+  // so slides without stats (hasStats === false) sit in row 0 where the
+  // stats block used to be.
+  useLayoutEffect(() => {
+    if (!textColumnRef.current) return
+    const { cell, phaseY } = aboutUsGridMetrics(window.innerWidth, window.innerHeight)
+    const { row } = photoCellIndices(window.innerWidth, window.innerHeight)
+    const offset = slide?.hasStats === false ? 0 : TEXT_ROW_OFFSET
+    textColumnRef.current.style.top = `${phaseY + (row + offset) * cell + TEXT_ROW_NUDGE_PX}px`
+  }, [slideIndex, slide?.hasStats])
 
   // Only the parallax runs per frame now — the layout above is fixed until
   // the window resizes, so there is nothing about it to recompute.
@@ -566,7 +580,7 @@ export function AboutUsIntro({
           asked to start at the stats' own left edge instead (see
           statsLeftPx above), which only the layout pass can answer since it
           depends on the grid's phase. */}
-      <div ref={textColumnRef} className="absolute">
+      <div ref={textColumnRef} className="absolute transition-[top] duration-300 ease-out">
         {/* Keyed on slideIndex so each slide's copy is its own mount —
             unlike imageRef, nothing outside this fade depends on the
             heading/paragraph nodes staying the same element across slides,
@@ -587,21 +601,21 @@ export function AboutUsIntro({
                 room the heading gets rather than a tighter fixed 280px.
                 Both now simply fill whatever textColumnRef's own maxWidth
                 (set imperatively, see applyLayout) allows. */}
-            <p className="mt-6 text-[13px] leading-[1.9] font-extralight text-white/60">
-              {slide.body}
-            </p>
-            {/* A second paragraph — its own block, a real line break from
-                the one above, not more sentences appended to it. Same
-                classes as the first (asked for directly, not a smaller/
-                dimmer secondary note, which an earlier version of this
-                wrongly read "shorter" as). Conditional on slide.bodySecondary
-                existing, so slides that don't have one yet don't render an
-                empty gap. */}
-            {slide.bodySecondary && (
-              <p className="mt-6 text-[13px] leading-[1.9] font-extralight text-white/60">
-                {slide.bodySecondary}
+            {/* Paragraphs — supports slide.paragraphs array, or slide.body,
+                slide.bodySecondary, and slide.bodyTertiary */}
+            {(
+              slide.paragraphs ||
+              (Array.isArray(slide.body)
+                ? slide.body
+                : [slide.body, slide.bodySecondary, slide.bodyTertiary].filter(Boolean))
+            ).map((paragraph, idx) => (
+              <p
+                key={idx}
+                className="mt-6 text-[13px] leading-[1.9] font-extralight text-white/60"
+              >
+                {paragraph}
               </p>
-            )}
+            ))}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -744,7 +758,7 @@ export function AboutUsIntro({
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             className="pointer-events-none absolute top-full left-0 mt-6 max-w-[420px] text-xs leading-[1.7] font-extralight text-white/50"
           >
-            {slide.alt}
+            {slide.caption || slide.alt}
           </motion.p>
           {/* Below the window, centered under it — mt-24 rather than the
               button's own mt-6 so this sits at the same fixed spot on every

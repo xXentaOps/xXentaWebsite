@@ -197,9 +197,9 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
           boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)',
           borderRadius: 24,
           WebkitMaskImage:
-            'linear-gradient(to bottom, black 0%, black 35%, rgba(0, 0, 0, 0.7) 55%, rgba(0, 0, 0, 0.25) 72%, transparent 88%, transparent 100%)',
+            'linear-gradient(to bottom, black 0%, black 55%, rgba(0, 0, 0, 0.75) 75%, rgba(0, 0, 0, 0.3) 88%, transparent 100%)',
           maskImage:
-            'linear-gradient(to bottom, black 0%, black 35%, rgba(0, 0, 0, 0.7) 55%, rgba(0, 0, 0, 0.25) 72%, transparent 88%, transparent 100%)',
+            'linear-gradient(to bottom, black 0%, black 55%, rgba(0, 0, 0, 0.75) 75%, rgba(0, 0, 0, 0.3) 88%, transparent 100%)',
         }}
       >
         {/* Inner Header Bar: Title + 3 Buttons */}
@@ -391,19 +391,30 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
           style={{
             boxSizing: 'border-box',
             width: '100%',
-            minHeight: 560,
-            flex: 1,
-            background: 'rgba(245, 245, 245, 0.72)',
-            borderRadius: 8,
-            border: '0.666667px solid rgba(255, 255, 255, 0.5)',
-            boxShadow: 'inset 0px 1px 2px rgba(0, 0, 0, 0.04)',
+            height: 560,
+            background: '#FFFFFF',
+            borderRadius: 12,
+            border: '0.666667px solid rgba(255, 255, 255, 0.8)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), inset 0px 1px 1px rgba(255, 255, 255, 0.9)',
             position: 'relative',
-            WebkitMaskImage:
-              'linear-gradient(to bottom, black 0%, black 30%, rgba(0, 0, 0, 0.65) 50%, rgba(0, 0, 0, 0.2) 68%, transparent 85%, transparent 100%)',
-            maskImage:
-              'linear-gradient(to bottom, black 0%, black 30%, rgba(0, 0, 0, 0.65) 50%, rgba(0, 0, 0, 0.2) 68%, transparent 85%, transparent 100%)',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-        />
+        >
+          <img
+            src="/syllabus.png"
+            alt="Entrepreneurial Management Syllabus"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center 30%',
+              display: 'block',
+            }}
+          />
+        </div>
       </div>
     </div>
   )

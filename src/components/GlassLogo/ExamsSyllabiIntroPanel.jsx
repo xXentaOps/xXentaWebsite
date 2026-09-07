@@ -216,7 +216,7 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
       >
         Educational institutions spend thousands of euros on outsourced syllabus writers and manual exam consultants.
         xXenta replaces external overhead with an automated studio that guides educators step-by-step from institutional
-        guidelines to audit-ready, accredited syllabi in 40 minutes.
+        guidelines to audit-ready, accredited syllabi in a fraction of the time.
       </p>
 
       {/* 3 Metric Cards */}
@@ -242,7 +242,7 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
         <StatCard
           stat="85% Faster"
           title="From Standard to Sign-Off"
-          description="Compresses 8-week administrative committee loops into a single 40-minute interactive session."
+          description="Compresses 8-week administrative committee loops into a single interactive session."
         />
         <StatCard
           stat="100% Faculty"

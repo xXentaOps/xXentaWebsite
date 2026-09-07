@@ -13,36 +13,49 @@ export const TEAM_PHOTO_SRC = '/team-photo-web.jpg'
 export const SLIDES = [
   {
     photo: '/noordhuys-photo.jpg',
-    // The small caption under the photo describes the picture itself (not
-    // "our impact" — that's the left-column headline/body's own territory,
-    // still a generic placeholder like slide three's) — real copy not
-    // written yet, same bracket convention as every other still-TBD string
-    // here.
-    alt: '[ A description of this image — to be added. ]',
-    headline: '[Our impact working with Noordhuys, to be added. ]',
-    // Lorem ipsum, temporarily, in place of the placeholder single-line body
-    // above — asked for directly, to see how this column reads with real
-    // paragraphs. Two separate blocks (see bodySecondary and its own render
-    // in AboutUsIntro.jsx), not one longer run-on paragraph — asked for
-    // directly, an actual line break between them. Revert both to the
-    // placeholder once real copy exists.
-    body: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam.',
-    // A second paragraph, same weight/size as body above (see its render) —
-    // roughly two lines' worth, not a third sentence tacked onto the first.
-    bodySecondary:
-      'Vestibulum ac diam sit amet quam vehicula elementum sed sit amet dui. Curabitur non nulla sit amet nisl tempus convallis quis ac lectus.',
+    alt: "Showcasing of Noordhuys's First App with xXenta",
+    caption: "Showcasing of Noordhuys's First App with xXenta",
+    headline: 'Demonstrable Craftsmanship in Partnering with Noordhuys',
+    body: 'xXenta helps companies sustainably integrate the complex expectations of retailers and quality marks into daily work processes, allowing you to say goodbye to paper audit stress and transition to demonstrable craftsmanship on the shop floor. We achieve this by making work understandable through visual instructions and safe simulations of practical situations, and by seamlessly connecting all current knowledge, training, and practical assessments within the personal development profile ProMeo ID. In doing so, we use smart technology and data as a quiet engine in the background—not to replace human work, but to give managers and employees the breathing room, clarity, and confidence to deliver the highest quality and food safety together every day.',
+    paragraphs: [
+      'xXenta helps companies sustainably integrate the complex expectations of retailers and quality marks into daily work processes, allowing you to say goodbye to paper audit stress and transition to demonstrable craftsmanship on the shop floor. We achieve this by making work understandable through visual instructions and safe simulations of practical situations, and by seamlessly connecting all current knowledge, training, and practical assessments within the personal development profile ProMeo ID. In doing so, we use smart technology and data as a quiet engine in the background—not to replace human work, but to give managers and employees the breathing room, clarity, and confidence to deliver the highest quality and food safety together every day.',
+    ],
   },
   {
     photo: '/drp-photo.jpg',
-    alt: '[ A description of this image — to be added. ]',
-    headline: '[Our impact at De Rooi Pannen, to be added. ]',
-    body: '[ A paragraph on how we work together — to be added. ]',
+    alt: '1st Edition of Knight of the Prompt Hosted at De Rooi Pannen',
+    caption: '1st Edition of Knight of the Prompt Hosted at De Rooi Pannen',
+    headline: 'Our Impact at De Rooi Pannen',
+    body: "Technology shouldn't take over the work of teachers and mentors; it should make it easier. xXenta helps educational institutions and practical training organizations implement AI in a way that creates time for what truly matters: quality instruction, personal guidance, and human connection.",
+    bodySecondary:
+      'AI offers many opportunities, but technology only adds real value when you know how to use it practically. With Knight of the Prompt, we help teams take control of their own work. Instead of making professionals dependent on a system, we teach them how to use AI as a smart daily tool.',
+    bodyTertiary:
+      'By learning to ask the right questions and remaining critical thinkers, teams become truly self-reliant. This removes the barrier to working with AI and helps professionals reclaim valuable time—releasing time and space they can directly dedicate to what technology can never replace: their own human craftsmanship.',
+    paragraphs: [
+      "Technology shouldn't take over the work of teachers and mentors; it should make it easier. xXenta helps educational institutions and practical training organizations implement AI in a way that creates time for what truly matters: quality instruction, personal guidance, and human connection.",
+      'AI offers many opportunities, but technology only adds real value when you know how to use it practically. With Knight of the Prompt, we help teams take control of their own work. Instead of making professionals dependent on a system, we teach them how to use AI as a smart daily tool.',
+      'By learning to ask the right questions and remaining critical thinkers, teams become truly self-reliant. This removes the barrier to working with AI and helps professionals reclaim valuable time—releasing time and space they can directly dedicate to what technology can never replace: their own human craftsmanship.',
+    ],
   },
   {
     photo: TEAM_PHOTO_SRC,
-    alt: '[ A description of this image — to be added. ]',
-    headline: '[ A short, catchy line about xXenta — to be added. ]',
-    body: '[ A paragraph on our work as a small team, and on being a Google Cloud partner — to be added. ]',
+    alt: 'First Official Photoshoot of Our Complete Team',
+    caption: 'First Official Photoshoot of Our Complete Team',
+    headline: 'It starts with a shared dream.',
+    body: "At xXenta, we believe that the future isn't about systems taking over from humans, but about technology that actually gives us wings. We are more than an average tech company; we are a close-knit collective of pioneers, strategists, and original thinkers who challenge the status quo together.",
+    bodySecondary:
+      "Around our table, you'll find a unique mix of worlds. Educational scientists and organizational psychologists who understand exactly how people learn and grow. Passionate entrepreneurs who turn complex challenges into crystal-clear opportunities. Creative designers who ensure every interaction not only works flawlessly, but also resonates. And uncompromising security architects who lay a rock-solid foundation so that our big dreams are always one hundred percent safe, ethical, and responsible. To that, we add the unprecedented thinking power of our AI developers: the specialists who actually build our technology. They don't write code to replace professionals, but design intelligent systems that seamlessly make work easier in the background.",
+    bodyTertiary:
+      'We refuse to go along with the blind, cold AI hype. We choose a different path: innovation that gives humans the breathing room to excel once again. Build with us. xXenta is a place where curiosity is celebrated and where we work every day on solutions that truly matter. We are building space for human connection, trust, and genuine care in the workplace.',
+    bodyQuaternary:
+      'Do you also believe that technology exists to amplify human potential? Whether you are a client, partner, or new talent: we invite you to push boundaries together with us.',
+    paragraphs: [
+      "At xXenta, we believe that the future isn't about systems taking over from humans, but about technology that actually gives us wings. We are more than an average tech company; we are a close-knit collective of pioneers, strategists, and original thinkers who challenge the status quo together.",
+      "Around our table, you'll find a unique mix of worlds. Educational scientists and organizational psychologists who understand exactly how people learn and grow. Passionate entrepreneurs who turn complex challenges into crystal-clear opportunities. Creative designers who ensure every interaction not only works flawlessly, but also resonates. And uncompromising security architects who lay a rock-solid foundation so that our big dreams are always one hundred percent safe, ethical, and responsible. To that, we add the unprecedented thinking power of our AI developers: the specialists who actually build our technology. They don't write code to replace professionals, but design intelligent systems that seamlessly make work easier in the background.",
+      'We refuse to go along with the blind, cold AI hype. We choose a different path: innovation that gives humans the breathing room to excel once again. Build with us. xXenta is a place where curiosity is celebrated and where we work every day on solutions that truly matter. We are building space for human connection, trust, and genuine care in the workplace.',
+      'Do you also believe that technology exists to amplify human potential? Whether you are a client, partner, or new talent: we invite you to push boundaries together with us.',
+    ],
+    hasStats: false,
   },
 ]
 
