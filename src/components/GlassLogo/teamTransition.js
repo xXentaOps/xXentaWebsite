@@ -1,4 +1,5 @@
 import { ABOUT_US_OPEN_TRANSITION } from './aboutUsTransition'
+import { getAboutUsZoomScale } from './aboutUsGridCells'
 import { ABOUT_US_GRID_ZOOM_SCALE, TARGET_CELL_PX } from './gridConstants'
 
 // The About Us -> Meet the Team hand-off: About Us slides bodily out to the
@@ -97,9 +98,13 @@ export const teamContentSlidePx = (progress, viewportWidth) =>
 // fract(u*repeat + shift) == 0 sits at a smaller u as shift grows, so a
 // positive shift is a leftward move, and gridSlidePx is already negative for
 // a leftward one.
-export const gridPhaseShiftCells = (progress, viewportWidth) => {
-  const cellPx = TARGET_CELL_PX * ABOUT_US_GRID_ZOOM_SCALE
-  return -(mainSlidePx(progress, viewportWidth) * GRID_SPEED) / cellPx
+export const gridPhaseShiftCells = (progress, viewportWidth, cellPx) => {
+  const effectiveCellPx =
+    cellPx ||
+    (typeof window !== 'undefined'
+      ? TARGET_CELL_PX * getAboutUsZoomScale(viewportWidth, window.innerHeight)
+      : TARGET_CELL_PX * ABOUT_US_GRID_ZOOM_SCALE)
+  return -(mainSlidePx(progress, viewportWidth) * GRID_SPEED) / effectiveCellPx
 }
 
 // The depth every sliding WebGL element sits at (GlassCircle, both Google

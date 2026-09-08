@@ -27,7 +27,7 @@ import {
   statsOriginOffsets,
 } from './aboutUsGridCells'
 import { GridPlane } from './BackgroundGrid'
-import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, THROUGH_GLASS_STYLE } from './gridConstants'
+import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
 import GridAlignmentOverlay from './GridAlignmentOverlay'
 import { gridScreenMetrics } from './gridScreenMetrics'
 import { GlassIcon } from './GlassIcon'
@@ -678,11 +678,12 @@ function SeamlessGridBackdrop({
 
   useFrame(() => {
     const group = gridGroupRef.current
-    if (!group) return
-    gridXPhaseRef.current = teamProgress
-      ? gridPhaseShiftCells(teamProgress.get(), size.width)
-      : 0
     const scale = MathUtils.lerp(1, targetZoomScale, aboutUsProgress.get())
+    const currentCellPx = TARGET_CELL_PX * scale
+    gridXPhaseRef.current = teamProgress
+      ? gridPhaseShiftCells(teamProgress.get(), size.width, currentCellPx)
+      : 0
+    if (!group) return
     group.scale.set(scale, scale, 1)
     group.position.y = (gridHeight / 2) * (scale - 1)
     // Publish where the cells land, for AboutUsIntro's photo window — see
