@@ -10,11 +10,15 @@ const TOPICS = [
   { id: 'general', labelKey: 'contact.topics.general', defaultLabel: 'General Inquiry' },
 ]
 
+const DEFAULT_WEB3FORMS_KEY = 'c1f5875b-c7e1-4e90-b7ec-b24972cc1009'
+
 export function ContactPage({ isOpen, onClose, onSecurityClick }) {
   const { t } = useLanguage()
   const [selectedTopic, setSelectedTopic] = useState('enterprises')
   const [formData, setFormData] = useState({ name: '', email: '', message: '' })
-  const [status, setStatus] = useState('idle') // 'idle' | 'submitting' | 'submitted'
+  const [botcheck, setBotcheck] = useState('')
+  const [status, setStatus] = useState('idle') // 'idle' | 'submitting' | 'submitted' | 'error'
+  const [errorMessage, setErrorMessage] = useState('')
 
   // Lock background Lenis scroll when open
   useEffect(() => {
@@ -35,18 +39,60 @@ export function ContactPage({ isOpen, onClose, onSecurityClick }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) return
-    setStatus('submitting')
-    // Simulated smooth network response
-    setTimeout(() => {
+
+    // Bot honeypot: silently ignore bot submissions
+    if (botcheck) {
       setStatus('submitted')
-    }, 600)
+      return
+    }
+
+    setStatus('submitting')
+    setErrorMessage('')
+
+    const activeTopic = TOPICS.find((topic) => topic.id === selectedTopic)
+    const topicLabel = activeTopic ? t(activeTopic.labelKey, activeTopic.defaultLabel) : selectedTopic
+    const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || DEFAULT_WEB3FORMS_KEY
+
+    try {
+      const response = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: accessKey,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          topic: topicLabel,
+          message: formData.message.trim(),
+          from_name: 'xXenta Website Contact Form',
+          subject: `New Inquiry from ${formData.name.trim()} (${topicLabel})`,
+          botcheck: '',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setStatus('submitted')
+      } else {
+        setErrorMessage(data.message || t('contact.errorGeneric', 'Something went wrong. Please try again.'))
+        setStatus('error')
+      }
+    } catch {
+      setErrorMessage(t('contact.errorNetwork', 'Network error. Please try again or reach out directly.'))
+      setStatus('error')
+    }
   }
 
   const handleReset = () => {
     setFormData({ name: '', email: '', message: '' })
+    setBotcheck('')
+    setErrorMessage('')
     setStatus('idle')
   }
 
@@ -293,6 +339,43 @@ export function ContactPage({ isOpen, onClose, onSecurityClick }) {
                           className="mt-2 w-full resize-none rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs font-extralight text-white placeholder-white/20 transition-colors duration-200 focus:border-white/30 focus:outline-none"
                         />
                       </div>
+
+                      {/* Bot honeypot */}
+                      <input
+                        type="text"
+                        name="botcheck"
+                        value={botcheck}
+                        onChange={(e) => setBotcheck(e.target.value)}
+                        tabIndex={-1}
+                        autoComplete="off"
+                        aria-hidden="true"
+                        className="hidden"
+                        style={{ display: 'none' }}
+                      />
+
+                      {/* Error Banner */}
+                      {status === 'error' && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex flex-col gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs font-light text-rose-300 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-rose-400/40 bg-rose-500/20 text-[10px] text-rose-300">
+                              !
+                            </span>
+                            <span>{errorMessage}</span>
+                          </div>
+                          <a
+                            href={`mailto:contact@xxenta.com?subject=${encodeURIComponent(
+                              `Inquiry from ${formData.name || 'Visitor'}`
+                            )}&body=${encodeURIComponent(formData.message || '')}`}
+                            className="shrink-0 text-white underline underline-offset-2 transition-colors hover:text-white/80"
+                          >
+                            {t('contact.errorDirectEmail', 'Email us directly')}
+                          </a>
+                        </motion.div>
+                      )}
 
                       {/* Submit Button */}
                       <div className="flex justify-end pt-2">

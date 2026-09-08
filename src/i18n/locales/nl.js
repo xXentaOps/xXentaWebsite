@@ -489,6 +489,9 @@ export const nl = {
     successBody:
       'Hartelijk dank voor uw bericht, {name}. Ons team heeft uw aanvraag ontvangen en neemt spoedig contact met u op.',
     sendAnother: 'Nog een bericht sturen',
+    errorGeneric: 'Er is iets misgegaan. Probeer het opnieuw.',
+    errorNetwork: 'Netwerkfout. Probeer het opnieuw of neem direct contact op.',
+    errorDirectEmail: 'Direct e-mailen',
     securityLink: 'Beveiliging & Compliance',
     allRightsReserved: 'Alle rechten voorbehouden.',
   },

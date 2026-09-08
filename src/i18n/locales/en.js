@@ -489,6 +489,9 @@ export const en = {
     successBody:
       'Thank you for reaching out, {name}. Our team has received your message and will review your inquiry shortly.',
     sendAnother: 'Send another message',
+    errorGeneric: 'Something went wrong. Please try again.',
+    errorNetwork: 'Network error. Please try again or reach out directly.',
+    errorDirectEmail: 'Email us directly',
     securityLink: 'Security & Compliance',
     allRightsReserved: 'All rights reserved.',
   },

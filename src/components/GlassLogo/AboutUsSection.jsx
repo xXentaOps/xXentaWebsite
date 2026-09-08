@@ -27,7 +27,7 @@ import {
   statsOriginOffsets,
 } from './aboutUsGridCells'
 import { GridPlane } from './BackgroundGrid'
-import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
+import { DIRECT_STYLE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
 import GridAlignmentOverlay from './GridAlignmentOverlay'
 import { gridScreenMetrics } from './gridScreenMetrics'
 import { GlassIcon } from './GlassIcon'
