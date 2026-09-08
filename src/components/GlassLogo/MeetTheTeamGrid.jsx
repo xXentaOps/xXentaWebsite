@@ -2,7 +2,8 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useTransform } from 'framer-motion'
 import { useLanguage } from '../../context/LanguageContext'
 import { assetUrl } from '../../lib/assetUrl'
-import { aboutUsGridMetrics } from './aboutUsGridCells'
+import { aboutUsGridMetrics, getAboutUsZoomScale } from './aboutUsGridCells'
+import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
 import { TEAM_MEMBERS } from './teamData'
 import { GRID_SPEED, mainSlidePx, teamContentSlidePx } from './teamTransition'
 
@@ -272,13 +273,20 @@ export function computeLayout(width, height) {
   const phaseX = wrap(settled.phaseX + mainSlidePx(1, width) * GRID_SPEED)
   const phaseY = settled.phaseY
 
+  const scale = getAboutUsZoomScale(width, height)
+  const S = scale / ABOUT_US_GRID_ZOOM_SCALE
+  const teamArrowsMt = Math.max(32, Math.round(44 * S))
+  const arrowsH = 44
+  const totalH = LAYOUT_ROWS * cell + teamArrowsMt + arrowsH
+
   // Centred as exactly as the grid allows: solve for the boundary nearest
   // the perfectly-centred position and take it. The block can't sit at an
   // arbitrary offset without leaving its squares, so the residual is up to
   // half a cell — unavoidable, and invisible next to a pattern whose own
   // period is that same cell.
   const column = Math.round(((width - LAYOUT_COLS * cell) / 2 - phaseX) / cell)
-  const row = Math.round(((height - LAYOUT_ROWS * cell) / 2 - phaseY) / cell)
+  const idealTop = (height - totalH) / 2
+  const row = Math.max(0, Math.round((idealTop - phaseY) / cell))
   const originX = phaseX + column * cell
   const originY = phaseY + row * cell
 

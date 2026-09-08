@@ -48,8 +48,8 @@ export const CIRCLE_SIZE = 220
 // grid cells and centering the composition with balanced top and bottom margins.
 export function getAboutUsZoomScale(width, height) {
   if (width < 768) return ABOUT_US_GRID_ZOOM_SCALE * 0.5
-  // Desktop baseline (1920x1080 desktop/laptop displays with browser chrome, or large displays): preserve 1.25 (200px cells)
-  if (width >= 1400 && height >= 820) return ABOUT_US_GRID_ZOOM_SCALE
+  // Only displays with ample vertical room (>= 1150px height, like 1920x1200 or 1440p/4K) preserve the full 200px cells without crowding the floor
+  if (width >= 1800 && height >= 1150) return ABOUT_US_GRID_ZOOM_SCALE
 
   const margin = pageMarginPx(height)
   // Need at least 8.5 cells between margins (3 for stats, 1 column gap, 4 for photo, 0.5 safe margin)
@@ -59,7 +59,7 @@ export function getAboutUsZoomScale(width, height) {
   let bestS = Math.min(1.0, maxSByWidth)
   let minCost = Infinity
 
-  for (let s = Math.min(1.0, maxSByWidth); s >= 0.35; s -= 0.01) {
+  for (let s = Math.min(1.0, maxSByWidth); s >= 0.35; s -= 0.005) {
     const scale = ABOUT_US_GRID_ZOOM_SCALE * s
     const { cell, phaseX, phaseY } = gridScreenMetrics({ width, height, scale, screenOffset: -1 })
 
@@ -72,24 +72,23 @@ export function getAboutUsZoomScale(width, height) {
     }
 
     const photoH = PHOTO_CELLS_Y * cell
-    const circleOffset = (CIRCLE_SIZE / 2) * s
-    const arrowsMt = Math.max(44, Math.round(96 * s))
+    const arrowsMt = Math.max(36, Math.round(64 * s))
     const arrowsH = 44
+    const totalH = photoH + arrowsMt + arrowsH
 
-    const idealPhotoTop = (height - (photoH + arrowsMt + arrowsH) + circleOffset) / 2
+    const idealPhotoTop = (height - totalH) / 2
     const row = Math.max(0, Math.round((idealPhotoTop - phaseY) / cell))
 
     const photoTop = phaseY + row * cell
-    const circleTop = photoTop - circleOffset
-    const arrowsBottom = photoTop + photoH + arrowsMt + arrowsH
+    const arrowsBottom = photoTop + totalH
 
-    const topMargin = circleTop
+    const topMargin = photoTop
     const bottomMargin = height - arrowsBottom
 
-    if (topMargin < 30 || bottomMargin < 30) continue
+    if (topMargin < 60 || bottomMargin < 30) continue
 
     const diff = Math.abs(topMargin - bottomMargin)
-    const cost = diff * 1.5 + (1.0 - s) * 80
+    const cost = diff * 2.0 + (1.0 - s) * 50
 
     if (cost < minCost) {
       minCost = cost
@@ -123,11 +122,11 @@ export function photoCellIndices(width, height) {
   const scale = getAboutUsZoomScale(width, height)
   const S = scale / ABOUT_US_GRID_ZOOM_SCALE
   const photoH = PHOTO_CELLS_Y * cell
-  const circleOffset = (CIRCLE_SIZE / 2) * S
-  const arrowsMt = Math.max(44, Math.round(96 * S))
+  const arrowsMt = Math.max(36, Math.round(64 * S))
   const arrowsH = 44
+  const totalH = photoH + arrowsMt + arrowsH
 
-  const idealPhotoTop = (height - (photoH + arrowsMt + arrowsH) + circleOffset) / 2
+  const idealPhotoTop = (height - totalH) / 2
   const row = Math.max(0, Math.round((idealPhotoTop - phaseY) / cell))
 
   return { column, row }

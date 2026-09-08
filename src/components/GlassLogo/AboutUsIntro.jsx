@@ -567,7 +567,7 @@ export function AboutUsIntro({
       effectiveWindowWidth = cell * PHOTO_CELLS_X
       effectiveWindowHeight = cell * PHOTO_CELLS_Y
       effectiveImageHeight = effectiveWindowHeight + PHOTO_OVERFLOW_CELLS * cell
-      const arrowsMt = Math.max(44, Math.round(96 * S))
+      const arrowsMt = Math.max(36, Math.round(64 * S))
 
       block.style.left = `${photoLeftPx}px`
       block.style.top = `${photoTop}px`
