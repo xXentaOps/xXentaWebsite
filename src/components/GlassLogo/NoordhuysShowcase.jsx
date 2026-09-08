@@ -329,10 +329,10 @@ function NoordhuysBackdrop({
 
       if (isMobile) {
         currentChoxScale = zoomFactor
-        const currentDeltaY = Math.min(35, Math.max(15, size.height * 0.035))
+        const currentDeltaY = Math.min(30, Math.max(12, size.height * 0.03))
         choxRef.current.style.width = 'calc(100vw - 24px)'
         choxRef.current.style.maxWidth = '430px'
-        choxRef.current.style.height = `${Math.min(560, Math.max(460, size.height - 180))}px`
+        choxRef.current.style.height = `${Math.min(580, Math.max(480, size.height - 165))}px`
         choxRef.current.style.transform = `translate3d(0, ${currentDeltaY}px, 0) scale(${currentChoxScale})`
       } else {
         const choxScale = Math.min(1, maxAvailableHeight / CHOX_DESIGN_HEIGHT, (0.96 * maxAvailableWidth) / CHOX_DESIGN_WIDTH)
@@ -672,7 +672,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
       ? 0
       : ((window.innerWidth - initialMargin) - (CHOX_DESIGN_WIDTH * initialChoxBaseScale) / 2) - window.innerWidth / 2
     : 0
-  const initialChoxDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(35, Math.max(15, window.innerHeight * 0.035)) : 0
+  const initialChoxDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(30, Math.max(12, window.innerHeight * 0.03)) : 0
 
   return (
     <section ref={sectionRef} className="relative w-full bg-[#0F172B]" style={{ height: `${SECTION_VH}vh` }}>
@@ -839,7 +839,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
               style={{
                 width: isMobile ? 'calc(100vw - 24px)' : CHOX_DESIGN_WIDTH,
                 maxWidth: isMobile ? '430px' : 'none',
-                height: isMobile ? 'min(560px, calc(100vh - 180px))' : CHOX_DESIGN_HEIGHT,
+                height: isMobile ? 'min(580px, calc(100vh - 165px))' : CHOX_DESIGN_HEIGHT,
                 transform: `translate3d(${initialChoxDeltaX}px, ${initialChoxDeltaY}px, 0) scale(${initialChoxBaseScale})`,
                 transformOrigin: 'center center',
               }}

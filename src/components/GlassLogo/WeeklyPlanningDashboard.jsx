@@ -622,7 +622,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
       {/* --- Desktop Content Container --- */}
       <div className="w-full flex-1 flex flex-col p-3 sm:p-5 lg:p-6 overflow-hidden z-20">
         <div
-          className="w-full flex-1 flex flex-col justify-between gap-2.5 sm:gap-3.5 origin-top transition-transform duration-150 overflow-y-auto no-scrollbar"
+          className="w-full flex-1 flex flex-col justify-start lg:justify-between gap-2.5 sm:gap-3.5 origin-top transition-transform duration-150 overflow-y-auto no-scrollbar pb-3 sm:pb-4 lg:pb-0"
         >
           {/* Header Row: Title & Week Badge */}
           <div className="flex items-center justify-between w-full shrink-0">
@@ -1093,7 +1093,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
 
           {/* --- Card 3: Production Performance --- */}
           <div
-            className="w-full rounded-[12px] sm:rounded-[14px] p-3 sm:p-4.5 flex flex-col gap-2 flex-1 min-h-0 justify-between shrink-0"
+            className="w-full rounded-[12px] sm:rounded-[14px] p-3 sm:p-4.5 flex flex-col gap-2 shrink-0 lg:flex-1 lg:min-h-0 lg:justify-between"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               border: '0.666667px solid rgba(255, 255, 255, 0.1)',
@@ -1101,13 +1101,13 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
           >
             <span className="text-xs sm:text-sm font-semibold text-[#F4F4F5] shrink-0">{t('noordhuys.dashboard.productionPerf')}</span>
 
-            <div className="grid grid-cols-12 gap-3 sm:gap-5 items-center flex-1 min-h-0">
+            <div className="grid grid-cols-12 gap-3 sm:gap-5 items-stretch flex-1 min-h-0">
               {/* Left Column: Productivity Area Chart with Scroll-Driven Dynamic Curves & Tooltip */}
               <ProductionPerformanceChart scrollProgress={scrollProgress} />
 
               {/* Right Column: Storage Space Donut Chart */}
               <div
-                className="col-span-4 lg:col-span-3 flex flex-col items-center justify-center gap-1 sm:gap-2 border-l border-white/10 pl-2 sm:pl-5 py-1"
+                className="col-span-4 lg:col-span-3 flex flex-col items-center justify-between gap-1 sm:gap-2 border-l border-white/10 pl-2 sm:pl-5 py-0.5 self-stretch"
               >
                 <div className="flex items-center gap-1.5 self-start text-[10px] sm:text-xs text-[#D4D4D8]">
                   <HardDriveIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" color="#71717B" />
@@ -1115,7 +1115,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                 </div>
 
                 {/* Donut Gauge */}
-                <div className="relative w-20 h-20 sm:w-28 sm:h-28 lg:w-34 lg:h-34 flex items-center justify-center my-0.5">
+                <div className="relative w-20 h-20 sm:w-28 sm:h-28 lg:w-34 lg:h-34 flex items-center justify-center my-auto">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                     {/* Background Track */}
                     <circle
