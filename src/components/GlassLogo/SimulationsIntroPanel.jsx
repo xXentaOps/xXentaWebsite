@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 
 // Floren Showcase Design System Tokens (matching ChatShowcase text input box & app)
 const INPUT_SURFACE = 'rgba(29, 41, 61, 0.6)' // #1D293D 60% — exact Floren input box surface
@@ -21,6 +22,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
   _props,
   ref
 ) {
+  const { t } = useLanguage()
 
   return (
     <div
@@ -48,14 +50,14 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
             margin: '0 0 12px 0',
           }}
         >
-          Simulate any real-world scenario with responsive AI.{' '}
+          {t('simulations.headline')}{' '}
           <span
             style={{
               fontWeight: 600,
               color: MARK_LIT,
             }}
           >
-            Real-time practice with live, unscripted consequences.
+            {t('simulations.highlight')}
           </span>
         </h1>
         <p
@@ -68,7 +70,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
             fontWeight: 400,
           }}
         >
-          Instructors configure any scenario with specific learning goals and responsive characters, while dynamic AI models handle character behaviors, conversation flow, and live consequences so learners build authentic instinct before it counts.
+          {t('simulations.description')}
         </p>
       </div>
 
@@ -113,10 +115,10 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                     letterSpacing: '-0.04em',
                   }}
                 >
-                  90%
+                  {t('simulations.retentionStat')}
                 </span>
                 <span style={{ fontSize: 15.5, color: NAME, fontWeight: 600 }}>
-                  Knowledge retained through active simulation
+                  {t('simulations.retentionTitle')}
                 </span>
               </div>
 
@@ -124,8 +126,8 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 14 }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: MUTED, marginBottom: 6 }}>
-                    <span>Reading manuals or textbooks</span>
-                    <span style={{ fontWeight: 600 }}>~10%</span>
+                    <span>{t('simulations.readingLabel')}</span>
+                    <span style={{ fontWeight: 600 }}>{t('simulations.readingPercent')}</span>
                   </div>
                   <div style={{ height: 6, width: '100%', background: 'rgba(49, 65, 88, 0.4)', borderRadius: 999, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: '10%', background: 'rgba(144, 161, 185, 0.45)', borderRadius: 999 }} />
@@ -134,8 +136,8 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: SELECTED_LABEL, fontWeight: 600, marginBottom: 6 }}>
-                    <span>Active practice through simulation</span>
-                    <span style={{ color: MARK_LIT, fontWeight: 700 }}>~90%</span>
+                    <span>{t('simulations.practiceLabel')}</span>
+                    <span style={{ color: MARK_LIT, fontWeight: 700 }}>{t('simulations.practicePercent')}</span>
                   </div>
                   <div style={{ height: 6, width: '100%', background: 'rgba(49, 65, 88, 0.4)', borderRadius: 999, overflow: 'hidden' }}>
                     <div
@@ -152,7 +154,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               </div>
 
               <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.45 }}>
-                Learners forget passive reading within weeks, but build lasting instinct when making decisions in live simulations.
+                {t('simulations.retentionDesc')}
               </div>
             </div>
 
@@ -177,7 +179,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                   marginBottom: 14,
                 }}
               >
-                Institutional Impact &amp; Fidelity
+                {t('simulations.institutionalTitle')}
               </div>
 
               {/* 3 Clean Stat Columns */}
@@ -189,26 +191,26 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>90%</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>Lower Cost</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>{t('simulations.metrics.lowerCost.val')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>{t('simulations.metrics.lowerCost.label')}</div>
                   <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
-                    Replaces expensive actor &amp; role-play labs.
+                    {t('simulations.metrics.lowerCost.desc')}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>10×</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>Repetitions</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>{t('simulations.metrics.repetitions.val')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>{t('simulations.metrics.repetitions.label')}</div>
                   <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
-                    24/7 on-demand practice on any browser.
+                    {t('simulations.metrics.repetitions.desc')}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>0%</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>Hallucination</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>{t('simulations.metrics.hallucination.val')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>{t('simulations.metrics.hallucination.label')}</div>
                   <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
-                    Deterministic scoring &amp; dynamic rules.
+                    {t('simulations.metrics.hallucination.desc')}
                   </div>
                 </div>
               </div>
@@ -230,7 +232,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
             }}
           >
             <span style={{ color: MARK_LIT }}>✦</span>
-            <span>Deterministic scoring &amp; real-time telemetry across all configured goals</span>
+            <span>{t('simulations.telemetryNote')}</span>
           </div>
         </div>
 
@@ -254,7 +256,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               marginBottom: 12,
             }}
           >
-            Experiential Learning
+            {t('simulations.sideTag')}
           </span>
           <h2
             style={{
@@ -266,8 +268,8 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               margin: '0 0 16px 0',
             }}
           >
-            The Science<br />
-            <span style={{ fontWeight: 700, color: MARK_LIT }}>of Retention</span>
+            {t('simulations.sideTitleFirst')}<br />
+            <span style={{ fontWeight: 700, color: MARK_LIT }}>{t('simulations.sideTitleSecond')}</span>
           </h2>
           <p
             style={{
@@ -279,7 +281,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               fontWeight: 400,
             }}
           >
-            People retain a fraction of what they read, but internalize skills when navigating live scenarios with real consequence—turning static training into instinctive, real-world mastery.
+            {t('simulations.sideDesc')}
           </p>
         </div>
       </div>

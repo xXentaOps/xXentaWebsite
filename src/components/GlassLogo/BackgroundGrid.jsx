@@ -4,6 +4,7 @@ import { extend, useFrame, useThree } from '@react-three/fiber'
 import { MathUtils } from 'three'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
+import { useLanguage } from '../../context/LanguageContext'
 
 // Three of the grid's own cells, promoted into square buttons — their 4
 // corners drawn as bigger, brighter blue versions of the ambient grid's own
@@ -681,6 +682,14 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
   }, [activeIndex])
   const visibleIndex = hoveredIndex ?? selectedIndex
 
+  const { t } = useLanguage()
+  const dynamicButtonLabels = [
+    t('hero.buttons.education') || BUTTON_LABELS[0],
+    t('hero.buttons.enterprises') || BUTTON_LABELS[1],
+    t('hero.buttons.achievers') || BUTTON_LABELS[2],
+  ]
+  const dynamicComingSoon = t('hero.comingSoon') || '[COMING SOON]'
+
   // Bubbles the currently-showing button up so the hero title (a sibling
   // under Canvas, not a descendant of this component) can swap its focal
   // word to match — see LEARNING_WORDS in HeroTitle.
@@ -778,7 +787,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
                 visibleIndex === i ? 'text-white/40' : 'text-white/15'
               }`}
             >
-              {BUTTON_LABELS[i]}
+              {dynamicButtonLabels[i]}
             </span>
           </Html>
         ))}
@@ -809,7 +818,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
                 visibleIndex === comingSoonIndex ? 'opacity-100' : 'opacity-0'
               }`}
             >
-              [COMING SOON]
+              {dynamicComingSoon}
             </span>
           </Html>
         )}

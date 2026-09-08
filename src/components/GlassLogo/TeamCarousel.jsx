@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 import { CornerBrackets } from './CornerBrackets'
 import { TEAM_MEMBERS } from './teamData'
 
@@ -16,6 +17,12 @@ const CARD_MAX_WIDTH_PX = 460
 const CARD_GAP_PX = 40
 
 function TeamMemberCard({ member }) {
+  const { t } = useLanguage()
+  const localizedData = t(`aboutUs.membersData.${member.id}`, {})
+  const role = localizedData.role || member.role
+  const rawBio = localizedData.bio || member.bio
+  const bioArray = Array.isArray(rawBio) ? rawBio : [rawBio]
+
   return (
     <div
       className="snap-start"
@@ -31,12 +38,12 @@ function TeamMemberCard({ member }) {
         <CornerBrackets />
       </div>
       <div className="mt-5">
-        {!member.isDog && <p className="text-[9px] tracking-[0.3em] text-[#6BB9FF] uppercase">{member.role}</p>}
+        {!member.isDog && <p className="text-[9px] tracking-[0.3em] text-[#6BB9FF] uppercase">{role}</p>}
         <p className="mt-1.5 text-[17px] font-extralight text-white/90">{member.name}</p>
         {/* bio is an array of paragraphs (see teamData.js) — joined into one
             run for this compact preview, since line-clamp-3 truncates it
             anyway and paragraph breaks don't survive a 3-line clip. */}
-        <p className="mt-2 line-clamp-3 text-[12px] leading-[1.8] font-extralight text-white/55">{member.bio.join(' ')}</p>
+        <p className="mt-2 line-clamp-3 text-[12px] leading-[1.8] font-extralight text-white/55">{bioArray.join(' ')}</p>
       </div>
     </div>
   )
@@ -47,6 +54,7 @@ function TeamMemberCard({ member }) {
 // their own dedicated square photo in a horizontal, snap-scrolling row
 // instead of a shared photo with hover-revealed detail.
 export function TeamCarousel({ isOpen }) {
+  const { t } = useLanguage()
   const scrollerRef = useRef(null)
 
   // A plain vertical mouse wheel does nothing on a horizontally-scrolling
@@ -121,7 +129,7 @@ export function TeamCarousel({ isOpen }) {
       <button
         type="button"
         onClick={() => scrollByCard(-1)}
-        aria-label="Previous team member"
+        aria-label={t('aboutUs.team.prevAria', 'Previous team member')}
         className="absolute left-3 top-1/2 hidden -translate-y-1/2 rounded-full border border-white/15 bg-[#0F172B]/70 p-2.5 text-white/50 backdrop-blur transition-colors duration-200 hover:text-white md:block"
       >
         <ChevronIcon direction="left" />
@@ -129,7 +137,7 @@ export function TeamCarousel({ isOpen }) {
       <button
         type="button"
         onClick={() => scrollByCard(1)}
-        aria-label="Next team member"
+        aria-label={t('aboutUs.team.nextAria', 'Next team member')}
         className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-full border border-white/15 bg-[#0F172B]/70 p-2.5 text-white/50 backdrop-blur transition-colors duration-200 hover:text-white md:block"
       >
         <ChevronIcon direction="right" />

@@ -3,6 +3,7 @@ import { shaderMaterial, Text } from '@react-three/drei'
 import { Canvas, extend, useFrame, useThree } from '@react-three/fiber'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
 import { AdditiveBlending, Color, MathUtils } from 'three'
+import { useLanguage } from '../../context/LanguageContext'
 // Same font file, weight, letter-spacing factor, color and fill opacity as
 // HeroTitle's own "New Way of Learning" — asked for directly ("same grey
 // color, boldness, everything") for the "Members of the Board" title below.
@@ -569,6 +570,7 @@ const TITLE_Z = 0.8
 // GlassIcon) — isTeamOpen false is exactly "closing or already closed," so
 // this also still keeps it properly invisible at rest on the About Us page.
 function BoardTitleWord({ teamProgress, isTeamOpen, hideForDetail }) {
+  const { t } = useLanguage()
   const camera = useThree((state) => state.camera)
   const viewport = useThree((state) => state.viewport)
   const size = useThree((state) => state.size)
@@ -603,7 +605,7 @@ function BoardTitleWord({ teamProgress, isTeamOpen, hideForDetail }) {
   const worldXOf = (px) => (px - size.width / 2) * perPx
   const worldYOf = (px) => -(px - size.height / 2) * perPx
 
-  const boardWord = layout.titleWords.find((word) => word.text === 'Board')
+  const boardWord = layout.titleWords.find((word) => word.text === 'Board') || layout.titleWords[0]
   const boardFontSize = layout.cell * TITLE_FONT_SIZE_CELL_RATIO * perPx
   // A tiny nudge right of its analytical column — asked for directly, a
   // small tweak rather than a full column move. Tune live.
@@ -623,7 +625,7 @@ function BoardTitleWord({ teamProgress, isTeamOpen, hideForDetail }) {
           color="#F8FAFC"
           fillOpacity={0}
         >
-          Board
+          {t('aboutUs.team.board', 'Board')}
         </Text>
       </group>
     </SlideGroup>

@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 
 export const DRP_INTRO_PANEL_DESIGN_WIDTH = 883
 export const DRP_INTRO_PANEL_DESIGN_HEIGHT = 525
@@ -138,6 +139,9 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
   { elementRefs },
   ref
 ) {
+  const { t } = useLanguage()
+  const pipeline = t('examsSyllabi.pipeline') || []
+
   return (
     <div
       ref={ref}
@@ -176,8 +180,10 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
             letterSpacing: '-0.02em',
           }}
         >
-          Curriculums built in hours, not semesters.{' '}
-          <span style={{ fontWeight: 500, opacity: 0.85 }}>Zero external contractors.</span>
+          {t('examsSyllabi.headline') || 'Curriculums built in hours, not semesters.'}{' '}
+          <span style={{ fontWeight: 500, opacity: 0.85 }}>
+            {t('examsSyllabi.highlight') || 'Zero external contractors.'}
+          </span>
         </h2>
 
         <span
@@ -192,7 +198,7 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
             flexShrink: 0,
           }}
         >
-          INSTITUTIONAL SUITE • v.2026
+          {t('examsSyllabi.badge') || 'INSTITUTIONAL SUITE • v.2026'}
         </span>
       </div>
 
@@ -214,9 +220,8 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
           willChange: 'transform, opacity',
         }}
       >
-        Educational institutions spend thousands of euros on outsourced syllabus writers and manual exam consultants.
-        xXenta replaces external overhead with an automated studio that guides educators step-by-step from institutional
-        guidelines to audit-ready, accredited syllabi in a fraction of the time.
+        {t('examsSyllabi.description') ||
+          'Educational institutions spend thousands of euros on outsourced syllabus writers and manual exam consultants. xXenta replaces external overhead with an automated studio that guides educators step-by-step from institutional guidelines to audit-ready, accredited syllabi in a fraction of the time.'}
       </p>
 
       {/* 3 Metric Cards */}
@@ -235,19 +240,28 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
         }}
       >
         <StatCard
-          stat="€74,000+"
-          title="Avg. Contractor Savings"
-          description="Eliminates external syllabus drafting, format rework, and outsourced exam design."
+          stat={t('examsSyllabi.stats.savings.val') || '€74,000+'}
+          title={t('examsSyllabi.stats.savings.title') || 'Avg. Contractor Savings'}
+          description={
+            t('examsSyllabi.stats.savings.desc') ||
+            'Eliminates external syllabus drafting, format rework, and outsourced exam design.'
+          }
         />
         <StatCard
-          stat="85% Faster"
-          title="From Standard to Sign-Off"
-          description="Compresses 8-week administrative committee loops into a single interactive session."
+          stat={t('examsSyllabi.stats.speed.val') || '85% Faster'}
+          title={t('examsSyllabi.stats.speed.title') || 'From Standard to Sign-Off'}
+          description={
+            t('examsSyllabi.stats.speed.desc') ||
+            'Compresses 8-week administrative committee loops into a single interactive session.'
+          }
         />
         <StatCard
-          stat="100% Faculty"
-          title="Direct Pedagogical Control"
-          description="Teachers calibrate student AI depth, lesson milestones, and academic rigor in real time."
+          stat={t('examsSyllabi.stats.control.val') || '100% Faculty'}
+          title={t('examsSyllabi.stats.control.title') || 'Direct Pedagogical Control'}
+          description={
+            t('examsSyllabi.stats.control.desc') ||
+            'Teachers calibrate student AI depth, lesson milestones, and academic rigor in real time.'
+          }
         />
       </div>
 
@@ -282,7 +296,7 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
               textTransform: 'uppercase',
             }}
           >
-            The 4-Stage Faculty Pipeline
+            {t('examsSyllabi.pipelineTitle') || 'The 4-Stage Faculty Pipeline'}
           </span>
           <span
             style={{
@@ -293,30 +307,30 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
               lineHeight: '13px',
             }}
           >
-            * Institutional Criteria Preloaded
+            {t('examsSyllabi.pipelinePreloaded') || '* Institutional Criteria Preloaded'}
           </span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' }}>
           <PipelineStep
-            stepNumber="01"
-            title="AI Impact Analysis"
-            detail="Faculty depth calibration"
+            stepNumber={pipeline[0]?.num || '01'}
+            title={pipeline[0]?.title || 'AI Impact Analysis'}
+            detail={pipeline[0]?.detail || 'Faculty depth calibration'}
           />
           <PipelineStep
-            stepNumber="02"
-            title="Study Block Planner"
-            detail="Interactive topic scheduling"
+            stepNumber={pipeline[1]?.num || '02'}
+            title={pipeline[1]?.title || 'Study Block Planner'}
+            detail={pipeline[1]?.detail || 'Interactive topic scheduling'}
           />
           <PipelineStep
-            stepNumber="03"
-            title="Week-by-Week Setup"
-            detail="Weekly topics, materials & exams"
+            stepNumber={pipeline[2]?.num || '03'}
+            title={pipeline[2]?.title || 'Week-by-Week Setup'}
+            detail={pipeline[2]?.detail || 'Weekly topics, materials & exams'}
           />
           <PipelineStep
-            stepNumber="04"
-            title="Audit-Ready Syllabus"
-            detail="Accredited final document"
+            stepNumber={pipeline[3]?.num || '04'}
+            title={pipeline[3]?.title || 'Audit-Ready Syllabus'}
+            detail={pipeline[3]?.detail || 'Accredited final document'}
             isLast
           />
         </div>
@@ -348,7 +362,7 @@ export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel
             textShadow: '0 1px 3px rgba(100, 90, 87, 0.18)',
           }}
         >
-          Scroll to Explore{' '}
+          {t('examsSyllabi.scrollExplore') || 'Scroll to Explore'}{' '}
           <span
             className="intro-arrow-bob"
             style={{

@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 
 const TEXT_COLOR = '#645A57'
 const SUBTITLE_COLOR = '#645A57'
@@ -105,6 +106,7 @@ function PlannerCursor({ cursorRef, rippleRef }) {
 }
 
 export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style }, ref) {
+  const { t } = useLanguage()
   return (
     <div
       ref={ref}
@@ -171,7 +173,7 @@ export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style
               color: TEXT_COLOR,
             }}
           >
-            Study Planner
+            {t('aiImpact.planner.title') || 'Study Planner'}
           </h2>
           <p
             style={{
@@ -183,7 +185,7 @@ export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style
               color: SUBTITLE_COLOR,
             }}
           >
-            Manage reference materials that guide the AI's behavior and responses.
+            {t('aiImpact.planner.subtitle') || "Manage reference materials that guide the AI's behavior and responses."}
           </p>
         </div>
       </div>
@@ -218,7 +220,7 @@ export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style
             color: '#B1A8A5',
           }}
         >
-          Next
+          {t('aiImpact.planner.btnNext') || 'Next'}
         </span>
         <NextArrowIcon />
       </div>
@@ -333,11 +335,13 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
     criteriaCountRef,
     p12CountRef,
     p11FinancialCardRef,
-    p11FinancialTitleRef,
+p11FinancialTitleRef,
     p11FinancialImpactRef,
   },
   ref
 ) {
+  const { t } = useLanguage()
+
   return (
     <div
       ref={ref}
@@ -399,7 +403,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
             flex: 1,
           }}
         >
-          Preparing for Entrepreneurship
+          {t('aiImpact.cards.prep.title') || 'Preparing for Entrepreneurship'}
         </span>
       </div>
 
@@ -412,14 +416,15 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
           alignItems: 'flex-start',
           padding: '20px 16px 18px',
           gap: 14,
-          width: 230,
-          background: 'rgba(255, 255, 255, 0.15)',
+          width: 208,
+          minWidth: 208,
+          background: 'rgba(255, 255, 255, 0.3)',
           borderRight: `0.666667px solid ${BORDER_COLOR}`,
-          borderRadius: '24px 0px 0px 24px',
+          borderRadius: '24px 0 0 24px',
           flexShrink: 0,
         }}
       >
-        {/* Study Criteria Header */}
+        {/* Sidebar Header: Icon + Title + Count */}
         <div
           style={{
             display: 'flex',
@@ -429,7 +434,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
             width: '100%',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <StudyCriteriaIcon />
             <span
               style={{
@@ -441,7 +446,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                 color: TEXT_COLOR,
               }}
             >
-              Study Criteria
+              {t('aiImpact.planner.criteria') || 'Study Criteria'}
             </span>
           </div>
           <span
@@ -471,7 +476,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
         borderLeft: '1px solid rgba(147, 140, 137, 0.3)',
           }}
         >
-          <CriteriaItemCard title="Development of an Entrepreneurial Concept" opacity={0.5} />
+          <CriteriaItemCard title={t('aiImpact.cards.concept.title') || 'Development of an Entrepreneurial Concept'} opacity={0.5} />
           
           {/* Preparing for Entrepreneurship Card (Animated/Grabbed) */}
           <div
@@ -518,7 +523,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                 flex: 1,
               }}
             >
-              Preparing for Entrepreneurship
+              {t('aiImpact.cards.prep.title') || 'Preparing for Entrepreneurship'}
             </span>
           </div>
         </div>
@@ -852,7 +857,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                     width: '100%',
                   }}
                 >
-                  Preparing for Entrepreneurship
+                  {t('aiImpact.cards.prep.title') || 'Preparing for Entrepreneurship'}
                 </span>
                 <span
                   style={{
@@ -866,7 +871,7 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
                     opacity: 0.8,
                   }}
                 >
-                  high impact
+                  {t('aiImpact.cards.concept.highImpact') || 'high impact'}
                 </span>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { XxentaWordmark } from './XxentaWordmark'
+import { useLanguage } from '../../context/LanguageContext'
 
 // Placeholder links with no page of their own yet — clicking one just
 // toggles the same grey a selected grid button uses (see BackgroundGrid's
@@ -49,6 +50,8 @@ export function SiteNavbar({
   // this toggle into a dropdown instead, same links, same click handlers.
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
+  const { language, setLanguage, t } = useLanguage()
+
   // In About Us, Contact, or Security overlay, isDrpActive should not apply because they are dark navy
   const effectiveDrp = isDrpActive && !isAboutUsActive && !isContactActive && !isSecurityActive
 
@@ -65,8 +68,7 @@ export function SiteNavbar({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
         onClick={onLogoClick}
-        // Same click-affordance treatment as the nav links (cursor-pointer,
-        // the same hover brighten) — clicking it brings you back to the
+        // Logo-click behaves identically to the "HOME" link on the original
         // hero, the standard "logo = home" convention, so it should read as
         // clickable the same way those do. pointer-events-auto of its own,
         // not inherited: the wrapping div above is pointer-events-none (so
@@ -91,21 +93,21 @@ export function SiteNavbar({
         className="pointer-events-auto hidden items-center gap-2 text-xs font-extralight tracking-[0.2em] uppercase md:flex md:gap-4"
       >
         <span onClick={onAboutUsClick} className={navLinkClass(isAboutUsActive, effectiveDrp)}>
-          About Us
+          {t('common.navbar.aboutUs')}
         </span>
         <span
           data-nav-contact
           onClick={onContactClick}
           className={navLinkClass(isContactActive, effectiveDrp)}
         >
-          Contact
+          {t('common.navbar.contact')}
         </span>
         <span
           data-nav-security
           onClick={onSecurityClick}
           className={navLinkClass(isSecurityActive, effectiveDrp)}
         >
-          Security & Compliance
+          {t('common.navbar.security')}
         </span>
         {OTHER_NAV_LINKS.map((label) => (
           // Same hover/select treatment BackgroundGrid's own labels use —
@@ -120,34 +122,121 @@ export function SiteNavbar({
             {label}
           </span>
         ))}
+
+        {/* Desktop Language Switcher Pill: [ EN | NL ] */}
+        <div
+          className={`ml-2 flex items-center rounded-full border p-0.5 text-[10px] font-medium tracking-wider backdrop-blur-md transition-colors duration-300 ${
+            effectiveDrp
+              ? 'border-black/10 bg-black/5 text-[#2C2C2C]'
+              : 'border-white/10 bg-white/5 text-white/70'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setLanguage('en')}
+            className={`cursor-pointer rounded-full px-2 py-0.5 transition-all duration-200 ${
+              language === 'en'
+                ? effectiveDrp
+                  ? 'bg-black/15 text-black font-semibold shadow-xs'
+                  : 'bg-white/20 text-white font-semibold shadow-xs'
+                : effectiveDrp
+                ? 'text-black/50 hover:text-black/80'
+                : 'text-white/40 hover:text-white/80'
+            }`}
+            aria-label="Switch to English"
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage('nl')}
+            className={`cursor-pointer rounded-full px-2 py-0.5 transition-all duration-200 ${
+              language === 'nl'
+                ? effectiveDrp
+                  ? 'bg-black/15 text-black font-semibold shadow-xs'
+                  : 'bg-white/20 text-white font-semibold shadow-xs'
+                : effectiveDrp
+                ? 'text-black/50 hover:text-black/80'
+                : 'text-white/40 hover:text-white/80'
+            }`}
+            aria-label="Schakel naar Nederlands"
+          >
+            NL
+          </button>
+        </div>
       </motion.div>
 
-      {/* Mobile-only hamburger toggle, replacing the row above below `md`. */}
-      <motion.button
-        type="button"
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
-        onClick={() => setIsMenuOpen((current) => !current)}
-        aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-        className="pointer-events-auto flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
-      >
-        <span
-          className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
-            isMenuOpen ? 'translate-y-[3.5px] rotate-45' : ''
+      {/* Mobile-only control row: language pill + hamburger button */}
+      <div className="flex items-center gap-2 md:hidden">
+        {/* Mobile Language Switcher Pill */}
+        <div
+          className={`pointer-events-auto flex items-center rounded-full border p-0.5 text-[10px] font-medium tracking-wider backdrop-blur-md transition-colors duration-300 ${
+            effectiveDrp
+              ? 'border-black/10 bg-black/5 text-[#2C2C2C]'
+              : 'border-white/10 bg-white/5 text-white/70'
           }`}
-        />
-        <span
-          className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
-            isMenuOpen ? 'opacity-0' : ''
-          }`}
-        />
-        <span
-          className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
-            isMenuOpen ? '-translate-y-[3.5px] -rotate-45' : ''
-          }`}
-        />
-      </motion.button>
+        >
+          <button
+            type="button"
+            onClick={() => setLanguage('en')}
+            className={`cursor-pointer rounded-full px-2 py-0.5 transition-all duration-200 ${
+              language === 'en'
+                ? effectiveDrp
+                  ? 'bg-black/15 text-black font-semibold shadow-xs'
+                  : 'bg-white/20 text-white font-semibold shadow-xs'
+                : effectiveDrp
+                ? 'text-black/50 hover:text-black/80'
+                : 'text-white/40 hover:text-white/80'
+            }`}
+            aria-label="Switch to English"
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage('nl')}
+            className={`cursor-pointer rounded-full px-2 py-0.5 transition-all duration-200 ${
+              language === 'nl'
+                ? effectiveDrp
+                  ? 'bg-black/15 text-black font-semibold shadow-xs'
+                  : 'bg-white/20 text-white font-semibold shadow-xs'
+                : effectiveDrp
+                ? 'text-black/50 hover:text-black/80'
+                : 'text-white/40 hover:text-white/80'
+            }`}
+            aria-label="Schakel naar Nederlands"
+          >
+            NL
+          </button>
+        </div>
+
+        {/* Mobile hamburger toggle */}
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
+          onClick={() => setIsMenuOpen((current) => !current)}
+          aria-label={isMenuOpen ? t('common.navbar.menuClose') : t('common.navbar.menuOpen')}
+          className="pointer-events-auto flex h-10 w-10 flex-col items-center justify-center gap-1.5"
+        >
+          <span
+            className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
+              isMenuOpen ? 'translate-y-[3.5px] rotate-45' : ''
+            }`}
+          />
+          <span
+            className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
+              isMenuOpen ? 'opacity-0' : ''
+            }`}
+          />
+          <span
+            className={`h-px w-5 transition-all duration-300 ${effectiveDrp ? 'bg-[#E3E1E1]' : 'bg-white/40'} ${
+              isMenuOpen ? '-translate-y-[3.5px] -rotate-45' : ''
+            }`}
+          />
+        </motion.button>
+      </div>
 
       {/* Dropdown panel for the toggle above — same links/handlers as the
           desktop row, just stacked. Positioned relative to the outer fixed
@@ -168,7 +257,7 @@ export function SiteNavbar({
               }}
               className={navLinkClass(isAboutUsActive, effectiveDrp)}
             >
-              About Us
+              {t('common.navbar.aboutUs')}
             </span>
             <span
               onClick={() => {
@@ -177,7 +266,7 @@ export function SiteNavbar({
               }}
               className={navLinkClass(isContactActive, effectiveDrp)}
             >
-              Contact
+              {t('common.navbar.contact')}
             </span>
             <span
               data-nav-security-mobile
@@ -187,7 +276,7 @@ export function SiteNavbar({
               }}
               className={navLinkClass(isSecurityActive, effectiveDrp)}
             >
-              Security & Compliance
+              {t('common.navbar.security')}
             </span>
             {OTHER_NAV_LINKS.map((label) => (
               <span

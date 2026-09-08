@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 import { MacroPlannerView } from './MacroPlannerPanel'
 import { SyllabusProductionPanel } from './SyllabusProductionPanel'
 
@@ -14,7 +15,7 @@ const PLACEHOLDER_TEXT_COLOR = 'rgba(150, 142, 139, 0.6)'
 const DIVIDER_COLOR = 'rgba(150, 142, 139, 0.2)'
 const LEVEL_FONT = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
 
-const NAV_ITEMS = ['AI Analysis', 'Planning', 'Structure', 'Production']
+const DEFAULT_NAV_ITEMS = ['AI Analysis', 'Planning', 'Structure', 'Production']
 
 function ShieldAlertIcon() {
   return (
@@ -126,6 +127,11 @@ function MinimalCursor({ cursorRef, rippleRef }) {
 function ImpactCard({
   title,
   description,
+  impactTitle = 'AI Impact',
+  impactDesc = 'Generative AI can analyze trends, generate creative concepts, and outline the societal impact of ideas at lightning speed.',
+  lowImpactText = 'Low Impact',
+  highImpactText = 'High Impact',
+  placeholderText = 'Specify focus for LLM',
   sliderFillWidth,
   thumbLeft,
   sliderFillRef,
@@ -161,7 +167,7 @@ function ImpactCard({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <ShieldAlertIcon />
-              <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 14, color: TEXT_COLOR }}>AI Impact</span>
+              <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: 14, color: TEXT_COLOR }}>{impactTitle}</span>
             </div>
             <EditPenIcon />
           </div>
@@ -175,8 +181,7 @@ function ImpactCard({
               color: TEXT_COLOR,
             }}
           >
-            Generative AI can analyze trends, generate creative concepts, and outline the societal
-            impact of ideas at lightning speed.
+            {impactDesc}
           </p>
         </div>
 
@@ -221,7 +226,7 @@ function ImpactCard({
                 whiteSpace: 'nowrap',
               }}
             >
-              Low Impact
+              {lowImpactText}
             </span>
 
             {/* Slider Track */}
@@ -281,7 +286,7 @@ function ImpactCard({
                 whiteSpace: 'nowrap',
               }}
             >
-              High Impact
+              {highImpactText}
             </span>
           </div>
 
@@ -319,7 +324,7 @@ function ImpactCard({
                 transition: 'opacity 0.15s ease',
               }}
             >
-              Specify focus for LLM
+              {placeholderText}
             </span>
 
             {/* Typed Text */}
@@ -388,6 +393,10 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
   },
   ref,
 ) {
+  const { t } = useLanguage()
+  const rawNavItems = t('aiImpact.tabs')
+  const navItems = Array.isArray(rawNavItems) ? rawNavItems : DEFAULT_NAV_ITEMS
+
   return (
     <div
       ref={ref}
@@ -427,13 +436,13 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
             gap: 14,
           }}
         >
-          {NAV_ITEMS.map((item, idx) => {
-            const isAi = item === 'AI Analysis'
-            const isPlan = item === 'Planning'
-            const isProd = item === 'Production'
+          {navItems.map((item, idx) => {
+            const isAi = idx === 0
+            const isPlan = idx === 1
+            const isProd = idx === 3
             const itemRef = isAi ? navAiAnalysisRef : isPlan ? navPlanningRef : isProd ? navProductionRef : null
             return (
-              <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span
                   ref={itemRef}
                   style={{
@@ -450,7 +459,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
                 >
                   {item}
                 </span>
-                {idx < NAV_ITEMS.length - 1 && <NavChevron />}
+                {idx < navItems.length - 1 && <NavChevron />}
               </div>
             )
           })}
@@ -477,7 +486,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
             color: TEXT_COLOR,
           }}
         >
-          Entrepreneurial Management
+          {t('aiImpact.courseTitle') || 'Entrepreneurial Management'}
         </h1>
 
         {/* Badges container */}
@@ -513,7 +522,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
                 color: TEXT_COLOR,
               }}
             >
-              lvl • 4
+              {t('aiImpact.level') || 'lvl • 4'}
             </span>
           </div>
 
@@ -540,7 +549,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
                 color: 'rgba(150, 142, 139, 0.6)',
               }}
             >
-              Draft
+              {t('aiImpact.draft') || 'Draft'}
             </span>
           </div>
         </div>
@@ -579,22 +588,13 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
             willChange: 'transform, opacity',
           }}
         >
-          {/* Top Header */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'flex-start',
-              gap: 12,
-              width: '100%',
-            }}
-          >
-            {/* Badge "1" — aligned with the 26px title */}
+          {/* Section Header */}
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
+            {/* Badge "1" */}
             <div
               style={{
                 boxSizing: 'border-box',
                 display: 'flex',
-                flexDirection: 'row',
                 justifyContent: 'center',
                 alignItems: 'center',
                 width: 21,
@@ -612,6 +612,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
                   fontWeight: 700,
                   fontSize: 14,
                   lineHeight: '20px',
+                  textAlign: 'center',
                   color: '#E0DDDC',
                 }}
               >
@@ -631,7 +632,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
                   color: TEXT_COLOR,
                 }}
               >
-                AI Impact Analysis
+                {t('aiImpact.analysisTitle') || 'AI Impact Analysis'}
               </h2>
               <p
                 style={{
@@ -643,15 +644,20 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
                   color: TEXT_COLOR,
                 }}
               >
-                Manage reference materials that guide the AI's behavior and responses.
+                {t('aiImpact.analysisSubtitle') || "Manage reference materials that guide the AI's behavior and responses."}
               </p>
             </div>
           </div>
 
           {/* Impact Cards */}
           <ImpactCard
-            title="Development of an Entrepreneurial Concept"
-            description="Manage reference materials that guide the AI's behavior and responses."
+            title={t('aiImpact.cards.concept.title') || 'Development of an Entrepreneurial Concept'}
+            description={t('aiImpact.cards.concept.description') || "Manage reference materials that guide the AI's behavior and responses."}
+            impactTitle={t('aiImpact.cards.concept.impactTitle') || 'AI Impact'}
+            impactDesc={t('aiImpact.cards.concept.impactDesc') || 'Generative AI can analyze trends, generate creative concepts, and outline the societal impact of ideas at lightning speed.'}
+            lowImpactText={t('aiImpact.cards.concept.lowImpact') || 'Low Impact'}
+            highImpactText={t('aiImpact.cards.concept.highImpact') || 'High Impact'}
+            placeholderText={t('aiImpact.cards.concept.placeholder') || 'Specify focus for LLM'}
             sliderFillWidth={26}
             thumbLeft={18}
             sliderFillRef={sliderFillRef}
@@ -663,8 +669,12 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
           />
 
           <ImpactCard
-            title="Preparing for Entrepreneurship"
-            description="Manage reference materials that guide the AI's behavior and responses."
+            title={t('aiImpact.cards.prep.title') || 'Preparing for Entrepreneurship'}
+            description={t('aiImpact.cards.prep.description') || "Manage reference materials that guide the AI's behavior and responses."}
+            impactTitle={t('aiImpact.cards.concept.impactTitle') || 'AI Impact'}
+            impactDesc={t('aiImpact.cards.concept.impactDesc') || 'Generative AI can analyze trends, generate creative concepts, and outline the societal impact of ideas at lightning speed.'}
+            lowImpactText={t('aiImpact.cards.concept.lowImpact') || 'Low Impact'}
+            highImpactText={t('aiImpact.cards.concept.highImpact') || 'High Impact'}
             sliderFillWidth={65}
             thumbLeft={55}
           />

@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 
 const CARD_BG = 'rgba(241, 245, 249, 0.3)'
 const INNER_CARD_BG = 'rgba(255, 255, 255, 0.15)'
@@ -13,6 +14,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
   { style, className = '' },
   ref
 ) {
+  const { t } = useLanguage()
   return (
     <div
       ref={ref}
@@ -109,7 +111,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
                 color: TEXT_COLOR,
               }}
             >
-              Syllabus Production
+              {t('aiImpact.production.heading') || 'Syllabus Production'}
             </h2>
             <p
               style={{
@@ -121,7 +123,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
                 color: SUBTITLE_COLOR,
               }}
             >
-              Review and publish course materials with confidence.
+              {t('aiImpact.production.subheading') || 'Review and publish course materials with confidence.'}
             </p>
           </div>
         </div>
@@ -217,7 +219,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
               color: TEXT_COLOR,
             }}
           >
-            Review Syllabus
+            {t('aiImpact.production.innerTitle') || 'Review Syllabus'}
           </h3>
 
           {/* Action Buttons: Focus, Export, Print */}
@@ -239,7 +241,8 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 6,
-                width: 80,
+                minWidth: 80,
+                width: 'auto',
                 height: 26,
                 padding: '0 10px',
                 background: BTN_BG,
@@ -274,7 +277,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
                   strokeLinejoin="round"
                 />
               </svg>
-              <span>Focus</span>
+              <span>{t('aiImpact.production.btnFocus') || 'Focus'}</span>
             </button>
 
             {/* Export Button */}
@@ -287,7 +290,8 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 6,
-                width: 84,
+                minWidth: 84,
+                width: 'auto',
                 height: 26,
                 padding: '0 10px',
                 background: BTN_BG,
@@ -324,7 +328,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
                   strokeLinejoin="round"
                 />
               </svg>
-              <span>Export</span>
+              <span>{t('aiImpact.production.btnExport') || 'Export'}</span>
             </button>
 
             {/* Print Button */}
@@ -337,7 +341,8 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 6,
-                width: 72,
+                minWidth: 72,
+                width: 'auto',
                 height: 26,
                 padding: '0 10px',
                 background: BTN_BG,
@@ -374,7 +379,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
                   strokeLinejoin="round"
                 />
               </svg>
-              <span>Print</span>
+              <span>{t('aiImpact.production.btnPrint') || 'Print'}</span>
             </button>
           </div>
         </div>

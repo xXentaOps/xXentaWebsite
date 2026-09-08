@@ -46,10 +46,15 @@ window.scrollTo(0, 0)
 // about this ("call root.render() on the existing root instead"); reusing
 // the root is what it is asking for, and it makes an HMR reload behave the
 // same as a cold one.
+import { LanguageProvider } from './context/LanguageContext'
+
 const container = document.getElementById('root')
 container.__reactRoot ??= createRoot(container)
 container.__reactRoot.render(
   <StrictMode>
-    <Suspense fallback={null}>{isLogoPreview ? <GlassLogoPreview /> : <App />}</Suspense>
+    <LanguageProvider>
+      <Suspense fallback={null}>{isLogoPreview ? <GlassLogoPreview /> : <App />}</Suspense>
+    </LanguageProvider>
   </StrictMode>,
 )
+

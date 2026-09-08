@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 
 // --- SVG Icons ---
 function OverviewIcon({ className = "w-4 h-4", color = "currentColor" }) {
@@ -211,6 +212,12 @@ function computeChartState(phase) {
 }
 
 function ProductionPerformanceChart({ scrollProgress }) {
+  const { t } = useLanguage()
+  const rawDays = t('noordhuys.dashboard.days')
+  const dayLabels = Array.isArray(rawDays) ? rawDays : DAY_LABELS
+  const rawFullDays = t('noordhuys.dashboard.daysFull')
+  const dayFullNames = Array.isArray(rawFullDays) ? rawFullDays : DAY_FULL_NAMES
+
   const [hoveredDay, setHoveredDay] = useState(null)
   const hoveredDayRef = useRef(null)
   hoveredDayRef.current = hoveredDay
@@ -235,12 +242,16 @@ function ProductionPerformanceChart({ scrollProgress }) {
     if (packingFillRef.current) packingFillRef.current.setAttribute('d', state.packingFillD)
 
     state.harvestPoints.forEach((pt, i) => {
-      const el = harvestCircleRefs.current[i]
-      if (el) el.setAttribute('cy', pt.y.toFixed(1))
+      if (harvestCircleRefs.current[i]) {
+        harvestCircleRefs.current[i].setAttribute('cx', pt.x)
+        harvestCircleRefs.current[i].setAttribute('cy', pt.y.toFixed(1))
+      }
     })
     state.packingPoints.forEach((pt, i) => {
-      const el = packingCircleRefs.current[i]
-      if (el) el.setAttribute('cy', pt.y.toFixed(1))
+      if (packingCircleRefs.current[i]) {
+        packingCircleRefs.current[i].setAttribute('cx', pt.x)
+        packingCircleRefs.current[i].setAttribute('cy', pt.y.toFixed(1))
+      }
     })
 
     if (avgTextRef.current) {
@@ -292,19 +303,19 @@ function ProductionPerformanceChart({ scrollProgress }) {
             }}
           >
             <div className="text-[10px] font-semibold text-white/90">
-              {DAY_FULL_NAMES[hoveredDay]}
+              {dayFullNames[hoveredDay]}
             </div>
             <div className="flex items-center gap-3 text-[10px]">
               <div className="flex items-center gap-1 text-[#A5B4FC]">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#6366F1]" />
-                <span>Harvest:</span>
+                <span>{t('noordhuys.dashboard.tasks.harvest')}:</span>
                 <span ref={tooltipHarvestRef} className="font-semibold text-white">
                   {liveStateRef.current.harvestPcts[hoveredDay]}%
                 </span>
               </div>
               <div className="flex items-center gap-1 text-[#E9D5FF]">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#C27AFF]" />
-                <span>Packing:</span>
+                <span>{t('noordhuys.dashboard.tasks.packaging')}:</span>
                 <span ref={tooltipPackingRef} className="font-semibold text-white">
                   {liveStateRef.current.packingPcts[hoveredDay]}%
                 </span>
@@ -418,7 +429,7 @@ function ProductionPerformanceChart({ scrollProgress }) {
           ))}
 
           {/* Interactive Hover Columns */}
-          {DAY_LABELS.map((_, i) => {
+          {dayLabels.map((_, i) => {
             const xLeft = i === 0 ? 45 : (X_COORDS[i - 1] + X_COORDS[i]) / 2
             const xRight = i === 6 ? 690 : (X_COORDS[i] + X_COORDS[i + 1]) / 2
             return (
@@ -440,7 +451,7 @@ function ProductionPerformanceChart({ scrollProgress }) {
 
       {/* X-Axis Day Labels */}
       <div className="flex justify-between pl-12 pr-4 text-[10px] text-[#A1A1A1]" style={{ fontFamily: "'Inter', sans-serif" }}>
-        {DAY_LABELS.map((day, i) => (
+        {dayLabels.map((day, i) => (
           <span
             key={day}
             className={`transition-colors duration-150 ${hoveredDay === i ? 'text-white font-semibold' : ''}`}
@@ -455,15 +466,15 @@ function ProductionPerformanceChart({ scrollProgress }) {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-[#6366F1]" />
-            <span>Harvest Efficiency</span>
+            <span>{t('noordhuys.dashboard.harvestEff')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-[#C27AFF]" />
-            <span>Packing Output</span>
+            <span>{t('noordhuys.dashboard.packingOut')}</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <span>Avg. Efficiency:</span>
+          <span>{t('noordhuys.dashboard.avgEff')}</span>
           <span ref={avgTextRef} className="font-semibold text-[#E4E4E7]">
             {initial.avgEfficiency}%
           </span>
@@ -474,12 +485,32 @@ function ProductionPerformanceChart({ scrollProgress }) {
 }
 
 export function WeeklyPlanningDashboard({ scrollProgress }) {
-  const [activeNav, setActiveNav] = useState('Planning')
+  const { t } = useLanguage()
+
+  const tasksList = [
+    { id: '1', name: t('noordhuys.dashboard.tasks.harvest'), code: 'G001' },
+    { id: '2', name: t('noordhuys.dashboard.tasks.maintenance'), code: 'M002' },
+    { id: '3', name: t('noordhuys.dashboard.tasks.packaging'), code: 'P001' },
+    { id: '4', name: t('noordhuys.dashboard.tasks.irrigationCheck'), code: 'I003' },
+  ]
+
+  const locationsList = [
+    t('noordhuys.dashboard.locations.gh1'),
+    t('noordhuys.dashboard.locations.gh2'),
+    t('noordhuys.dashboard.locations.packFac'),
+    t('noordhuys.dashboard.locations.whA'),
+    t('noordhuys.dashboard.locations.coldStore'),
+  ]
+
+  const [activeNav, setActiveNav] = useState('planning')
   const [selectedStaff, setSelectedStaff] = useState('Ahmet Yılmaz')
-  const [selectedTask, setSelectedTask] = useState(TASKS_LIST[0])
-  const [selectedLocation, setSelectedLocation] = useState('Greenhouse 1')
+  const [selectedTaskId, setSelectedTaskId] = useState('1')
+  const [selectedLocationIndex, setSelectedLocationIndex] = useState(0)
   const [openDropdown, setOpenDropdown] = useState(null) // 'staff' | 'task' | 'location' | null
   const [staffFilter, setStaffFilter] = useState('')
+
+  const selectedTask = tasksList.find((task) => task.id === selectedTaskId) || tasksList[0]
+  const selectedLocation = locationsList[selectedLocationIndex] || locationsList[0]
 
   const card1Ref = useRef(null)
 
@@ -530,25 +561,25 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
         <div className="flex items-center gap-2.5">
           <span className="text-sm font-bold tracking-wide text-white">ChoXPro</span>
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-            Planning
+            {t('noordhuys.dashboard.planning')}
           </span>
         </div>
 
         {/* Centered navigation items */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 w-max">
           {[
-            { label: 'Setup Overview', icon: OverviewIcon },
-            { label: 'Planning', icon: CalendarIcon },
-            { label: 'Live View', icon: LiveViewIcon },
-            { label: 'Reports', icon: ReportsIcon },
-            { label: 'Settings', icon: SettingsIcon },
-          ].map(({ label, icon: Icon }) => {
-            const isActive = activeNav === label
+            { id: 'setupOverview', label: t('noordhuys.dashboard.setupOverview'), icon: OverviewIcon },
+            { id: 'planning', label: t('noordhuys.dashboard.planning'), icon: CalendarIcon },
+            { id: 'liveView', label: t('noordhuys.dashboard.liveView'), icon: LiveViewIcon },
+            { id: 'reports', label: t('noordhuys.dashboard.reports'), icon: ReportsIcon },
+            { id: 'settings', label: t('noordhuys.dashboard.settings'), icon: SettingsIcon },
+          ].map(({ id, label, icon: Icon }) => {
+            const isActive = activeNav === id
             return (
               <button
-                key={label}
+                key={id}
                 type="button"
-                onClick={() => setActiveNav(label)}
+                onClick={() => setActiveNav(id)}
                 className="h-8 px-3 rounded-lg flex items-center gap-1.5 text-xs font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer"
                 style={{
                   color: isActive ? '#C27AFF' : '#9F9FA9',
@@ -582,7 +613,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               className="text-lg md:text-xl font-bold text-[#F4F4F5] tracking-tight leading-7"
               style={{ letterSpacing: '-0.5px' }}
             >
-              Weekly Planning
+              {t('noordhuys.dashboard.title')}
             </h1>
             <div
               className="h-7 px-3 rounded-full flex items-center gap-1.5 text-xs font-medium text-[#E4E4E7]"
@@ -592,7 +623,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               }}
             >
               <CalendarIcon className="w-3.5 h-3.5" color="#C27AFF" />
-              <span>Week 51, 2025</span>
+              <span>{t('noordhuys.dashboard.week')}</span>
             </div>
           </div>
 
@@ -627,8 +658,8 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                 </svg>
               </div>
               <div className="flex flex-col">
-                <span className="text-base font-bold text-[#F4F4F5] leading-tight">New Task</span>
-                <span className="text-xs text-[#9F9FA9] leading-tight">Schedule an activity for the team.</span>
+                <span className="text-base font-bold text-[#F4F4F5] leading-tight">{t('noordhuys.dashboard.newTask')}</span>
+                <span className="text-xs text-[#9F9FA9] leading-tight">{t('noordhuys.dashboard.newTaskSub')}</span>
               </div>
             </div>
 
@@ -637,7 +668,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               {/* Field: DATE */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
-                  DATE
+                  {t('noordhuys.dashboard.date')}
                 </label>
                 <div
                   className="h-10 px-3 rounded-[8px] flex items-center gap-2 text-xs md:text-sm text-[#E4E4E7]"
@@ -647,14 +678,14 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                   }}
                 >
                   <CalendarIcon className="w-3.5 h-3.5 shrink-0" color="#9F9FA9" />
-                  <span className="truncate">December 24th, 2025</span>
+                  <span className="truncate">{t('noordhuys.dashboard.sampleDate')}</span>
                 </div>
               </div>
 
               {/* Field: STAFF MEMBER */}
               <div className="flex flex-col gap-1.5 relative">
                 <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
-                  STAFF MEMBER
+                  {t('noordhuys.dashboard.staffMember')}
                 </label>
                 <button
                   type="button"
@@ -705,7 +736,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                         <SearchIcon className="w-3.5 h-3.5 shrink-0" color="#9F9FA9" />
                         <input
                           type="text"
-                          placeholder="Search member..."
+                          placeholder={t('noordhuys.dashboard.searchMember')}
                           value={staffFilter}
                           onChange={(e) => setStaffFilter(e.target.value)}
                           className="bg-transparent border-none outline-none text-xs text-[#F4F4F5] w-full min-w-0"
@@ -751,7 +782,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               {/* Field: TASK */}
               <div className="flex flex-col gap-1.5 relative">
                 <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
-                  TASK
+                  {t('noordhuys.dashboard.task')}
                 </label>
                 <button
                   type="button"
@@ -805,14 +836,14 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                         transformOrigin: 'top center',
                       }}
                     >
-                      {TASKS_LIST.map((task) => {
+                      {tasksList.map((task) => {
                         const isSel = selectedTask.id === task.id
                         return (
                           <button
                             key={task.id}
                             type="button"
                             onClick={() => {
-                              setSelectedTask(task)
+                              setSelectedTaskId(task.id)
                               setOpenDropdown(null)
                             }}
                             className="w-full h-8 px-2.5 rounded-md flex items-center justify-between text-xs cursor-pointer hover:bg-white/10 transition-colors text-left"
@@ -846,7 +877,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               {/* Field: LOCATION */}
               <div className="flex flex-col gap-1.5 relative">
                 <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
-                  LOCATION
+                  {t('noordhuys.dashboard.location')}
                 </label>
                 <button
                   type="button"
@@ -890,14 +921,14 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                         transformOrigin: 'top center',
                       }}
                     >
-                      {LOCATIONS_LIST.map((loc) => {
-                        const isSel = selectedLocation === loc
+                      {locationsList.map((loc, idx) => {
+                        const isSel = selectedLocationIndex === idx
                         return (
                           <button
                             key={loc}
                             type="button"
                             onClick={() => {
-                              setSelectedLocation(loc)
+                              setSelectedLocationIndex(idx)
                               setOpenDropdown(null)
                             }}
                             className="w-full h-8 px-2.5 rounded-md flex items-center justify-between text-xs cursor-pointer hover:bg-white/10 transition-colors text-left"
@@ -926,7 +957,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                   color: '#A3B3FF',
                 }}
               >
-                Assign
+                {t('noordhuys.dashboard.assign')}
               </button>
             </div>
           </div>
@@ -939,7 +970,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               border: '0.666667px solid rgba(255, 255, 255, 0.1)',
             }}
           >
-            <span className="text-sm font-semibold text-[#F4F4F5]">Weekly Assignments</span>
+            <span className="text-sm font-semibold text-[#F4F4F5]">{t('noordhuys.dashboard.weeklyAssignments')}</span>
 
             <div
               className="w-full rounded-lg overflow-hidden"
@@ -953,11 +984,11 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                   borderBottom: '0.666667px solid rgba(255, 255, 255, 0.1)',
                 }}
               >
-                <div className="col-span-2">Date</div>
-                <div className="col-span-3">Staff Member</div>
-                <div className="col-span-3">Task</div>
-                <div className="col-span-3">Location</div>
-                <div className="col-span-1 text-right">Action</div>
+                <div className="col-span-2">{t('noordhuys.dashboard.colDate')}</div>
+                <div className="col-span-3">{t('noordhuys.dashboard.colStaff')}</div>
+                <div className="col-span-3">{t('noordhuys.dashboard.colTask')}</div>
+                <div className="col-span-3">{t('noordhuys.dashboard.colLocation')}</div>
+                <div className="col-span-1 text-right">{t('noordhuys.dashboard.colAction')}</div>
               </div>
 
               {/* Row 1: Mehmet Kaya */}
@@ -970,7 +1001,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               >
                 <div className="col-span-2 flex items-center gap-2 text-[#A1A1A1]">
                   <CalendarIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span>Fri, Dec 26</span>
+                  <span>{t('noordhuys.dashboard.sampleRow1Date')}</span>
                 </div>
                 <div className="col-span-3 flex items-center gap-2 text-[#D4D4D8]">
                   <UserIcon className="w-3.5 h-3.5" color="#9F9FA9" />
@@ -984,12 +1015,12 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                       border: '0.666667px solid rgba(97, 95, 255, 0.3)',
                     }}
                   >
-                    Maintenance (M002)
+                    {t('noordhuys.dashboard.tasks.maintenance')} (M002)
                   </span>
                 </div>
                 <div className="col-span-3 flex items-center gap-2 text-[#D4D4D8]">
                   <LocationIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span>Greenhouse</span>
+                  <span>{t('noordhuys.dashboard.locations.gh')}</span>
                 </div>
                 <div className="col-span-1 flex items-center justify-end">
                   <button
@@ -1008,7 +1039,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               >
                 <div className="col-span-2 flex items-center gap-2 text-[#A1A1A1]">
                   <CalendarIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span>Sat, Dec 27</span>
+                  <span>{t('noordhuys.dashboard.sampleRow2Date')}</span>
                 </div>
                 <div className="col-span-3 flex items-center gap-2 text-[#D4D4D8]">
                   <UserIcon className="w-3.5 h-3.5" color="#9F9FA9" />
@@ -1022,12 +1053,12 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                       border: '0.666667px solid rgba(97, 95, 255, 0.3)',
                     }}
                   >
-                    Packaging (P001)
+                    {t('noordhuys.dashboard.tasks.packaging')} (P001)
                   </span>
                 </div>
                 <div className="col-span-3 flex items-center gap-2 text-[#D4D4D8]">
                   <LocationIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span>Packaging Facility</span>
+                  <span>{t('noordhuys.dashboard.locations.packFac')}</span>
                 </div>
                 <div className="col-span-1 flex items-center justify-end">
                   <button
@@ -1049,7 +1080,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               border: '0.666667px solid rgba(255, 255, 255, 0.1)',
             }}
           >
-            <span className="text-sm font-semibold text-[#F4F4F5] shrink-0">Production Performance</span>
+            <span className="text-sm font-semibold text-[#F4F4F5] shrink-0">{t('noordhuys.dashboard.productionPerf')}</span>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center flex-1 min-h-0">
               {/* Left Column: Productivity Area Chart with Scroll-Driven Dynamic Curves & Tooltip */}
@@ -1061,7 +1092,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               >
                 <div className="flex items-center gap-2 self-start text-xs text-[#D4D4D8]">
                   <HardDriveIcon className="w-3.5 h-3.5" color="#71717B" />
-                  <span className="font-medium">Storage Space</span>
+                  <span className="font-medium">{t('noordhuys.dashboard.storageSpace')}</span>
                 </div>
 
                 {/* Donut Gauge */}
@@ -1096,7 +1127,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                 </div>
 
                 <span className="text-[11px] text-[#9F9FA9] font-medium" style={{ fontFamily: "'Inter', sans-serif" }}>
-                  780GB / 1TB Used
+                  {t('noordhuys.dashboard.used')}
                 </span>
               </div>
             </div>

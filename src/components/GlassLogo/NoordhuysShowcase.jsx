@@ -21,6 +21,7 @@ import { NoordhuysVideoContainer } from './NoordhuysVideoContainer'
 import { NoordhuysEmblem } from './NoordhuysEmblem'
 import { XxentaWordmark } from './XxentaWordmark'
 import { WeeklyPlanningDashboard } from './WeeklyPlanningDashboard'
+import { useLanguage } from '../../context/LanguageContext'
 
 const GridGlowMaterial = shaderMaterial(
   { uOpacity: 0.05, uColor: new Color('#6CA1F8') },
@@ -126,6 +127,8 @@ function NoordhuysBackdrop({
   isActive = true,
   isForceScrollingRef,
 }) {
+  const { t } = useLanguage()
+  const titleText = t('noordhuys.customApps') || TITLE_TEXT
   const { size, blobWidth, blobHeight, gridWidth, gridHeight, cellSize, repeat, yPhaseShiftCells, blobY } = useSeamlessGrid(1)
   const blobMeshHeight = Math.max(PLANE_SIZE * 1.6, blobHeight * 2.5)
   const gridGroupRef = useRef(null)
@@ -268,7 +271,7 @@ function NoordhuysBackdrop({
       // 0.22 * onScreenCellPx yields ~59px at standard viewport zoom,
       // perfectly matching the visual scale and weight of 'Exams & Syllabi' in the DRP Showcase
       const heightPx = onScreenCellPx * 0.22
-      const widthPx = widthBudgetPx / (TITLE_TEXT.length * TITLE_AVG_CHAR_EM)
+      const widthPx = widthBudgetPx / (titleText.length * TITLE_AVG_CHAR_EM)
       titleTextRef.current.style.fontSize = `${Math.min(heightPx, widthPx)}px`
     }
 
@@ -393,7 +396,7 @@ function NoordhuysBackdrop({
                 <XxentaWordmark />
               </span>
               <p ref={titleTextRef} className="leading-none font-semibold whitespace-nowrap">
-                {TITLE_TEXT}
+                {titleText}
               </p>
             </div>
           </Html>
@@ -469,6 +472,7 @@ function usePinnedProgress(sectionRef, carouselRef, isActive = true) {
 }
 
 export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrollingRef }) {
+  const { t } = useLanguage()
   const sectionRef = useRef(null)
   const designRef = useRef(null)
   const emblemRef = useRef(null)
@@ -725,13 +729,13 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                     }}
                   >
                     <h3 className="text-xl sm:text-2xl font-light tracking-tight text-white/95 leading-snug">
-                      AI in Agri & Food: Clarity, Quality, and a Better Harvest
+                      {t('noordhuys.agriTitle')}
                     </h3>
                     <p className="mt-4 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
-                      Growers and agricultural businesses deal daily with strict requirements around quality and food safety. xXenta helps companies make these complex compliance requirements a natural part of daily work, such as in targeted task assignment, row/path tracking, and tailored instructions.
+                      {t('noordhuys.agriP1')}
                     </p>
                     <p className="mt-3 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
-                      By using smart technology as a quiet background engine, we create more breathing room for employees and better oversight for managers.
+                      {t('noordhuys.agriP2')}
                     </p>
                   </div>
                 </div>
@@ -778,16 +782,16 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                 }}
               >
                 <h3 className="text-xl sm:text-2xl font-light tracking-tight text-white/95 leading-snug">
-                  Better Craftsmanship on the Shop Floor with xXenta’s Row Tracking
+                  {t('noordhuys.choxTitle')}
                 </h3>
                 <p className="mt-4 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
-                  In sectors like agriculture and horticulture, teams consist of people with diverse language backgrounds. How do you ensure that everyone—from tomato pickers to pruners—executes their work properly without spending endless time on instructions?
+                  {t('noordhuys.choxP1')}
                 </p>
                 <p className="mt-3.5 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
-                  Our row tracking system uses AI to provide a brief instruction in the employee&apos;s native language: Which tools are required? How do you prevent damage to the plant? Afterwards, the employee simply scans a tag at the start and end of their work area.
+                  {t('noordhuys.choxP2')}
                 </p>
                 <p className="mt-3.5 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
-                  It delivers a real-time dashboard which immediately displays key results, such as completion time and harvest yield. Employees know exactly what is expected of them, resulting in higher-quality work and fewer damaged crops, and Supervisors can see at a glance who has mastered a task and who needs guidance.
+                  {t('noordhuys.choxP3')}
                 </p>
               </div>
             </div>

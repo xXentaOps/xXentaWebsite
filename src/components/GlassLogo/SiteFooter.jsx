@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 import { PAGE_MARGIN_VH } from './pageMargin'
 import { XxentaWordmark } from './XxentaWordmark'
 
@@ -12,12 +13,25 @@ import { XxentaWordmark } from './XxentaWordmark'
 // with a hover state, not <a href>s pointing at routes that don't exist.
 const LINK_COLUMNS = [
   {
-    heading: 'Solutions',
-    links: ['AI for Education', 'AI for Enterprises', 'AI for Achievers'],
+    id: 'solutions',
+    headingKey: 'footer.headings.solutions',
+    defaultHeading: 'Solutions',
+    links: [
+      { id: 'education', labelKey: 'footer.links.education', defaultLabel: 'AI for Education' },
+      { id: 'enterprises', labelKey: 'footer.links.enterprises', defaultLabel: 'AI for Enterprises' },
+      { id: 'achievers', labelKey: 'footer.links.achievers', defaultLabel: 'AI for Achievers' },
+    ],
   },
   {
-    heading: 'Company',
-    links: ['About Us', 'Meet the Team', 'Security & Compliance', 'Contact'],
+    id: 'company',
+    headingKey: 'footer.headings.company',
+    defaultHeading: 'Company',
+    links: [
+      { id: 'aboutUs', labelKey: 'footer.links.aboutUs', defaultLabel: 'About Us' },
+      { id: 'meetTheTeam', labelKey: 'footer.links.meetTheTeam', defaultLabel: 'Meet the Team' },
+      { id: 'security', labelKey: 'footer.links.security', defaultLabel: 'Security & Compliance' },
+      { id: 'contact', labelKey: 'footer.links.contact', defaultLabel: 'Contact' },
+    ],
   },
 ]
 
@@ -267,6 +281,8 @@ export function SiteFooterContent({
   onContactClick,
   onSecurityClick,
 }) {
+  const { t } = useLanguage()
+
   return (
     <>
       {/* Everything left-justified against the page's shared left margin
@@ -284,7 +300,7 @@ export function SiteFooterContent({
       />
 
       <p className="mt-6 max-w-[340px] text-xs leading-[1.9] font-extralight text-white/35">
-        {"It's all about performance."}
+        {t('footer.tagline', "It's all about performance.")}
       </p>
 
       {/* 20vw — literally a fifth of the screen, as asked, rather than a
@@ -299,60 +315,60 @@ export function SiteFooterContent({
           md, where three columns of tracked-out labels stop fitting. */}
       <div className="mt-10 flex flex-wrap gap-x-20 gap-y-10">
         {LINK_COLUMNS.map((column) => (
-          <div key={column.heading} className="flex flex-col">
+          <div key={column.id} className="flex flex-col">
             {/* Uppercase + wide tracking, matching how SiteNavbar sets
                 its own links apart — here it separates a heading from
                 the plain sentence-case links under it. */}
             <span className="text-[11px] font-normal tracking-[0.2em] text-white/50 uppercase">
-              {column.heading}
+              {t(column.headingKey, column.defaultHeading)}
             </span>
             <div className="mt-5 flex flex-col gap-3">
-              {column.links.map((label) => {
+              {column.links.map((link) => {
                 const handleClick = () => {
                   if (onFooterNavigate) {
-                    if (label === 'AI for Education') {
+                    if (link.id === 'education') {
                       onFooterNavigate({ target: 'showcase', categoryIndex: 0 })
-                    } else if (label === 'AI for Enterprises') {
+                    } else if (link.id === 'enterprises') {
                       onFooterNavigate({ target: 'showcase', categoryIndex: 1 })
-                    } else if (label === 'AI for Achievers') {
+                    } else if (link.id === 'achievers') {
                       onFooterNavigate({ target: 'hero', categoryIndex: 2 })
-                    } else if (label === 'About Us') {
+                    } else if (link.id === 'aboutUs') {
                       onFooterNavigate({ target: 'about-us' })
-                    } else if (label === 'Meet the Team') {
+                    } else if (link.id === 'meetTheTeam') {
                       onFooterNavigate({ target: 'meet-the-team' })
-                    } else if (label === 'Contact') {
+                    } else if (link.id === 'contact') {
                       onFooterNavigate({ target: 'contact' })
-                    } else if (label === 'Security & Compliance') {
+                    } else if (link.id === 'security') {
                       onFooterNavigate({ target: 'security' })
                     }
                     return
                   }
-                  if (label === 'AI for Education') {
+                  if (link.id === 'education') {
                     onCategoryChange?.(0)
                     scrollTo?.(0)
-                  } else if (label === 'AI for Enterprises') {
+                  } else if (link.id === 'enterprises') {
                     onCategoryChange?.(1)
                     scrollTo?.(0)
-                  } else if (label === 'AI for Achievers') {
+                  } else if (link.id === 'achievers') {
                     onCategoryChange?.(2)
                     scrollTo?.(0)
-                  } else if (label === 'About Us' || label === 'Meet the Team') {
+                  } else if (link.id === 'aboutUs' || link.id === 'meetTheTeam') {
                     onAboutUsClick?.()
-                  } else if (label === 'Contact') {
+                  } else if (link.id === 'contact') {
                     onContactClick?.()
-                  } else if (label === 'Security & Compliance') {
+                  } else if (link.id === 'security') {
                     onSecurityClick?.()
                   }
                 }
 
                 return (
                   <span
-                    key={label}
-                    data-footer-link={label}
+                    key={link.id}
+                    data-footer-link={link.defaultLabel}
                     onClick={handleClick}
                     className="cursor-pointer text-xs font-extralight text-white/30 transition-colors duration-200 hover:text-white/60"
                   >
-                    {label}
+                    {t(link.labelKey, link.defaultLabel)}
                   </span>
                 )
               })}
@@ -367,7 +383,7 @@ export function SiteFooterContent({
       <div className="mt-12 h-px w-full bg-white/10" />
 
       <p className="mt-8 text-[11px] font-extralight tracking-[0.15em] text-white/25">
-        © {new Date().getFullYear()} xXenta. All rights reserved.
+        © {new Date().getFullYear()} xXenta. {t('footer.allRightsReserved', 'All rights reserved.')}
       </p>
     </>
   )

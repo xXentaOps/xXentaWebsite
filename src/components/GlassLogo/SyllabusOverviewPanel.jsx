@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 
 // The panel's own design canvas — 883px wide (also each pill's own width),
 // with the title's own line-height (30) plus its margin-bottom (22) landing
@@ -266,6 +267,10 @@ export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
   { pillRefs, titleRef, firstPillRef, cursorRef, cursorRippleRef },
   ref
 ) {
+  const { t } = useLanguage()
+  const title = t('syllabusOverview.title', 'Syllabus Overview')
+  const courses = t('syllabusOverview.courses', COURSES)
+
   return (
     <div
       ref={ref}
@@ -293,14 +298,14 @@ export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
           willChange: 'transform, opacity',
         }}
       >
-        Syllabus Overview
+        {title}
       </div>
       {/* align-items defaults to stretch on a column flex container, which
           is what gives each pill its own width here (the padding above,
           not a width restated on CoursePill itself) — see
           PANEL_HORIZONTAL_MARGIN's own comment. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 17, position: 'relative' }}>
-        {COURSES.map((course, index) => (
+        {courses.map((course, index) => (
           <CoursePill
             key={course.title}
             course={course}

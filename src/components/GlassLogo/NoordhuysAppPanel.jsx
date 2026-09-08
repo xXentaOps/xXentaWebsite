@@ -1,4 +1,5 @@
 import React from 'react'
+import { useLanguage } from '../../context/LanguageContext'
 
 // SVG Icons matching the design's vectors and styling
 function AvatarIcon({ className = 'w-5 h-5 text-white/90' }) {
@@ -72,6 +73,7 @@ function ChevronRightIcon({ className = 'w-3 h-3 text-[#577158]' }) {
 
 
 export function NoordhuysAppPanel() {
+  const { t } = useLanguage()
   return (
     <div
       className="relative flex flex-col items-start select-none shadow-[0px_25px_60px_-15px_rgba(0,0,0,0.35),0px_0px_0px_1px_rgba(255,255,255,0.6)]"
@@ -169,7 +171,7 @@ export function NoordhuysAppPanel() {
             width: 400,
           }}
         >
-          <div>Good Morning,</div>
+          <div>{t('noordhuys.app.greeting')}</div>
           <div>Jeroen</div>
         </h1>
         <p
@@ -183,7 +185,7 @@ export function NoordhuysAppPanel() {
             margin: '4px 0 0 0',
           }}
         >
-          Ready to start your day?
+          {t('noordhuys.app.readyPrompt')}
         </p>
       </div>
 
@@ -247,7 +249,7 @@ export function NoordhuysAppPanel() {
                 color: '#FFFFFF',
               }}
             >
-              Training
+              {t('noordhuys.app.training')}
             </span>
             <span
               style={{
@@ -260,7 +262,7 @@ export function NoordhuysAppPanel() {
                 color: 'rgba(255, 255, 255, 0.6)',
               }}
             >
-              ONLINE COURSES
+              {t('noordhuys.app.trainingSub')}
             </span>
           </div>
         </div>
@@ -314,7 +316,7 @@ export function NoordhuysAppPanel() {
                 color: '#FFFFFF',
               }}
             >
-              Translator
+              {t('noordhuys.app.translator')}
             </span>
             <span
               style={{
@@ -327,7 +329,7 @@ export function NoordhuysAppPanel() {
                 color: 'rgba(255, 255, 255, 0.6)',
               }}
             >
-              LIVE TRANSLATION
+              {t('noordhuys.app.translatorSub')}
             </span>
           </div>
         </div>
@@ -381,7 +383,7 @@ export function NoordhuysAppPanel() {
                 color: '#FFFFFF',
               }}
             >
-              Messages
+              {t('noordhuys.app.messages')}
             </span>
             <span
               style={{
@@ -394,7 +396,7 @@ export function NoordhuysAppPanel() {
                 color: 'rgba(255, 255, 255, 0.6)',
               }}
             >
-              TEAM CHAT
+              {t('noordhuys.app.messagesSub')}
             </span>
           </div>
         </div>
@@ -448,7 +450,7 @@ export function NoordhuysAppPanel() {
                 color: '#FFFFFF',
               }}
             >
-              Schedule
+              {t('noordhuys.app.schedule')}
             </span>
             <span
               style={{
@@ -461,7 +463,7 @@ export function NoordhuysAppPanel() {
                 color: 'rgba(255, 255, 255, 0.6)',
               }}
             >
-              VIEW CALENDAR
+              {t('noordhuys.app.scheduleSub')}
             </span>
           </div>
         </div>
@@ -495,7 +497,7 @@ export function NoordhuysAppPanel() {
               color: '#292524',
             }}
           >
-            Up Next
+            {t('noordhuys.app.upNext')}
           </span>
           <button
             type="button"
@@ -510,7 +512,7 @@ export function NoordhuysAppPanel() {
                 color: '#577158',
               }}
             >
-              View All
+              {t('noordhuys.app.viewAll')}
             </span>
             <ChevronRightIcon className="w-3 h-3 text-[#577158]" />
           </button>
@@ -576,7 +578,7 @@ export function NoordhuysAppPanel() {
                   color: 'rgba(87, 113, 88, 0.8)',
                 }}
               >
-                Thu
+                {t('noordhuys.app.thu')}
               </span>
               <span
                 style={{
@@ -606,7 +608,7 @@ export function NoordhuysAppPanel() {
                     color: '#44403B',
                   }}
                 >
-                  Morning Shift
+                  {t('noordhuys.app.morningShift')}
                 </span>
                 <span
                   className="inline-flex items-center justify-center"
@@ -678,7 +680,7 @@ export function NoordhuysAppPanel() {
                   color: 'rgba(87, 113, 88, 0.8)',
                 }}
               >
-                Fri
+                {t('noordhuys.app.fri')}
               </span>
               <span
                 style={{
@@ -708,7 +710,7 @@ export function NoordhuysAppPanel() {
                     color: '#44403B',
                   }}
                 >
-                  Brainstorming Meeting
+                  {t('noordhuys.app.brainstorming')}
                 </span>
                 <span
                   className="inline-flex items-center justify-center"

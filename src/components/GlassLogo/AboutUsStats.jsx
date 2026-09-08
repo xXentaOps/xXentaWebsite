@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 import { SLIDES } from './aboutUsSlides'
 
 // Placeholder figures — invented for layout, to be replaced with the real
@@ -11,9 +12,9 @@ import { SLIDES } from './aboutUsSlides'
 // must keep its tenth all the way up from 0, and 40 must never show one, and
 // a counter mid-flight has no way to tell those apart from the target alone.
 const STATS = [
-  { value: 350, decimals: 0, suffix: '+', label: 'Daily active users' },
-  { value: 99.8, decimals: 1, suffix: '%', label: 'Platform uptime' },
-  { value: 40, decimals: 0, suffix: '+', label: 'Languages covered' },
+  { id: 'stat1', value: 350, decimals: 0, suffix: '+', labelKey: 'aboutUs.stats.stat1', defaultLabel: 'Daily active users' },
+  { id: 'stat2', value: 99.8, decimals: 1, suffix: '%', labelKey: 'aboutUs.stats.stat2', defaultLabel: 'Platform uptime' },
+  { id: 'stat3', value: 40, decimals: 0, suffix: '+', labelKey: 'aboutUs.stats.stat3', defaultLabel: 'Languages covered' },
 ]
 
 // The three stats' own figure/suffix sizes, in px — pulled out to a default
@@ -29,11 +30,13 @@ const SUFFIX_SIZE_PX = 34
 // instead of three separate ones — asked for directly: €74,000+ Avg. Contractor
 // Savings.
 const BIG_STAT = {
+  id: 'stat4',
   value: 74000,
   decimals: 0,
   prefix: '€',
   suffix: '+',
-  label: 'Avg. Contractor Savings',
+  labelKey: 'aboutUs.stats.stat4',
+  defaultLabel: 'Avg. Contractor Savings',
   figureSize: 104,
   suffixSize: 54,
 }
@@ -97,6 +100,7 @@ const START_Y_PX = 80
 const REVISIT_FADE_DURATION = 0.5
 
 function Stat({
+  id,
   value,
   decimals,
   prefix,
@@ -109,20 +113,23 @@ function Stat({
   hasPlayed,
   onPlayed,
 }) {
+  const { language } = useLanguage()
   const isNumeric = typeof value === 'number'
   const count = useMotionValue(0)
   // Formatted here rather than in the JSX so the growing number never passes
   // through React state — the motion value is handed straight to the span as
   // a child and framer writes it to the DOM itself, so a two-second count
   // costs no re-renders at all.
+  const locale = language === 'nl' ? 'nl-NL' : 'en-US'
   const text = useTransform(count, (v) => {
     if (!isNumeric) return value
     if (decimals > 0) {
       const fixed = v.toFixed(decimals)
       const [intPart, decPart] = fixed.split('.')
-      return `${Number(intPart).toLocaleString('en-US')}.${decPart}`
+      const decSep = language === 'nl' ? ',' : '.'
+      return `${Number(intPart).toLocaleString(locale)}${decSep}${decPart}`
     }
-    return Math.round(v).toLocaleString('en-US')
+    return Math.round(v).toLocaleString(locale)
   })
   // The arrival's own 0->1 progress, driven on exactly the same duration,
   // delay and easing as the count above. A separate value rather than
@@ -188,7 +195,7 @@ function Stat({
     // animations that happen to be configured alike. onComplete on just
     // this one (not also on controls) — they finish together, and marking
     // twice would be redundant, not wrong, but there's no reason to.
-    const arrivalControls = animate(arrival, 1, { ...options, onComplete: () => onPlayed(label) })
+    const arrivalControls = animate(arrival, 1, { ...options, onComplete: () => onPlayed(id || label) })
     return () => {
       controls?.stop()
       arrivalControls.stop()
@@ -198,7 +205,7 @@ function Stat({
     // sit in this array safely — an inline arrow recreated every render
     // would re-fire this effect (and restart the animation mid-flight) on
     // any unrelated parent re-render, not just a real state change.
-  }, [hasPlayed, isPlaying, value, delay, count, arrival, opacity, label, onPlayed, isNumeric])
+  }, [hasPlayed, isPlaying, value, delay, count, arrival, opacity, id, label, onPlayed, isNumeric])
 
   return (
     // Each stat occupies exactly one grid square — the parent sizes the row
@@ -275,6 +282,7 @@ function Stat({
 // three separate ones, one per square; SINGLE_STAT_SLIDES swaps that for one
 // wide figure spanning all three (see BIG_STAT's own comment).
 export function AboutUsStats({ aboutUsProgress, slideIndex }) {
+  const { t } = useLanguage()
   // Driven by how far the reveal has actually travelled, not by isOpen
   // (which is what this used first — it flips true the instant the slide
   // starts, a full 1.6s before the panel is in place). See
@@ -302,7 +310,7 @@ export function AboutUsStats({ aboutUsProgress, slideIndex }) {
     [aboutUsProgress],
   )
 
-  // Which stats (by label) have already run their count once this session —
+  // Which stats (by id) have already run their count once this session —
   // asked for directly: switching slides back and forth should only trigger
   // each one's animation the first time, then just show the resting value
   // for the rest of the session. Lives here, not inside Stat itself, because
@@ -318,8 +326,8 @@ export function AboutUsStats({ aboutUsProgress, slideIndex }) {
   // Empty deps deliberately — see Stat's own comment on why this has to
   // stay the same function across renders rather than being an inline
   // arrow written fresh in the JSX below.
-  const onStatPlayed = useCallback((label) => {
-    playedLabelsRef.current.add(label)
+  const onStatPlayed = useCallback((id) => {
+    playedLabelsRef.current.add(id)
   }, [])
 
   const slide = SLIDES[slideIndex]
@@ -337,11 +345,12 @@ export function AboutUsStats({ aboutUsProgress, slideIndex }) {
     <div className="pointer-events-none flex h-full w-full">
       {stats.map((stat, index) => (
         <Stat
-          key={stat.label}
+          key={stat.id || stat.label}
           {...stat}
+          label={t(stat.labelKey, stat.defaultLabel || stat.label)}
           delay={index * COUNT_STAGGER}
           isPlaying={playing}
-          hasPlayed={playedLabelsRef.current.has(stat.label)}
+          hasPlayed={playedLabelsRef.current.has(stat.id || stat.label)}
           onPlayed={onStatPlayed}
         />
       ))}

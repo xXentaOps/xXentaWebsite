@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useTransform } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
 import { gridScreenMetrics } from './gridScreenMetrics'
 import { TEAM_MEMBERS } from './teamData'
@@ -357,6 +358,7 @@ export function computeLayout(width, height) {
 // arrows that walk through it live in AboutUsIntro — three components need
 // to agree on it, so it sits in the one place that already renders both.
 export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSelect, nameIconAnchorRef }) {
+  const { t } = useLanguage()
   const [layout, setLayout] = useState(() => computeLayout(window.innerWidth, window.innerHeight))
 
   useLayoutEffect(() => {
@@ -522,7 +524,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
           willChange: 'transform, opacity',
         }}
       >
-        Members
+        {t('aboutUs.team.members', 'Members')}
       </motion.p>
       {layout.tiles.map((tile, index) => {
         const member = MEMBERS[index]
@@ -684,6 +686,11 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
 // changes to a new member, which is exactly when that handler still
 // needs a live element to redirect to.
 function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) {
+  const { t } = useLanguage()
+  const localizedData = t(`aboutUs.membersData.${member.id}`, {})
+  const role = localizedData.role || member.role
+  const rawBio = localizedData.bio || member.bio
+  const bio = Array.isArray(rawBio) ? rawBio : [rawBio]
   const { first, last } = splitName(member.name)
   const bioRef = bioScrollRef
   const [bioOverflows, setBioOverflows] = useState(false)
@@ -850,7 +857,7 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
             layout.textBox.width). */}
         <div style={{ width: RULE_LENGTH_PX, height: RULE_THICKNESS_PX, background: RULE_COLOR, opacity: RULE_OPACITY }} />
         {!member.isDog && (
-          <p className="mt-3 text-[10px] tracking-[0.3em] text-[#6BB9FF] uppercase">{member.role}</p>
+          <p className="mt-3 text-[10px] tracking-[0.3em] text-[#6BB9FF] uppercase">{role}</p>
         )}
       </div>
       {/* flex-1 min-h-0 + overflow-y-auto: a real multi-paragraph bio
@@ -910,7 +917,7 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
             text — which never grows a scrollbar — off the column's full
             width for no reason. The scroll block itself always stays
             layout.textBox.width; only the text inside narrows. */}
-        {member.bio.map((paragraph, i) => (
+        {bio.map((paragraph, i) => (
           <p
             key={i}
             className={`text-[13px] leading-[1.8] font-extralight text-white/55 ${i === 0 ? '' : 'mt-3'}`}

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { easeOut, motion, useTransform } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 import { AlertDot, ChatAvatar, LockIcon, MicrophoneIcon, RoomPulseIcon } from './ChatIcons'
 import {
   CHANNEL_ORDER,
@@ -322,6 +323,7 @@ function sampleRects(rects, at, key) {
 }
 
 function ChatHeader({ selection, progress }) {
+  const { t, language } = useLanguage()
   // Measured, not computed. The pill has to be exactly as wide as whichever
   // entry it's on, and those widths come from how the labels actually render
   // — the font, its metrics, the loaded weight — none of which this file can
@@ -350,7 +352,7 @@ function ChatHeader({ selection, progress }) {
       cancelled = true
       window.removeEventListener('resize', measure)
     }
-  }, [])
+  }, [language])
 
   const pillX = useTransform(selection, (at) => sampleRects(rects, at, 'left'))
   const pillWidth = useTransform(selection, (at) => sampleRects(rects, at, 'width'))
@@ -408,7 +410,7 @@ function ChatHeader({ selection, progress }) {
         <HeaderEntry
           index={0}
           isRoom
-          label={ROOM.name}
+          label={t('simulations.chat.room') || ROOM.name}
           selection={selection}
           moodIconFill={accentStroke}
           moodIconMark={accentMark}
@@ -484,8 +486,13 @@ function TypingIndicator({ turn, progress, pad }) {
 // staying a fixed blue — "the character's role should also change colours
 // depending on their emotional state," asked for directly.
 function ReplyMessage({ turn, progress }) {
+  const { t } = useLanguage()
   const speaker = SPEAKERS[turn.from]
   const roleColor = useMoodMarkColor(progress)
+  const role = t(`simulations.chat.speakers.${turn.from}`) || speaker.role
+  const chatTurns = t('simulations.chat.turns')
+  const text = (Array.isArray(chatTurns) && chatTurns[turn.index]) || turn.text
+
   return (
     <div className="flex flex-col items-start">
       {turn.startsRun && (
@@ -497,7 +504,7 @@ function ReplyMessage({ turn, progress }) {
             {speaker.name}
           </span>
           <motion.span className="text-[13px] font-extralight tracking-[0.32px]" style={{ color: roleColor }}>
-            {speaker.role}
+            {role}
           </motion.span>
         </div>
       )}
@@ -505,7 +512,7 @@ function ReplyMessage({ turn, progress }) {
         className="max-w-[82%] px-5 py-3.5 text-[14px] font-normal"
         style={{ backgroundColor: BUBBLE, borderRadius: BUBBLE_RADIUS_PX, color: TEXT, lineHeight: `${LINE_HEIGHT_PX}px` }}
       >
-        {turn.text}
+        {text}
       </div>
     </div>
   )
@@ -517,10 +524,14 @@ function ReplyMessage({ turn, progress }) {
 // that job), while the text inside still starts from a common left edge so
 // more than one line stays easy to read.
 function UserMessage({ turn }) {
+  const { t } = useLanguage()
+  const chatTurns = t('simulations.chat.turns')
+  const text = (Array.isArray(chatTurns) && chatTurns[turn.index]) || turn.text
+
   return (
     <div className="flex justify-end">
       <p className="max-w-[74%] text-[14px] font-normal" style={{ color: TEXT, lineHeight: `${LINE_HEIGHT_PX}px` }}>
-        {turn.text}
+        {text}
       </p>
     </div>
   )
@@ -595,16 +606,17 @@ function MessageStack({ progress }) {
 // out through the top of the box, and would otherwise fade the brief the
 // moment it appeared.
 function Instructions({ progress }) {
+  const { t } = useLanguage()
   const fadeT = useTransform(progress, chatInstructionsFadeAt)
-  const opacity = useTransform(fadeT, (t) => 1 - t)
-  const y = useTransform(fadeT, (t) => -t * INSTRUCTIONS_EXIT_RISE_PX)
+  const opacity = useTransform(fadeT, (v) => 1 - v)
+  const y = useTransform(fadeT, (v) => -v * INSTRUCTIONS_EXIT_RISE_PX)
   return (
     <motion.div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pt-7" style={{ opacity, y }}>
       <p
         className="max-w-[520px] text-center text-[13px] font-medium"
         style={{ color: MUTED, lineHeight: `${CAPTION_LINE_HEIGHT_PX}px`, letterSpacing: `${CAPTION_TRACKING_PX}px` }}
       >
-        {INSTRUCTIONS}
+        {t('simulations.chat.instructions') || INSTRUCTIONS}
       </p>
     </motion.div>
   )
@@ -616,6 +628,7 @@ function Instructions({ progress }) {
 // and collapse rather than appearing in place, so the conversation above
 // slides for them instead of jumping.
 function ChannelStatus({ progress }) {
+  const { t } = useLanguage()
   const privateReveal = useTransform(progress, (p) => easeOut(chatPrivateAt(p)))
   const dimReveal = useTransform(progress, (p) => easeOut(chatDimAt(p)))
   return (
@@ -627,7 +640,7 @@ function ChannelStatus({ progress }) {
           className="text-center text-[13px] font-medium uppercase"
           style={{ color: MUTED, lineHeight: `${CAPTION_LINE_HEIGHT_PX}px`, letterSpacing: `${CAPTION_TRACKING_PX}px` }}
         >
-          {UNCONSCIOUS_STATUS}
+          {t('simulations.chat.unconsciousStatus') || UNCONSCIOUS_STATUS}
         </p>
       </RevealRow>
       <RevealRow reveal={privateReveal} pad="pb-5">
@@ -637,7 +650,7 @@ function ChannelStatus({ progress }) {
         >
           <LockIcon className="h-3.5 w-3.5" style={{ color: MUTED }} />
           <span className="text-[11px] font-bold tracking-[0.55px]" style={{ color: MUTED }}>
-            PRIVATE CHANNEL
+            {t('simulations.chat.privateChannel') || 'PRIVATE CHANNEL'}
           </span>
         </span>
       </RevealRow>
@@ -646,22 +659,26 @@ function ChannelStatus({ progress }) {
 }
 
 function InputBar({ progress }) {
+  const { t } = useLanguage()
+  const chatTurns = t('simulations.chat.turns')
+
   // Which user turn, if any, is being composed right now — from the moment
   // its typing starts until the moment it's sent (revealStart), which is the
   // beat where the finished line sits in the box before it goes.
   const typed = useTransform(progress, (p) => {
-    const turn = USER_TURNS.find((t) => p >= t.typeStart && p < t.revealStart)
+    const turn = USER_TURNS.find((item) => p >= item.typeStart && p < item.revealStart)
     if (!turn) return ''
-    const t = windowProgress(p, turn.typeStart, turn.typeEnd)
+    const tRatio = windowProgress(p, turn.typeStart, turn.typeEnd)
+    const turnText = (Array.isArray(chatTurns) && chatTurns[turn.index]) || turn.text
     // Linear, not eased: typing that accelerates or decelerates reads as a
     // machine playing back a recording, not as someone typing.
-    return turn.text.slice(0, Math.round(t * turn.text.length))
+    return turnText.slice(0, Math.round(tRatio * turnText.length))
   })
   // The caret exists exactly while a message is being composed — which is
   // also exactly when the box is not empty, so the placeholder is its
   // complement rather than a second window that could drift out of step.
   const caretOpacity = useTransform(progress, (p) =>
-    USER_TURNS.some((t) => p >= t.typeStart && p < t.revealStart) ? 1 : 0,
+    USER_TURNS.some((item) => p >= item.typeStart && p < item.revealStart) ? 1 : 0,
   )
   const placeholderOpacity = useTransform(caretOpacity, (v) => 1 - v)
 
@@ -683,7 +700,7 @@ function InputBar({ progress }) {
           className="pointer-events-none absolute left-0 text-[15px] font-medium whitespace-nowrap"
           style={{ opacity: placeholderOpacity, color: MUTED }}
         >
-          Start typing...
+          {t('simulations.chat.startTyping') || 'Start typing...'}
         </motion.span>
         {/* A MotionValue rendered as a child: framer writes the new string
             straight into the text node each frame, with no React render and

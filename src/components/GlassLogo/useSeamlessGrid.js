@@ -48,7 +48,8 @@ export function useSeamlessGrid(screenOffset) {
 
   // Same formula BackgroundGrid itself uses for its own grid — has to be,
   // for the cells to come out the same physical screen size in both.
-  const cellSize = TARGET_CELL_PX * (gridWidth / size.width)
+  const safeWidth = size.width || 1
+  const cellSize = TARGET_CELL_PX * (gridWidth / safeWidth)
   const repeat = [(gridWidth * OVERSCALE) / cellSize, (gridHeight * OVERSCALE) / cellSize]
   const yPhaseShiftCells = -screenOffset * (gridHeight / cellSize)
   const blobY = -blobHeight * BLOB_Y_FRACTION + screenOffset * blobHeight

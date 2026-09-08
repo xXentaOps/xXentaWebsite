@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useTransform } from 'framer-motion'
+import { useLanguage } from '../../context/LanguageContext'
 import { MAIN_SLIDE_VW, mainSlidePx } from './teamTransition'
 import { CornerBrackets } from './CornerBrackets'
 import { SLIDES } from './aboutUsSlides'
@@ -59,14 +60,14 @@ const PILL_WIDTH = 172
 // piece uses everywhere else. disabled (at either end of SLIDES) fades and
 // stops taking clicks rather than wrapping around — the group photo's own
 // CTA is a real last slide to arrive at, not one stop on an endless loop.
-function SlideArrow({ direction, onClick, disabled }) {
+function SlideArrow({ direction, onClick, disabled, ariaLabel }) {
   const d = direction === 'left' ? 'M14 5l-7 7 7 7' : 'M10 5l7 7-7 7'
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={direction === 'left' ? 'Previous slide' : 'Next slide'}
+      aria-label={ariaLabel || (direction === 'left' ? 'Previous slide' : 'Next slide')}
       className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-[#3B82F6] text-[#3B82F6] transition-colors duration-200 hover:border-white/40 hover:text-white/40 disabled:pointer-events-none disabled:opacity-25 disabled:hover:border-[#3B82F6] disabled:hover:text-[#3B82F6]"
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -173,11 +174,16 @@ export function AboutUsIntro({
     return p * (toCentre + window.innerWidth * MAIN_SLIDE_VW)
   })
 
+  const { t, language } = useLanguage()
+  const pillWidth = language === 'nl' ? 196 : 172
+
   // Which of SLIDES is showing. Clamped rather than wrapped by goPrev/
   // goNext below — see SlideArrow's own comment for why an end genuinely
   // means an end here.
   const [slideIndex, setSlideIndex] = useState(0)
-  const slide = SLIDES[slideIndex]
+  const baseSlide = SLIDES[slideIndex]
+  const localizedSlide = t(`aboutUs.slides.${slideIndex}`, baseSlide)
+  const slide = { ...baseSlide, ...localizedSlide }
   // Whether the right arrow slot is currently the "Meet the Team" pill
   // instead of a real arrow — see that slot's own render for the morph
   // between the two.
@@ -810,6 +816,7 @@ export function AboutUsIntro({
               direction="left"
               onClick={isTeamOpen ? onTeamPrev : goPrev}
               disabled={isTeamOpen ? false : slideIndex === 0}
+              ariaLabel={t('aboutUs.slidesNavigation.prev', 'Previous slide')}
             />
             {/* The old "Meet the Team" button (see the caption above for
                 where its own arriving animation went instead) now lives
@@ -853,8 +860,13 @@ export function AboutUsIntro({
               type="button"
               onClick={isTeamOpen ? onTeamNext : showMeetButton ? onOpenTeam : goNext}
               disabled={isTeamOpen ? teamNextDisabled : false}
+              aria-label={
+                showMeetButton
+                  ? t('aboutUs.team.meetTheTeam', 'Meet the Team')
+                  : t('aboutUs.slidesNavigation.next', 'Next slide')
+              }
               animate={{
-                width: showMeetButton ? PILL_WIDTH : 44,
+                width: showMeetButton ? pillWidth : 44,
                 paddingLeft: showMeetButton ? 20 : 0,
                 paddingRight: showMeetButton ? 20 : 0,
               }}
@@ -870,7 +882,7 @@ export function AboutUsIntro({
                     exit={{ opacity: 0, transition: { duration: 0.1 } }}
                     className="text-xs font-extralight tracking-[0.2em] whitespace-nowrap uppercase"
                   >
-                    Meet the Team
+                    {t('aboutUs.team.meetTheTeam', 'Meet the Team')}
                   </motion.span>
                 ) : (
                   <motion.svg

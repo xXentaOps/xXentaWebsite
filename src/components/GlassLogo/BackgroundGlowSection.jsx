@@ -3001,6 +3001,11 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
   // before scrolling into view.
   const isVisibleRef = useRef(true)
   useEffect(() => {
+    if (isActive) {
+      isVisibleRef.current = true
+    }
+  }, [isActive])
+  useEffect(() => {
     const section = sectionRef.current
     if (!section) return
     const observer = new IntersectionObserver(([entry]) => {

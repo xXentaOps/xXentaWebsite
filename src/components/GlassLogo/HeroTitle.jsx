@@ -5,6 +5,7 @@ import { MathUtils, ShaderMaterial, Vector2 } from 'three'
 import { GlassLogoGroup, OVERLAY_LAYER, TEXT_SOURCE_LAYER } from './GlassLogoGroup'
 import { MARGIN_EM as LEFT_MARGIN_EM, MARGIN_REFERENCE_FONT_FRACTION } from './pageMargin'
 import { useBreakpoint } from './useBreakpoint'
+import { useLanguage } from '../../context/LanguageContext'
 import fontUrl from '@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-400-normal.woff?url'
 
 // Behind the glass logo's own depth (the logo's extrusion spans roughly
@@ -636,15 +637,15 @@ function useLeftBearingCorrection(text, fontSize, ready) {
 // fontBoundingBoxAscent/Descent are font-level (same for any character) —
 // together these place the true ink-bottom relative to the font-box
 // center (see anchorY comment above) that troika's 'middle' anchors to.
-function useBottomInkCorrection(fontSize, ready) {
+function useBottomInkCorrection(text, fontSize, ready) {
   return useMemo(() => {
-    if (!ready) return 0
+    if (!ready || !text) return 0
     scratchCtx ??= document.createElement('canvas').getContext('2d')
     scratchCtx.font = `400 ${METRICS_PX_FONT_SIZE}px ${CANVAS_FONT_FAMILY}`
-    const metrics = scratchCtx.measureText('g')
+    const metrics = scratchCtx.measureText(text)
     const distancePx = metrics.actualBoundingBoxDescent + (metrics.fontBoundingBoxAscent - metrics.fontBoundingBoxDescent) / 2
     return distancePx * (fontSize / METRICS_PX_FONT_SIZE)
-  }, [fontSize, ready])
+  }, [text, fontSize, ready])
 }
 
 // "Learning" is the focal word — bigger than "New Way of," which sits just
@@ -671,11 +672,15 @@ const LEARNING_WORDS = ['Learning', 'Managing', 'Growing']
 function useHeroTitleLines(activeIndex) {
   const { width, height } = useViewportAt(Z)
   const fontReady = useCanvasFontReady()
+  const { t } = useLanguage()
+  const learningWords = t('hero.learningWords') || LEARNING_WORDS
+  const newWaysOfText = t('hero.newWaysOf') || 'New Ways of'
+
   const safeIndex =
-    activeIndex != null && activeIndex >= 0 && activeIndex < LEARNING_WORDS.length
+    activeIndex != null && activeIndex >= 0 && activeIndex < learningWords.length
       ? activeIndex
       : 0
-  const learningWord = LEARNING_WORDS[safeIndex]
+  const learningWord = learningWords[safeIndex]
   const breakpoint = useBreakpoint()
   const fontFractionScale = FONT_FRACTION_SCALE_BY_BREAKPOINT[breakpoint] ?? 1
 
@@ -685,28 +690,27 @@ function useHeroTitleLines(activeIndex) {
   // MARGIN_REFERENCE_FONT_FRACTION.
   const marginFontSize = height * MARGIN_REFERENCE_FONT_FRACTION
   const leftX = -width / 2 + LEFT_MARGIN_EM * marginFontSize
-  // BOTTOM_MARGIN_EM is the gap below "g"'s actual ink-bottom; y itself is
+  // BOTTOM_MARGIN_EM is the gap below the active word's actual ink-bottom; y itself is
   // the font-box center (anchorY: 'middle'), so that real ink-to-center
   // distance has to be added back on top of the margin — see
   // useBottomInkCorrection. That correction uses the real learningFontSize
   // (it's tied to the actual glyphs' physical size), even though the
   // margin itself doesn't. Mirrors useLeftBearingCorrection below: same
   // LEFT_MARGIN_EM/BOTTOM_MARGIN_EM value, same marginFontSize reference,
-  // so "L"'s ink-left-edge and "g"'s ink-bottom-edge end up exactly the
+  // so ink-left-edge and ink-bottom-edge end up exactly the
   // same distance from their respective screen edges.
-  const learningY = -height / 2 + BOTTOM_MARGIN_EM * marginFontSize + useBottomInkCorrection(learningFontSize, fontReady)
-  // Stacked above "Learning" — a fraction of their combined line-height as
+  const learningY = -height / 2 + BOTTOM_MARGIN_EM * marginFontSize + useBottomInkCorrection(learningWord, learningFontSize, fontReady)
+  // Stacked above the focal word — a fraction of their combined line-height as
   // clearance between the two baselines.
   const newWayOfY = learningY + (learningFontSize + newWayOfFontSize) * 0.48
 
   // Bearing is per-word (its own first letter's ink-to-pen gap), so this is
-  // re-measured against whichever word is currently showing — "Managing"
-  // and "Growing" don't share "Learning"'s L bearing.
+  // re-measured against whichever word is currently showing.
   const learningX = leftX + useLeftBearingCorrection(learningWord, learningFontSize, fontReady)
-  const newWayOfX = leftX + useLeftBearingCorrection('New Ways of', newWayOfFontSize, fontReady)
+  const newWayOfX = leftX + useLeftBearingCorrection(newWaysOfText, newWayOfFontSize, fontReady)
 
   return [
-    { id: 'newWayOf', text: 'New Ways of', x: newWayOfX, y: newWayOfY, fontSize: newWayOfFontSize },
+    { id: 'newWayOf', text: newWaysOfText, x: newWayOfX, y: newWayOfY, fontSize: newWayOfFontSize },
     { id: 'learning', text: learningWord, x: learningX, y: learningY, fontSize: learningFontSize },
   ]
 }
