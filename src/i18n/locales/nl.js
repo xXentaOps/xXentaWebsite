@@ -29,7 +29,7 @@ export const nl = {
 
   hero: {
     newWaysOf: 'Nieuwe Manieren van',
-    learningWords: ['Leren', 'Beheren', 'Groeien'],
+    learningWords: ['Leren', 'Managen', 'Groeien'],
     buttons: {
       education: 'AI voor Onderwijs',
       enterprises: 'AI voor Bedrijven',
