@@ -512,13 +512,24 @@ export function AboutUsIntro({
     let effectiveImageHeight = effectiveWindowHeight + PHOTO_OVERFLOW_CELLS * cell
 
     if (isMobile) {
-        const mobilePhotoWidth = Math.min(320, window.innerWidth - margin * 2)
-        const mobilePhotoHeight = Math.round(mobilePhotoWidth * 0.58)
+        // The About Us slideshow photographs (Noordhuys, De Rooi Pannen, Complete Team)
+        // are 4:3 landscape images (~1.31-1.33 aspect ratio).
+        // Sizing the mobile window to 4:3 ensures the full composition fits naturally
+        // without cropping off heads at the top or dogs at the bottom.
+        const maxPhotoWByScreen = Math.min(320, window.innerWidth - margin * 2)
+        // Cap photo height dynamically on shorter mobile screens to preserve text scroll room
+        const maxPhotoHByScreen = Math.max(180, Math.min(240, Math.round(window.innerHeight * 0.28)))
+        let mobilePhotoHeight = Math.round(maxPhotoWByScreen * 0.75)
+        let mobilePhotoWidth = maxPhotoWByScreen
+        if (mobilePhotoHeight > maxPhotoHByScreen) {
+          mobilePhotoHeight = maxPhotoHByScreen
+          mobilePhotoWidth = Math.round(mobilePhotoHeight / 0.75)
+        }
         const mobilePhotoLeft = (window.innerWidth - mobilePhotoWidth) / 2
 
         effectiveWindowWidth = mobilePhotoWidth
         effectiveWindowHeight = mobilePhotoHeight
-        effectiveImageHeight = mobilePhotoHeight + 40
+        effectiveImageHeight = mobilePhotoHeight
 
         const textTop = slide?.hasStats === false ? 68 : 155
         const actualHeadingH = headingRef.current
@@ -936,7 +947,7 @@ export function AboutUsIntro({
                       src={s.photo}
                       alt={s.alt}
                       draggable={false}
-                      className="h-full w-full object-cover object-[center_12%]"
+                      className="h-full w-full object-cover object-center"
                     />
                   </motion.div>
                 )
