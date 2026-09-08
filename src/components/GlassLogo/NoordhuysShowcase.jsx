@@ -329,11 +329,10 @@ function NoordhuysBackdrop({
 
       if (isMobile) {
         currentChoxScale = zoomFactor
-        const currentDeltaY = Math.min(30, Math.max(12, size.height * 0.03))
         choxRef.current.style.width = 'calc(100vw - 24px)'
         choxRef.current.style.maxWidth = '430px'
-        choxRef.current.style.height = `${Math.min(580, Math.max(480, size.height - 165))}px`
-        choxRef.current.style.transform = `translate3d(0, ${currentDeltaY}px, 0) scale(${currentChoxScale})`
+        choxRef.current.style.height = ''
+        choxRef.current.style.transform = `scale(${currentChoxScale})`
       } else {
         const choxScale = Math.min(1, maxAvailableHeight / CHOX_DESIGN_HEIGHT, (0.96 * maxAvailableWidth) / CHOX_DESIGN_WIDTH)
         const choxWidthPx = CHOX_DESIGN_WIDTH * choxScale
@@ -672,7 +671,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
       ? 0
       : ((window.innerWidth - initialMargin) - (CHOX_DESIGN_WIDTH * initialChoxBaseScale) / 2) - window.innerWidth / 2
     : 0
-  const initialChoxDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(30, Math.max(12, window.innerHeight * 0.03)) : 0
+  const initialChoxDeltaY = 0
 
   return (
     <section ref={sectionRef} className="relative w-full bg-[#0F172B]" style={{ height: `${SECTION_VH}vh` }}>
@@ -795,36 +794,38 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
           {/* ChoXPro Weekly Planning Stage: Glides up from below into place beside 'xXenta Custom Apps' */}
           <motion.div
             id="weekly-planning-stage"
-            className="pointer-events-none absolute inset-0 flex items-center justify-center z-20"
+            className="pointer-events-none absolute inset-0 flex flex-col items-center justify-start lg:flex-row lg:items-center lg:justify-center z-20 pt-[52px] sm:pt-[58px] pb-3 sm:pb-4 px-3 lg:p-0"
             style={{
               y: choxY,
               opacity: choxOpacity,
               pointerEvents: choxPointerEvents,
             }}
           >
-            {/* Mobile-only clean top context text for ChoXPro: free-floating, clean, scrollable if needed */}
+            {/* Mobile-only clean top context text for ChoXPro: non-overlapping flex child, scrollable if needed */}
             <div
               data-lenis-prevent
               data-lenis-prevent-touch
-              className="lg:hidden pointer-events-auto absolute top-14 sm:top-18 inset-x-0 px-6 text-center flex flex-col items-center max-w-sm mx-auto z-30 max-h-[16vh] sm:max-h-[19vh] overflow-y-auto no-scrollbar"
+              className="lg:hidden pointer-events-auto relative w-full max-w-sm px-2 text-center flex flex-col items-center shrink-0 mb-2 sm:mb-2.5 max-h-[14vh] sm:max-h-[17vh] overflow-y-auto no-scrollbar"
               style={{
                 WebkitOverflowScrolling: 'touch',
                 touchAction: 'pan-y',
+                WebkitMaskImage: 'linear-gradient(to bottom, black 75%, transparent 100%)',
+                maskImage: 'linear-gradient(to bottom, black 75%, transparent 100%)',
               }}
             >
-              <h3 className="text-base sm:text-lg font-light tracking-tight text-white/95 leading-snug">
+              <h3 className="text-sm sm:text-base font-light tracking-tight text-white/95 leading-snug">
                 {t('noordhuys.choxTitle')}
               </h3>
-              <p className="mt-2 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/70">
+              <p className="mt-1.5 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/70">
                 {t('noordhuys.choxP1')}
               </p>
               {t('noordhuys.choxP2') && (
-                <p className="mt-2 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/60">
+                <p className="mt-1.5 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/60">
                   {t('noordhuys.choxP2')}
                 </p>
               )}
               {t('noordhuys.choxP3') && (
-                <p className="mt-2 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/60">
+                <p className="mt-1.5 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/60">
                   {t('noordhuys.choxP3')}
                 </p>
               )}
@@ -835,13 +836,13 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
               id="choxpro-design-stage"
               data-lenis-prevent
               data-lenis-prevent-touch
-              className="transform-gpu relative flex items-center justify-center pointer-events-auto"
+              className="transform-gpu relative flex items-center justify-center pointer-events-auto w-full max-w-[430px] flex-1 min-h-0 max-h-[580px] lg:flex-initial lg:w-auto lg:max-w-none lg:h-auto lg:max-h-none"
               style={{
                 width: isMobile ? 'calc(100vw - 24px)' : CHOX_DESIGN_WIDTH,
                 maxWidth: isMobile ? '430px' : 'none',
-                height: isMobile ? 'min(580px, calc(100vh - 165px))' : CHOX_DESIGN_HEIGHT,
+                height: isMobile ? 'auto' : CHOX_DESIGN_HEIGHT,
                 transform: `translate3d(${initialChoxDeltaX}px, ${initialChoxDeltaY}px, 0) scale(${initialChoxBaseScale})`,
-                transformOrigin: 'center center',
+                transformOrigin: isMobile ? 'top center' : 'center center',
               }}
             >
               <div className="relative w-full h-full rounded-[20px] overflow-hidden border border-white/15 bg-[#2F323B] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-md">
