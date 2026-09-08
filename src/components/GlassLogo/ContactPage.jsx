@@ -5,10 +5,19 @@ import { XxentaWordmark } from './XxentaWordmark'
 
 const TOPICS = ['AI for Enterprises', 'AI for Education', 'General Inquiry']
 
-export function ContactPage({ isOpen, onClose }) {
+export function ContactPage({ isOpen, onClose, onSecurityClick }) {
   const [selectedTopic, setSelectedTopic] = useState('AI for Enterprises')
   const [formData, setFormData] = useState({ name: '', email: '', message: '' })
   const [status, setStatus] = useState('idle') // 'idle' | 'submitting' | 'submitted'
+
+  // Lock background Lenis scroll when open
+  useEffect(() => {
+    if (!isOpen) return
+    window.__lenis?.stop()
+    return () => {
+      window.__lenis?.start()
+    }
+  }, [isOpen])
 
   // Close on Escape key
   useEffect(() => {
@@ -58,8 +67,9 @@ export function ContactPage({ isOpen, onClose }) {
             animate={{ y: '0%' }}
             exit={{ y: '-100%' }}
             transition={{ duration: 0.65, ease: [0.4, 0, 0.1, 1] }}
-            className="fixed inset-x-0 top-0 z-50 max-h-[92vh] overflow-y-auto border-b border-white/10 bg-[#0F172B] shadow-2xl"
+            className="fixed inset-x-0 top-0 z-50 max-h-[92vh] overflow-y-auto overscroll-contain touch-pan-y border-b border-white/10 bg-[#0F172B] shadow-2xl"
             data-contact-panel
+            data-lenis-prevent
             style={{
               paddingLeft: `max(1.5rem, ${PAGE_MARGIN_VH}vh)`,
               paddingRight: `max(1.5rem, ${PAGE_MARGIN_VH}vh)`,
@@ -293,7 +303,16 @@ export function ContactPage({ isOpen, onClose }) {
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-[11px] font-extralight tracking-[0.15em] text-white/25">
                 <span>© {new Date().getFullYear()} xXenta. All rights reserved.</span>
-                <span>Security & Compliance Guaranteed</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose?.()
+                    onSecurityClick?.()
+                  }}
+                  className="cursor-pointer transition-colors duration-200 hover:text-white/60"
+                >
+                  Security & Compliance
+                </button>
               </div>
             </motion.div>
           </motion.div>

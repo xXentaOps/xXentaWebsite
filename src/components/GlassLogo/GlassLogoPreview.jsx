@@ -18,6 +18,7 @@ import { createGestureClassifier, GESTURE_END_MS } from './scrollGestureClassifi
 import SiteFooter, { SiteFooterContent, FOOTER_MAX_VH } from './SiteFooter'
 import SiteNavbar from './SiteNavbar'
 import { ContactPage } from './ContactPage'
+import { SecurityCompliancePage } from './SecurityCompliancePage'
 
 // Read once, at module scope: it never changes for the life of the page, and
 // this keeps it out of every render. See FrameRateMeter — ?fps to show it.
@@ -52,9 +53,26 @@ export default function GlassLogoPreview() {
   // slide-in are derived from directly, so they cannot be anywhere but one
   // screen apart — see the comments on each.
   const [isAboutUsOpen, setIsAboutUsOpen] = useState(false)
-  const [isContactOpen, setIsContactOpen] = useState(false)
+  const [isContactOpen, setIsContactOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('page') === 'contact' || params.has('contact')) return true
+    }
+    return false
+  })
   const isContactOpenRef = useRef(false)
   isContactOpenRef.current = isContactOpen
+
+  const [isSecurityOpen, setIsSecurityOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('page') === 'security' || params.has('security')) return true
+    }
+    return false
+  })
+  const isSecurityOpenRef = useRef(false)
+  isSecurityOpenRef.current = isSecurityOpen
+
   const [isDrpActive, setIsDrpActive] = useState(false)
 
   const handleCategoryChange = useCallback((index) => {
@@ -176,14 +194,14 @@ export default function GlassLogoPreview() {
   }, [activeCategoryIndex, resize])
 
   useEffect(() => {
-    if (isContactOpen) {
+    if (isContactOpen || isSecurityOpen) {
       stop?.()
     } else {
       if (!scrollLocked && !scrollLockActive) {
         start?.()
       }
     }
-  }, [isContactOpen, stop, start, scrollLocked, scrollLockActive])
+  }, [isContactOpen, isSecurityOpen, stop, start, scrollLocked, scrollLockActive])
   // Everything about the About Us scroll-lock/dismiss state machine lives
   // in one persistent, mount-once effect using plain closure variables
   // (isLocked/isOpenNow and the per-gesture flags below), not React state
@@ -782,7 +800,7 @@ export default function GlassLogoPreview() {
     }
 
     function onWheel(event) {
-      if (isContactOpenRef.current) return
+      if (isContactOpenRef.current || isSecurityOpenRef.current) return
       if (isFooterSwipingRef.current) return
       const delta = event.deltaY
       const absDelta = Math.abs(delta)
@@ -976,7 +994,7 @@ export default function GlassLogoPreview() {
     // Keyboard scrolling has no momentum tail, so each keypress is its own
     // discrete gesture and none of the per-gesture guards above apply.
     function onKeyDown(event) {
-      if (isContactOpenRef.current) return
+      if (isContactOpenRef.current || isSecurityOpenRef.current) return
       if (isFooterSwipingRef.current) {
         event.preventDefault()
         return
@@ -1054,7 +1072,14 @@ export default function GlassLogoPreview() {
   const handleFooterNavigate = useCallback(
     ({ target, categoryIndex }) => {
       if (target === 'contact') {
+        setIsSecurityOpen(false)
         setIsContactOpen(true)
+        return
+      }
+
+      if (target === 'security') {
+        setIsContactOpen(false)
+        setIsSecurityOpen(true)
         return
       }
 
@@ -1138,7 +1163,7 @@ export default function GlassLogoPreview() {
         return
       }
     },
-    [activeCategoryIndex, handleCategoryChange, scrollTo, stop, start, aboutUsProgress, footerPageProgress, isAboutUsOpen]
+    [activeCategoryIndex, handleCategoryChange, scrollTo, stop, start, aboutUsProgress, footerPageProgress]
   )
 
   return (
@@ -1146,9 +1171,11 @@ export default function GlassLogoPreview() {
       <SiteNavbar
         isAboutUsActive={isAboutUsOpen}
         isContactActive={isContactOpen}
+        isSecurityActive={isSecurityOpen}
         isDrpActive={isDrpActive}
         onAboutUsClick={() => {
           if (isContactOpen) setIsContactOpen(false)
+          if (isSecurityOpen) setIsSecurityOpen(false)
           // Clicking "About Us" is only ever a way *in*, never a way out —
           // once inside, it backs out of Meet the Team to the last About Us
           // slide if that stage is open, or does nothing at all if About Us
@@ -1163,10 +1190,16 @@ export default function GlassLogoPreview() {
           }
         }}
         onContactClick={() => {
+          if (isSecurityOpen) setIsSecurityOpen(false)
           setIsContactOpen((prev) => !prev)
+        }}
+        onSecurityClick={() => {
+          if (isContactOpen) setIsContactOpen(false)
+          setIsSecurityOpen((prev) => !prev)
         }}
         onLogoClick={() => {
           if (isContactOpen) setIsContactOpen(false)
+          if (isSecurityOpen) setIsSecurityOpen(false)
           // Standard "logo = home" convention — brings you back to the hero
           // from either of the two ways you can currently be away from it:
           // closes the About Us overlay if it's open (via the same
@@ -1253,10 +1286,16 @@ export default function GlassLogoPreview() {
         isFooterSwiping={isFooterSwiping}
         onFooterNavigate={handleFooterNavigate}
         onContactClick={() => {
+          if (isSecurityOpen) setIsSecurityOpen(false)
           setIsContactOpen(true)
+        }}
+        onSecurityClick={() => {
+          if (isContactOpen) setIsContactOpen(false)
+          setIsSecurityOpen(true)
         }}
         onAboutUsClick={() => {
           if (isContactOpen) setIsContactOpen(false)
+          if (isSecurityOpen) setIsSecurityOpen(false)
           if (isAboutUsOpen) {
             aboutUsSectionRef.current?.closeTeam()
           } else {
@@ -1301,6 +1340,18 @@ export default function GlassLogoPreview() {
       <ContactPage
         isOpen={isContactOpen}
         onClose={() => setIsContactOpen(false)}
+        onSecurityClick={() => {
+          setIsContactOpen(false)
+          setIsSecurityOpen(true)
+        }}
+      />
+      <SecurityCompliancePage
+        isOpen={isSecurityOpen}
+        onClose={() => setIsSecurityOpen(false)}
+        onContactClick={() => {
+          setIsSecurityOpen(false)
+          setIsContactOpen(true)
+        }}
       />
     </>
   )

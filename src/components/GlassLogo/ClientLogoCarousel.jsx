@@ -1,8 +1,8 @@
-// Placeholder wordmarks — swap for real client logos/names when available.
-// Bracket style ("[ Client A ]") deliberately reads as an obvious stand-in
-// slot rather than a real logo, so it can't be mistaken for an actual
-// client claim.
-const PLACEHOLDER_CLIENTS = ['Client A', 'Client B', 'Client C', 'Client D', 'Client E', 'Client F']
+import { XxentaWordmark } from './XxentaWordmark'
+
+// Repeating xXenta logos across the marquee track.
+const LOGO_COUNT = 6
+const LOGO_ITEMS = Array.from({ length: LOGO_COUNT })
 
 // Four copies, not two — the animation moves the track exactly -25% of its
 // own width (see marquee keyframes in index.css), the width of *one* copy,
@@ -17,11 +17,11 @@ const PLACEHOLDER_CLIENTS = ['Client A', 'Client B', 'Client C', 'Client D', 'Cl
 // back, once per 32s cycle. Four copies covers viewports up to roughly
 // 3×1216 ≈ 3650px wide before the same gap could reappear — comfortably
 // past any realistic browser window, ultrawide monitors included.
-const TRACK_ITEMS = [...PLACEHOLDER_CLIENTS, ...PLACEHOLDER_CLIENTS, ...PLACEHOLDER_CLIENTS, ...PLACEHOLDER_CLIENTS]
+const TRACK_ITEMS = [...LOGO_ITEMS, ...LOGO_ITEMS, ...LOGO_ITEMS, ...LOGO_ITEMS]
 
 export function ClientLogoCarousel({ sectionRef }) {
   return (
-    <section ref={sectionRef} className="relative w-full overflow-hidden bg-[#0F172B] py-12">
+    <section ref={sectionRef} data-client-carousel className="relative w-full overflow-hidden bg-[#0F172B] py-12">
       {/* The mask lives on this static wrapper — not the section (tried
           first: faded the section's own navy background right along with
           the logos, revealing whatever sits behind it there instead of a
@@ -55,12 +55,12 @@ export function ClientLogoCarousel({ sectionRef }) {
             contributes exactly 6 items + 6 margins on its own, and -25%
             lands exactly on one copy's true width with nothing left over. */}
         <div className="flex w-max animate-[marquee_32s_linear_infinite]">
-          {TRACK_ITEMS.map((name, i) => (
+          {TRACK_ITEMS.map((_, i) => (
             <span
               key={i}
-              className="mr-20 select-none whitespace-nowrap text-sm font-extralight tracking-[0.3em] text-white/20 uppercase"
+              className="mr-20 select-none whitespace-nowrap text-sm font-medium text-white/20 transition-colors duration-200 hover:text-white/40"
             >
-              [ {name} ]
+              <XxentaWordmark />
             </span>
           ))}
         </div>

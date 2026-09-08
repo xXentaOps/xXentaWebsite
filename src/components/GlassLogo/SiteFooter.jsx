@@ -73,6 +73,7 @@ export function SiteFooter({
   scrollTo,
   onAboutUsClick,
   onContactClick,
+  onSecurityClick,
   onFooterNavigate,
   isFooterSwiping = false,
   style,
@@ -249,6 +250,7 @@ export function SiteFooter({
             scrollTo={scrollTo}
             onAboutUsClick={onAboutUsClick}
             onContactClick={onContactClick}
+            onSecurityClick={onSecurityClick}
           />
         </motion.div>
       </motion.footer>
@@ -263,6 +265,7 @@ export function SiteFooterContent({
   scrollTo,
   onAboutUsClick,
   onContactClick,
+  onSecurityClick,
 }) {
   return (
     <>
@@ -319,6 +322,8 @@ export function SiteFooterContent({
                       onFooterNavigate({ target: 'meet-the-team' })
                     } else if (label === 'Contact') {
                       onFooterNavigate({ target: 'contact' })
+                    } else if (label === 'Security & Compliance') {
+                      onFooterNavigate({ target: 'security' })
                     }
                     return
                   }
@@ -335,6 +340,8 @@ export function SiteFooterContent({
                     onAboutUsClick?.()
                   } else if (label === 'Contact') {
                     onContactClick?.()
+                  } else if (label === 'Security & Compliance') {
+                    onSecurityClick?.()
                   }
                 }
 

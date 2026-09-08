@@ -9,12 +9,10 @@ import { XxentaWordmark } from './XxentaWordmark'
 // so its color is driven by whether that overlay is actually open
 // (isAboutUsActive), not by an independent click toggle of its own, and
 // clicking it opens/closes that overlay instead of merely changing color.
-// Placeholder links with no page of their own yet — clicking one just
-// toggles the same grey a selected grid button uses (see BackgroundGrid's
-// visibleIndex), purely as a placeholder cue. "About Us" and "Contact" open/close
-// their respective overlays, so their appearance is driven by isAboutUsActive
-// and isContactActive.
-const OTHER_NAV_LINKS = ['Security & Compliance']
+// "About Us", "Contact", and "Security & Compliance" open/close their
+// respective overlays, so their appearance is driven by isAboutUsActive,
+// isContactActive, and isSecurityActive.
+const OTHER_NAV_LINKS = []
 
 // Fixed, not absolute — this used to be part of GlassLogoHero's own markup,
 // positioned absolute within the hero section, which meant it scrolled away
@@ -37,9 +35,11 @@ function navLinkClass(isActive, isDrp) {
 export function SiteNavbar({
   isAboutUsActive,
   isContactActive = false,
+  isSecurityActive = false,
   isDrpActive = false,
   onAboutUsClick,
   onContactClick,
+  onSecurityClick,
   onLogoClick,
 }) {
   const [selectedLink, setSelectedLink] = useState(null)
@@ -49,8 +49,8 @@ export function SiteNavbar({
   // this toggle into a dropdown instead, same links, same click handlers.
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-  // In About Us or Contact overlay, isDrpActive should not apply because both are dark navy
-  const effectiveDrp = isDrpActive && !isAboutUsActive && !isContactActive
+  // In About Us, Contact, or Security overlay, isDrpActive should not apply because they are dark navy
+  const effectiveDrp = isDrpActive && !isAboutUsActive && !isContactActive && !isSecurityActive
 
   return (
     <div className="pointer-events-none fixed inset-x-6 top-5 z-30 flex items-center justify-between md:inset-x-8 md:top-6">
@@ -99,6 +99,13 @@ export function SiteNavbar({
           className={navLinkClass(isContactActive, effectiveDrp)}
         >
           Contact
+        </span>
+        <span
+          data-nav-security
+          onClick={onSecurityClick}
+          className={navLinkClass(isSecurityActive, effectiveDrp)}
+        >
+          Security & Compliance
         </span>
         {OTHER_NAV_LINKS.map((label) => (
           // Same hover/select treatment BackgroundGrid's own labels use —
@@ -171,6 +178,16 @@ export function SiteNavbar({
               className={navLinkClass(isContactActive, effectiveDrp)}
             >
               Contact
+            </span>
+            <span
+              data-nav-security-mobile
+              onClick={() => {
+                onSecurityClick?.()
+                setIsMenuOpen(false)
+              }}
+              className={navLinkClass(isSecurityActive, effectiveDrp)}
+            >
+              Security & Compliance
             </span>
             {OTHER_NAV_LINKS.map((label) => (
               <span
