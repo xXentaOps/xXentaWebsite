@@ -473,6 +473,10 @@ export function MeetTheTeamGrid({
   const x = useTransform(teamProgress, (p) => teamContentSlidePx(p, window.innerWidth))
   const display = useTransform(teamProgress, (p) => (p > 0.001 || isTeamOpen ? 'block' : 'none'))
   const isDetail = selectedIndex != null
+  const titleOpacity = useTransform(teamProgress, (p) => {
+    if (isDetail) return 0
+    return isTeamOpen ? 1 : p
+  })
   // Same direction-aware fade as BoardTitleWord in AboutUsSection.jsx (see
   // its own comment) — entering keeps the original instant appearance
   // (isTeamOpen true), only exiting fades continuously with progress itself
@@ -611,7 +615,7 @@ export function MeetTheTeamGrid({
           className="pointer-events-none absolute inset-x-0 flex items-center justify-center text-center z-20"
           style={{
             top: Math.max(16, layout.tiles[0].top - 46),
-            opacity: gridOpacity,
+            opacity: titleOpacity,
             willChange: 'opacity',
           }}
         >
