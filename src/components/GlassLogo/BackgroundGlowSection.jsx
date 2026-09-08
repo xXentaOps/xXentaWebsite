@@ -890,10 +890,19 @@ function SeamlessBackdrop({
   // solving for localX gives the one local X that reaches exactly there —
   // edgeXB + gridWidth/finalZoomScale, after trueScreenLeftX (-gridWidth/2)
   // cancels out.
-  const placeholderLeftX = edgeXB + (2 + PLACEHOLDER_COLUMN_GAP) * cellSize
-  const placeholderRightX = edgeXB + gridWidth / finalZoomScale
-  const placeholderWidth = Math.max(cellSize, placeholderRightX - placeholderLeftX)
-  const placeholderCenterX = (placeholderLeftX + placeholderRightX) / 2
+  const isMobile = size.width < 768
+  const desktopLeftX = edgeXB + (2 + PLACEHOLDER_COLUMN_GAP) * cellSize
+  const desktopRightX = edgeXB + gridWidth / finalZoomScale
+  const desktopWidth = Math.max(cellSize, desktopRightX - desktopLeftX)
+  const desktopCenterX = (desktopLeftX + desktopRightX) / 2
+
+  const mobileWidthWorld = ((size.width - 32) * (gridWidth / size.width)) / finalZoomScale
+  const mobileCenterX = edgeXB + (gridWidth / finalZoomScale) / 2
+
+  const placeholderWidth = isMobile ? mobileWidthWorld : desktopWidth
+  const placeholderCenterX = isMobile ? mobileCenterX : desktopCenterX
+  const placeholderLeftX = isMobile ? mobileCenterX - mobileWidthWorld / 2 : desktopLeftX
+  const placeholderRightX = isMobile ? mobileCenterX + mobileWidthWorld / 2 : desktopRightX
   // Top to bottom, asked for directly — gridHeight is the screen's own real
   // height in world units (unzoomed), so dividing it back down by
   // finalZoomScale gives the *local* height that, once this group's own
@@ -2607,7 +2616,7 @@ function SeamlessBackdrop({
                 ref={(el) => {
                   calloutRefs[i] = el
                 }}
-                className="w-[280px]"
+                className="hidden md:block w-[280px]"
                 style={i === 0 ? undefined : { opacity: 0 }}
               >
                 <p
@@ -2635,7 +2644,7 @@ function SeamlessBackdrop({
           position={[calloutPositions[0].x + cellSize * 0.85, (hoverCalloutRow.bottomY + hoverCalloutRow.topY) / 2, GRID_Z + 0.01]}
           style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
         >
-          <div className="w-[280px]" style={{ display: 'grid', gridTemplateAreas: '"stack"' }}>
+          <div className="hidden md:grid w-[280px]" style={{ gridTemplateAreas: '"stack"' }}>
             {DRP_GUIDED_MESSAGES.map((msg, i) => (
               <div
                 key={msg.id}

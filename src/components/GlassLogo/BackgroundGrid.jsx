@@ -795,13 +795,7 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
           </Html>
         ))}
 
-        {/* "AI for Achievers"'s own caption — always mounted like the labels
-            above (same reasoning: a fade, not a mount/unmount pop), but
-            opacity-only, not color-only, since at rest this should be fully
-            invisible rather than merely dim like the unselected labels are.
-            Positioned off comingSoonPos directly, not derived from the label
-            span above, so "AI for Achievers" itself never moves regardless of
-            whether this is showing. */}
+        {/* "AI for Achievers"'s own caption */}
         {comingSoonPos && (
           <Html
             position={[
@@ -812,11 +806,6 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
             style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
           >
             <span
-              // text-white/15 — the same grey GlassLogoHero's own nav links
-              // (NAV_LINKS there) sit at while unselected, not the brighter
-              // text-white/40 the grid labels above use, so this reads as a
-              // quieter aside next to "AI for Achievers" rather than
-              // competing with it for attention.
               className={`block cursor-default select-none whitespace-nowrap text-xs font-extralight tracking-[0.2em] uppercase text-white/15 transition-opacity duration-200 ${
                 visibleIndex === comingSoonIndex ? 'opacity-100' : 'opacity-0'
               }`}

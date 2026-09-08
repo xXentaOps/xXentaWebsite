@@ -143,17 +143,19 @@ function NoordhuysBackdrop({
   const colorProgressRef = useRef(0)
   const choxColorProgressRef = useRef(0)
 
+  const isMobile = size.width < 768
   const totalCols = Math.max(1, Math.floor((gridWidth * OVERSCALE) / cellSize))
   const effectiveEdgeCol = totalCols <= 6 ? Math.max(0, Math.floor(totalCols / 4)) : EDGE_COLUMN_FROM_LEFT
-  const edgeX = -(gridWidth * OVERSCALE) / 2 + effectiveEdgeCol * cellSize
+  const rawEdgeX = -(gridWidth * OVERSCALE) / 2 + effectiveEdgeCol * cellSize
 
   const heroMarginPx = pageMarginPx(size.height)
   const heroMarginWorld = heroMarginPx * (gridWidth / size.width)
   const targetEdgeLeftX = -gridWidth / 2 + heroMarginWorld
   const edgeHalfWidthWorld = EDGE_STYLE.halfWidthPx * (gridWidth / size.width)
-  const denom = edgeX - edgeHalfWidthWorld
+  const denom = rawEdgeX - edgeHalfWidthWorld
   const rawScale = denom < -0.05 ? targetEdgeLeftX / denom : 1.3
   const finalZoomScale = Math.max(1.0, Math.min(2.5, rawScale))
+  const edgeX = isMobile ? (-gridWidth / 2 + heroMarginWorld) / finalZoomScale : rawEdgeX
   const driftWorld = Math.max(0, ((gridHeight * (OVERSCALE * finalZoomScale - 1)) / 2) * DRIFT_SLACK_FRACTION)
 
   const centerPhase = 0.5 + yPhaseShiftCells
@@ -280,21 +282,21 @@ function NoordhuysBackdrop({
     }
 
     let currentDesignScale = 1
+    const isMobile = size.width < 768
     if (designRef?.current) {
       const zoomFactor = nextScale / finalZoomScale
       const marginPx = Math.max(24, pageMarginPx(size.height))
       const availableWidth = Math.max(300, size.width - 2 * marginPx)
-      const baseScale = Math.min(
-        1,
-        (0.86 * size.height) / 838.67,
-        (0.95 * availableWidth) / 1440
-      )
+      const baseScale = isMobile
+        ? Math.min(0.48, (0.46 * size.height) / 838.67, (size.width - 48) / 448)
+        : Math.min(1, (0.86 * size.height) / 838.67, (0.95 * availableWidth) / 1440)
       currentDesignScale = baseScale * zoomFactor
       const designWidthPx = 960 * currentDesignScale
-      const screenCenterX = (size.width - marginPx) - designWidthPx / 2
+      const screenCenterX = isMobile ? size.width / 2 : (size.width - marginPx) - designWidthPx / 2
       const finalDeltaX = screenCenterX - size.width / 2
       const currentDeltaX = finalDeltaX * zoomFactor
-      designRef.current.style.transform = `translate3d(${currentDeltaX}px, 0px, 0) scale(${currentDesignScale})`
+      const currentDeltaY = isMobile ? Math.min(50, size.height * 0.06) : 0
+      designRef.current.style.transform = `translate3d(${currentDeltaX}px, ${currentDeltaY}px, 0) scale(${currentDesignScale})`
     }
 
     // Keep transparent Noordhuys emblem behind video matching the lit squares color & opacity,
@@ -309,8 +311,12 @@ function NoordhuysBackdrop({
 
     // Keep Agri & Food context block scrolling in lockstep with the background grid
     if (agriTextRef?.current) {
-      const agriDeltaY = (-group.position.y * (size.height / gridHeight)) / (currentDesignScale || 1)
-      agriTextRef.current.style.transform = `translate3d(0, calc(-50% + ${agriDeltaY}px), 0)`
+      if (size.width >= 1024) {
+        const agriDeltaY = (-group.position.y * (size.height / gridHeight)) / (currentDesignScale || 1)
+        agriTextRef.current.style.transform = `translate3d(0, calc(-50% + ${agriDeltaY}px), 0)`
+      } else {
+        agriTextRef.current.style.transform = `translate3d(-50%, 0, 0)`
+      }
     }
 
     let currentChoxScale = 1
@@ -319,26 +325,29 @@ function NoordhuysBackdrop({
       const marginPx = Math.max(24, (PAGE_MARGIN_VH / 100) * size.height)
       const maxAvailableWidth = Math.max(400, size.width - marginPx - 460)
       const maxAvailableHeight = Math.max(300, size.height - 2 * marginPx)
-      const choxScale = Math.min(
-        1,
-        maxAvailableHeight / CHOX_DESIGN_HEIGHT,
-        (0.96 * maxAvailableWidth) / CHOX_DESIGN_WIDTH
-      )
+      const choxScale = isMobile
+        ? Math.min(0.46, Math.max(0.38, (size.width - 24) / 880))
+        : Math.min(1, maxAvailableHeight / CHOX_DESIGN_HEIGHT, (0.96 * maxAvailableWidth) / CHOX_DESIGN_WIDTH)
       const choxWidthPx = CHOX_DESIGN_WIDTH * choxScale
-      const choxScreenCenterX = (size.width - marginPx) - choxWidthPx / 2
+      const choxScreenCenterX = isMobile ? size.width / 2 : (size.width - marginPx) - choxWidthPx / 2
       const finalChoxDeltaX = choxScreenCenterX - size.width / 2
 
       const currentDeltaX = finalChoxDeltaX * zoomFactor
       currentChoxScale = choxScale * zoomFactor
+      const currentChoxDeltaY = isMobile ? Math.min(45, size.height * 0.05) : 0
 
-      choxRef.current.style.transform = `translate3d(${currentDeltaX}px, 0px, 0) scale(${currentChoxScale})`
+      choxRef.current.style.transform = `translate3d(${currentDeltaX}px, ${currentChoxDeltaY}px, 0) scale(${currentChoxScale})`
     }
 
     // Keep ChoXPro Row Tracking context block scrolling in lockstep with the background grid
     if (choxTextRef?.current) {
-      const choxArrivalWorldY = driftWorld * TRANSITION_END
-      const choxDeltaY = (-(group.position.y - choxArrivalWorldY) * (size.height / gridHeight)) / (currentChoxScale || 1)
-      choxTextRef.current.style.transform = `translate3d(0, ${choxDeltaY}px, 0)`
+      if (size.width >= 1024) {
+        const choxArrivalWorldY = driftWorld * TRANSITION_END
+        const choxDeltaY = (-(group.position.y - choxArrivalWorldY) * (size.height / gridHeight)) / (currentChoxScale || 1)
+        choxTextRef.current.style.transform = `translate3d(0, ${choxDeltaY}px, 0)`
+      } else {
+        choxTextRef.current.style.transform = `translate3d(-50%, 0, 0)`
+      }
     }
   })
 
@@ -614,30 +623,41 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
 
 
 
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false
   const initialMargin = typeof window !== 'undefined'
     ? Math.max(24, (PAGE_MARGIN_VH / 100) * window.innerHeight)
     : 82
   const initialBaseScale = typeof window !== 'undefined'
-    ? Math.min(
-        1,
-        (0.86 * window.innerHeight) / 838.67,
-        (0.95 * Math.max(300, window.innerWidth - 2 * initialMargin)) / 1440
-      )
+    ? isMobile
+      ? Math.min(0.48, (0.46 * window.innerHeight) / 838.67, (window.innerWidth - 48) / 448)
+      : Math.min(
+          1,
+          (0.86 * window.innerHeight) / 838.67,
+          (0.95 * Math.max(300, window.innerWidth - 2 * initialMargin)) / 1440
+        )
     : 1
   const initialDeltaX = typeof window !== 'undefined'
-    ? ((window.innerWidth - initialMargin) - (960 * initialBaseScale) / 2) - window.innerWidth / 2
+    ? isMobile
+      ? 0
+      : ((window.innerWidth - initialMargin) - (960 * initialBaseScale) / 2) - window.innerWidth / 2
     : 0
+  const initialDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(50, window.innerHeight * 0.06) : 0
 
   const initialChoxBaseScale = typeof window !== 'undefined'
-    ? Math.min(
-        1,
-        Math.max(300, window.innerHeight - 2 * initialMargin) / CHOX_DESIGN_HEIGHT,
-        (0.96 * Math.max(400, window.innerWidth - initialMargin - 460)) / CHOX_DESIGN_WIDTH
-      )
+    ? isMobile
+      ? Math.min(0.46, Math.max(0.38, (window.innerWidth - 24) / 880))
+      : Math.min(
+          1,
+          Math.max(300, window.innerHeight - 2 * initialMargin) / CHOX_DESIGN_HEIGHT,
+          (0.96 * Math.max(400, window.innerWidth - initialMargin - 460)) / CHOX_DESIGN_WIDTH
+        )
     : 1
   const initialChoxDeltaX = typeof window !== 'undefined'
-    ? ((window.innerWidth - initialMargin) - (CHOX_DESIGN_WIDTH * initialChoxBaseScale) / 2) - window.innerWidth / 2
+    ? isMobile
+      ? 0
+      : ((window.innerWidth - initialMargin) - (CHOX_DESIGN_WIDTH * initialChoxBaseScale) / 2) - window.innerWidth / 2
     : 0
+  const initialChoxDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(45, window.innerHeight * 0.05) : 0
 
   return (
     <section ref={sectionRef} className="relative w-full bg-[#0F172B]" style={{ height: `${SECTION_VH}vh` }}>
@@ -681,6 +701,16 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                 pointerEvents: mobilePointerEvents,
               }}
             >
+              {/* Mobile-only clean top context text: always centered, safe from navbar, perfectly legible */}
+              <div className="lg:hidden pointer-events-auto absolute top-14 sm:top-20 inset-x-0 px-6 text-center flex flex-col items-center max-w-sm mx-auto z-30">
+                <h3 className="text-base sm:text-lg font-light tracking-tight text-white/95 leading-snug">
+                  {t('noordhuys.agriTitle')}
+                </h3>
+                <p className="mt-2 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/70">
+                  {t('noordhuys.agriP1')}
+                </p>
+              </div>
+
               <motion.div
                 style={{ y: noordhuysBounceY }}
                 className="flex items-center justify-center"
@@ -692,7 +722,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                   style={{
                     width: 960,
                     height: 838.67,
-                    transform: `translate3d(${initialDeltaX}px, 0px, 0) scale(${initialBaseScale})`,
+                    transform: `translate3d(${initialDeltaX}px, ${initialDeltaY}px, 0) scale(${initialBaseScale})`,
                     transformOrigin: 'center center',
                   }}
                 >
@@ -722,23 +752,22 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                     <NoordhuysAppPanel />
                   </div>
 
-                  {/* Agri & Food context block to the left of phone + video composition */}
+                  {/* Agri & Food context block to the left of phone + video composition (Desktop only) */}
                   <div
                     id="noordhuys-agri-text"
                     ref={agriTextRef}
-                    className="pointer-events-auto absolute right-full top-1/2 mr-10 sm:mr-14 lg:mr-20 flex flex-col items-start text-left"
+                    className="pointer-events-auto hidden lg:flex absolute right-full top-1/2 -translate-y-1/2 mr-14 xl:mr-20 flex-col items-start text-left w-[440px]"
                     style={{
-                      width: 440,
                       transform: 'translate3d(0, -50%, 0)',
                     }}
                   >
-                    <h3 className="text-xl sm:text-2xl font-light tracking-tight text-white/95 leading-snug">
+                    <h3 className="text-xl lg:text-2xl font-light tracking-tight text-white/95 leading-snug">
                       {t('noordhuys.agriTitle')}
                     </h3>
-                    <p className="mt-4 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                    <p className="mt-4 text-[13px] lg:text-sm leading-[1.8] font-extralight text-white/60">
                       {t('noordhuys.agriP1')}
                     </p>
-                    <p className="mt-3 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                    <p className="mt-3 text-[13px] lg:text-sm leading-[1.8] font-extralight text-white/60">
                       {t('noordhuys.agriP2')}
                     </p>
                   </div>
@@ -757,6 +786,16 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
               pointerEvents: choxPointerEvents,
             }}
           >
+            {/* Mobile-only clean top context text for ChoXPro: crisp 1x scale, centered, safe */}
+            <div className="lg:hidden pointer-events-auto absolute top-14 sm:top-20 inset-x-0 px-6 text-center flex flex-col items-center max-w-sm mx-auto z-30">
+              <h3 className="text-base sm:text-lg font-light tracking-tight text-white/95 leading-snug">
+                {t('noordhuys.choxTitle')}
+              </h3>
+              <p className="mt-2 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/70">
+                {t('noordhuys.choxP1')}
+              </p>
+            </div>
+
             <div
               ref={choxRef}
               id="choxpro-design-stage"
@@ -764,7 +803,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
               style={{
                 width: CHOX_DESIGN_WIDTH,
                 height: CHOX_DESIGN_HEIGHT,
-                transform: `translate3d(${initialChoxDeltaX}px, 0px, 0) scale(${initialChoxBaseScale})`,
+                transform: `translate3d(${initialChoxDeltaX}px, ${initialChoxDeltaY}px, 0) scale(${initialChoxBaseScale})`,
                 transformOrigin: 'center center',
               }}
             >
@@ -774,27 +813,25 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
                 <WeeklyPlanningDashboard scrollProgress={progress} />
               </div>
 
-              {/* ChoXPro Row Tracking context block to the left of the planning dashboard */}
+              {/* ChoXPro Row Tracking context block to the left of the planning dashboard (Desktop only) */}
               <div
                 id="chox-rowtracking-text"
                 ref={choxTextRef}
-                className="pointer-events-auto absolute right-full mr-10 sm:mr-14 lg:mr-20 flex flex-col items-start text-left"
+                className="pointer-events-auto hidden lg:flex absolute right-full top-10 mr-14 xl:mr-20 flex-col items-start text-left w-[440px]"
                 style={{
-                  width: 440,
-                  top: 40,
                   transform: 'translate3d(0, 0px, 0)',
                 }}
               >
-                <h3 className="text-xl sm:text-2xl font-light tracking-tight text-white/95 leading-snug">
+                <h3 className="text-xl lg:text-2xl font-light tracking-tight text-white/95 leading-snug">
                   {t('noordhuys.choxTitle')}
                 </h3>
-                <p className="mt-4 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                <p className="mt-4 text-[13px] lg:text-sm leading-[1.8] font-extralight text-white/60">
                   {t('noordhuys.choxP1')}
                 </p>
-                <p className="mt-3.5 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                <p className="mt-3.5 text-[13px] lg:text-sm leading-[1.8] font-extralight text-white/60">
                   {t('noordhuys.choxP2')}
                 </p>
-                <p className="mt-3.5 text-[13px] sm:text-sm leading-[1.8] font-extralight text-white/60">
+                <p className="mt-3.5 text-[13px] lg:text-sm leading-[1.8] font-extralight text-white/60">
                   {t('noordhuys.choxP3')}
                 </p>
               </div>

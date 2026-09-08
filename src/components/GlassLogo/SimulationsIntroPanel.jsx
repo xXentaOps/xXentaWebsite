@@ -74,24 +74,16 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
         </p>
       </div>
 
-      {/* Row 1: The Science of Retention (Card on Left, Title on Right) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(480px, 1.15fr) minmax(380px, 1fr)',
-          gap: 48,
-          width: '100%',
-          alignItems: 'center',
-        }}
-      >
-        {/* Left Column: The Science of Retention Card */}
+      {/* Row 1: The Science of Retention (Mobile: Title then Card; Desktop: Card Left, Title Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(460px,1.15fr)_minmax(360px,1fr)] gap-8 lg:gap-12 w-full items-center">
+        {/* Retention Card */}
         <div
-          className="shadow-lg"
+          className="order-2 lg:order-1 shadow-lg w-full max-w-full box-border"
           style={{
             backgroundColor: INPUT_SURFACE,
             border: `${HAIRLINE_PX}px solid ${STROKE}`,
             borderRadius: PILL_RADIUS_PX,
-            padding: '30px 32px',
+            padding: 'clamp(18px, 3vw, 32px)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
@@ -108,7 +100,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginBottom: 14 }}>
                 <span
                   style={{
-                    fontSize: 48,
+                    fontSize: 'clamp(36px, 5vw, 48px)',
                     fontWeight: 700,
                     color: MARK_LIT,
                     lineHeight: 1,
@@ -117,7 +109,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                 >
                   {t('simulations.retentionStat')}
                 </span>
-                <span style={{ fontSize: 15.5, color: NAME, fontWeight: 600 }}>
+                <span style={{ fontSize: 'clamp(14px, 2vw, 15.5px)', color: NAME, fontWeight: 600 }}>
                   {t('simulations.retentionTitle')}
                 </span>
               </div>
@@ -153,7 +145,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
                 </div>
               </div>
 
-              <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.45 }}>
+              <div style={{ fontSize: 'clamp(12px, 1.8vw, 13px)', color: MUTED, lineHeight: 1.45 }}>
                 {t('simulations.retentionDesc')}
               </div>
             </div>
@@ -163,7 +155,7 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               style={{
                 height: 1,
                 background: SEPARATOR,
-                margin: '22px 0 18px 0',
+                margin: '20px 0 16px 0',
               }}
             />
 
@@ -183,33 +175,27 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               </div>
 
               {/* 3 Clean Stat Columns */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: 16,
-                }}
-              >
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
                 <div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>{t('simulations.metrics.lowerCost.val')}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>{t('simulations.metrics.lowerCost.label')}</div>
-                  <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
+                  <div className="text-[20px] sm:text-[28px] font-bold leading-none" style={{ color: MARK_LIT }}>{t('simulations.metrics.lowerCost.val')}</div>
+                  <div className="text-[11.5px] sm:text-[13px] font-semibold my-1" style={{ color: NAME }}>{t('simulations.metrics.lowerCost.label')}</div>
+                  <div className="text-[10px] sm:text-[11.5px] leading-tight sm:leading-snug" style={{ color: MUTED }}>
                     {t('simulations.metrics.lowerCost.desc')}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>{t('simulations.metrics.repetitions.val')}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>{t('simulations.metrics.repetitions.label')}</div>
-                  <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
+                  <div className="text-[20px] sm:text-[28px] font-bold leading-none" style={{ color: MARK_LIT }}>{t('simulations.metrics.repetitions.val')}</div>
+                  <div className="text-[11.5px] sm:text-[13px] font-semibold my-1" style={{ color: NAME }}>{t('simulations.metrics.repetitions.label')}</div>
+                  <div className="text-[10px] sm:text-[11.5px] leading-tight sm:leading-snug" style={{ color: MUTED }}>
                     {t('simulations.metrics.repetitions.desc')}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: MARK_LIT, lineHeight: 1 }}>{t('simulations.metrics.hallucination.val')}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: NAME, margin: '6px 0 3px 0' }}>{t('simulations.metrics.hallucination.label')}</div>
-                  <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>
+                  <div className="text-[20px] sm:text-[28px] font-bold leading-none" style={{ color: MARK_LIT }}>{t('simulations.metrics.hallucination.val')}</div>
+                  <div className="text-[11.5px] sm:text-[13px] font-semibold my-1" style={{ color: NAME }}>{t('simulations.metrics.hallucination.label')}</div>
+                  <div className="text-[10px] sm:text-[11.5px] leading-tight sm:leading-snug" style={{ color: MUTED }}>
                     {t('simulations.metrics.hallucination.desc')}
                   </div>
                 </div>
@@ -220,10 +206,10 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
           {/* Footer */}
           <div
             style={{
-              marginTop: 22,
-              paddingTop: 14,
+              marginTop: 18,
+              paddingTop: 12,
               borderTop: `1px solid ${SEPARATOR}`,
-              fontSize: 11.5,
+              fontSize: 'clamp(10.5px, 1.5vw, 11.5px)',
               fontWeight: 500,
               color: MUTED,
               display: 'flex',
@@ -236,16 +222,8 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
           </div>
         </div>
 
-        {/* Right Column: Outside Title for The Science of Retention (bigger, left-justified) */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            textAlign: 'left',
-            paddingLeft: 'clamp(12px, 2vw, 32px)',
-          }}
-        >
+        {/* Title & Description Column */}
+        <div className="order-1 lg:order-2 flex flex-col justify-center text-left pl-0 lg:pl-6">
           <span
             style={{
               fontSize: 12,
@@ -253,19 +231,19 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               color: MARK_LIT,
-              marginBottom: 12,
+              marginBottom: 10,
             }}
           >
             {t('simulations.sideTag')}
           </span>
           <h2
             style={{
-              fontSize: 'clamp(32px, 3.6vw, 48px)',
+              fontSize: 'clamp(28px, 4vw, 48px)',
               fontWeight: 500,
               color: TEXT_PRIMARY,
               letterSpacing: '-0.03em',
               lineHeight: 1.15,
-              margin: '0 0 16px 0',
+              margin: '0 0 14px 0',
             }}
           >
             {t('simulations.sideTitleFirst')}<br />
@@ -273,10 +251,10 @@ export const SimulationsIntroPanel = forwardRef(function SimulationsIntroPanel(
           </h2>
           <p
             style={{
-              fontSize: 15.5,
+              fontSize: 'clamp(13.5px, 2vw, 15.5px)',
               lineHeight: 1.6,
               color: TEXT,
-              maxWidth: 440,
+              maxWidth: 480,
               margin: 0,
               fontWeight: 400,
             }}

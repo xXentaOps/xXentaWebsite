@@ -172,14 +172,11 @@ const HEADER_TOP_EXTRA_PX = 0.5
 // second independent number here could easily stop agreeing with those two:
 // RIGHT + ENTRY_GAP_PX + (the next entry's own LEFT) has to equal 29 by
 // construction, not by re-tuning two constants in step by hand.
-const ENTRY_TO_ENTRY_PX = 29
+const ENTRY_TO_ENTRY_PX = 25
 const ENTRY_PADDING_RIGHT_PX = ENTRY_TO_ENTRY_PX - ENTRY_GAP_PX - ENTRY_PADDING_LEFT_PX
-// Extra room after "Trauma Bay" before the pill's own right edge — the room
-// entry's trailing padding only, on top of ENTRY_PADDING_RIGHT_PX, since the
-// gap asked for was after the room's own label specifically, not after every
-// entry.
-const ROOM_TRAILING_EXTRA_PX = 6
-const ENTRY_INNER_GAP_PX = 8
+// Extra room after "Trauma Bay" before the pill's own right edge
+const ROOM_TRAILING_EXTRA_PX = 3
+const ENTRY_INNER_GAP_PX = 7
 
 // The character bubble's own radius, from the same spec.
 const BUBBLE_RADIUS_PX = 24
@@ -324,6 +321,8 @@ function sampleRects(rects, at, key) {
 
 function ChatHeader({ selection, progress }) {
   const { t, language } = useLanguage()
+  const headerWrapperRef = useRef(null)
+  const [headerScale, setHeaderScale] = useState(1)
   // Measured, not computed. The pill has to be exactly as wide as whichever
   // entry it's on, and those widths come from how the labels actually render
   // — the font, its metrics, the loaded weight — none of which this file can
@@ -337,6 +336,17 @@ function ChatHeader({ selection, progress }) {
       const elements = entryRefs.current
       if (elements.length !== CHANNEL_ORDER.length || elements.some((el) => !el)) return
       setRects(elements.map((el) => ({ left: el.offsetLeft, width: el.offsetWidth })))
+
+      const wrapper = headerWrapperRef.current
+      if (wrapper && typeof window !== 'undefined') {
+        const availableWidth = Math.min(window.innerWidth - 24, COLUMN_WIDTH_PX)
+        const naturalWidth = wrapper.scrollWidth || 385
+        if (naturalWidth > availableWidth && availableWidth > 0) {
+          setHeaderScale(Math.max(0.72, availableWidth / naturalWidth))
+        } else {
+          setHeaderScale(1)
+        }
+      }
     }
     measure()
     window.addEventListener('resize', measure)
@@ -369,8 +379,10 @@ function ChatHeader({ selection, progress }) {
     // stretch would make it full width and margin auto would then have nothing
     // left to centre.
     <div
-      className="relative flex shrink-0 self-center items-center shadow-lg"
+      ref={headerWrapperRef}
+      className="relative flex shrink-0 self-center items-center shadow-lg origin-center"
       style={{
+        transform: headerScale < 1 ? `scale(${headerScale})` : undefined,
         // 1px taller on top only — the outer pill's own asymmetry, nothing
         // inside it (the entries row keeps ENTRY_HEIGHT_PX, still centred
         // the same distance from the bottom edge as before; only the extra
@@ -613,7 +625,7 @@ function Instructions({ progress }) {
   return (
     <motion.div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center pt-7" style={{ opacity, y }}>
       <p
-        className="max-w-[520px] text-center text-[13px] font-medium"
+        className="max-w-[520px] px-4 text-center text-[13px] font-medium"
         style={{ color: MUTED, lineHeight: `${CAPTION_LINE_HEIGHT_PX}px`, letterSpacing: `${CAPTION_TRACKING_PX}px` }}
       >
         {t('simulations.chat.instructions') || INSTRUCTIONS}
@@ -737,9 +749,9 @@ export function ChatShowcase({ progress }) {
         className="flex h-full flex-col"
         style={{
           width: COLUMN_WIDTH_PX,
-          // Never wider than the page's own margins allow — the same margin
-          // the hero's title and About Us's copy sit on (see pageMargin.js).
-          maxWidth: `calc(100vw - ${2 * PAGE_MARGIN_VH}vh)`,
+          // Never wider than the page's own margins allow on desktop, but taking
+          // advantage of available space on mobile devices rather than squashing to 260px.
+          maxWidth: `min(${COLUMN_WIDTH_PX}px, calc(100vw - clamp(20px, 4vw, ${2 * PAGE_MARGIN_VH}vh)))`,
           paddingTop: `${COLUMN_TOP_VH}vh`,
           paddingBottom: `${COLUMN_BOTTOM_VH}vh`,
         }}
