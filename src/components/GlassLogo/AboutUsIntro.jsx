@@ -815,11 +815,16 @@ export function AboutUsIntro({
                 mirroring MeetTheTeamGrid's detailed profiles. */}
             <div
               ref={textScrollRef}
-              className="bio-scrollbar mt-4 md:mt-6 overflow-y-auto pointer-events-auto min-h-0"
+              data-about-text-box
+              data-lenis-prevent
+              data-lenis-prevent-touch
+              className="bio-scrollbar mt-4 md:mt-6 overflow-y-auto pointer-events-auto min-h-0 touch-pan-y"
               style={{
                 maxHeight: textScrollMaxHeight,
                 '--scrollbar-thickness': '5px',
                 overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
                 ...(textOverflows
                   ? {
                       WebkitMaskImage: bioFadeMask(scrollState.atTop, scrollState.atBottom),
@@ -931,7 +936,7 @@ export function AboutUsIntro({
                       src={s.photo}
                       alt={s.alt}
                       draggable={false}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-[center_12%]"
                     />
                   </motion.div>
                 )

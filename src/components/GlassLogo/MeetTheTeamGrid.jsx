@@ -602,33 +602,42 @@ export function MeetTheTeamGrid({
       aria-hidden={!isTeamOpen}
       className="pointer-events-none absolute inset-0 z-50"
     >
-      {/* "Members" — the big half of "Board Members" (see TITLE_WORDS'
-          "Board" for the small half, rendered as WebGL troika text in
-          AboutUsSection.jsx's BoardTitleWord). Plain DOM/CSS specifically so
-          filter: blur() can give it a real blur (see MEMBERS_BLUR_PX's own
-          comment above) — a first for this file, everything else here being
-          crisp. Placed first among this container's children, ahead of the
-          tile map below, so it paints *under* every photo (same z-50
-          stacking context; DOM order alone decides paint order between
-          equal-z-index siblings) — and fades with them (isDetail) since it
-          belongs to the same resting grid layout the tiles do. */}
-      <motion.p
-        aria-hidden
-        className="absolute font-normal text-[#F8FAFC]"
-        style={{
-          left: layout.isMobile ? '50%' : layout.titleWords[0].left + MEMBERS_OFFSET_X_PX,
-          top: layout.isMobile ? layout.titleWords[0].top : layout.titleWords[0].top + layout.cell + MEMBERS_OFFSET_Y_PX,
-          fontSize: layout.isMobile ? Math.min(layout.cell * 0.45, 42) : window.innerHeight * MEMBERS_FONT_FRACTION,
-          letterSpacing: `${(layout.isMobile ? Math.min(layout.cell * 0.45, 42) : window.innerHeight * MEMBERS_FONT_FRACTION) * -0.03}px`,
-          lineHeight: 1,
-          opacity: membersOpacity,
-          filter: `blur(${layout.isMobile ? 2 : MEMBERS_BLUR_PX}px)`,
-          transform: layout.isMobile ? 'translateX(-50%) translateZ(0)' : 'translateZ(0)',
-          willChange: 'transform, opacity',
-        }}
-      >
-        {t('aboutUs.team.members', 'Members')}
-      </motion.p>
+      {/* Board Members title:
+          On mobile, render a crisp, centered DOM heading above the photo tiles.
+          On desktop, render "Members" under the tiles with blur, paired with WebGL "Board". */}
+      {layout.isMobile ? (
+        <motion.div
+          aria-hidden={!isTeamOpen}
+          className="pointer-events-none absolute inset-x-0 flex items-center justify-center text-center z-20"
+          style={{
+            top: Math.max(16, layout.tiles[0].top - 46),
+            opacity: gridOpacity,
+            willChange: 'opacity',
+          }}
+        >
+          <h2 className="text-sm sm:text-base font-light tracking-[0.22em] text-[#F8FAFC]/90 uppercase">
+            {t('aboutUs.team.title', 'Board Members')}
+          </h2>
+        </motion.div>
+      ) : (
+        <motion.p
+          aria-hidden
+          className="absolute font-normal text-[#F8FAFC]"
+          style={{
+            left: layout.titleWords[0].left + MEMBERS_OFFSET_X_PX,
+            top: layout.titleWords[0].top + layout.cell + MEMBERS_OFFSET_Y_PX,
+            fontSize: window.innerHeight * MEMBERS_FONT_FRACTION,
+            letterSpacing: `${window.innerHeight * MEMBERS_FONT_FRACTION * -0.03}px`,
+            lineHeight: 1,
+            opacity: membersOpacity,
+            filter: `blur(${MEMBERS_BLUR_PX}px)`,
+            transform: 'translateZ(0)',
+            willChange: 'transform, opacity',
+          }}
+        >
+          {t('aboutUs.team.members', 'Members')}
+        </motion.p>
+      )}
       {layout.tiles.map((tile, index) => {
         const member = MEMBERS[index]
         if (!member) return null
@@ -1001,6 +1010,8 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
           composite for no visible effect). */}
       <div
         ref={bioRef}
+        data-lenis-prevent
+        data-lenis-prevent-touch
         className="bio-scrollbar mt-3 min-h-0 flex-1 overflow-y-auto pointer-events-auto touch-pan-y"
         style={{
           width: layout.textBox.width,

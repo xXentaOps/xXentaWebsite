@@ -611,7 +611,9 @@ function BoardTitleWord({ teamProgress, isTeamOpen, hideForDetail }) {
   const boardFontSize = layout.cell * TITLE_FONT_SIZE_CELL_RATIO * perPx
   // A tiny nudge right of its analytical column — asked for directly, a
   // small tweak rather than a full column move. Tune live.
-  const BOARD_OFFSET_X_PX = 12
+  if (layout.isMobile) {
+    return null
+  }
 
   return (
     <SlideGroup progress={teamProgress} slidePx={teamContentSlidePx}>

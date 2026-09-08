@@ -39,6 +39,15 @@ export function createScrollDetent(options = {}) {
   function handleVirtualScroll(data, currentScroll, targetScroll) {
     if (!active || threshold == null) return true
 
+    // Mobile touch events are discrete thumb swipes rather than free-wheeling momentum tails.
+    // Allow touch scrolling to pass through unhindered so mobile navigation never locks up.
+    const isTouch = Boolean(
+      data.isTouch ||
+      (data.event && 'touches' in data.event) ||
+      (data.event?.type && data.event.type.startsWith('touch'))
+    )
+    if (isTouch) return true
+
     const delta = data.deltaY
     const absDelta = Math.abs(delta)
     const now = (data.event && 'timeStamp' in data.event) ? data.event.timeStamp : (typeof performance !== 'undefined' ? performance.now() : Date.now())

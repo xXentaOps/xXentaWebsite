@@ -571,18 +571,13 @@ export function chatInstructionsFadeAt(progress) {
     if (segment.channel !== ROOM.id) continue
     const arrived = windowProgress(progress, segment.switchStart, segment.switchEnd)
     if (segment === ROOM_SEGMENTS[0]) {
-      // Never crowded — just "arrived" inverted by "not yet left" (the same
-      // switchStart/switchEnd → closeStart/closeEnd shape segmentStateAt
-      // itself uses elsewhere). Without the second half of that, this
-      // segment's own `arrived` sits at 1 for every progress value from here
-      // to the end of the case — it's a degenerate window by design
-      // (switchStart===switchEnd===0, meaning "already open," see the
-      // segment-building loop above) — which would otherwise poison every
-      // later room segment's own Math.max below into never reading as
-      // anything but fully visible either, this segment's own stale 1
-      // outlasting it forever.
+      // Fade out the brief as the first messages scroll up toward the top,
+      // preventing incoming chat bubbles from colliding with the instructions.
+      const turn0End = segment.turns[0]?.revealEnd ?? segment.switchEnd
+      const turn1End = segment.turns[1]?.revealEnd ?? (turn0End + 0.04)
+      const crowded = windowProgress(progress, turn0End, turn1End)
       const left = windowProgress(progress, segment.closeStart, segment.closeEnd)
-      visible = Math.max(visible, arrived * (1 - left))
+      visible = Math.max(visible, arrived * (1 - Math.max(crowded, left)))
       continue
     }
     const window = instructionsWindowFor(segment)

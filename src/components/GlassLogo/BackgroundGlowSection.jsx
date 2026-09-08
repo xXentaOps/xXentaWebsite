@@ -2630,26 +2630,30 @@ function SeamlessBackdrop({
         })}
 
         {/* DRP Showcase Guided Messages (see DRP_GUIDED_MESSAGES)
-            — reusing the exact same slot Floren Showcase's own first callout used
-            (calloutPositions[0], same column-A/row-0 geometry, same
-            cellSize×0.85 nudge), on the reasoning that reusing it reads as
-            "the same message slot, on to its next thing" rather than a new
-            element appearing somewhere unrelated. By the time hoverT ever
-            moves, panT has long since carried CALLOUTS's own text out of
-            view (calloutPanFade), so nothing is actually sharing the spot
-            at once. Full-strength TEXT_COLOR rather than CALLOUTS's own
-            text-white/40. Opacity alone, written from the frame loop,
-            handles smooth crossfades between the 4 showcase stages. */}
+            — On desktop: positioned in column-A at calloutPositions[0].
+            — On mobile: centered horizontally (x = 0) directly above the syllabus panel,
+              ensuring all 4 showcase stage messages are completely visible on-screen. */}
         <Html
-          position={[calloutPositions[0].x + cellSize * 0.85, (hoverCalloutRow.bottomY + hoverCalloutRow.topY) / 2, GRID_Z + 0.01]}
-          style={{ transform: 'translateY(-50%)', pointerEvents: 'none' }}
+          position={[
+            isMobile ? 0 : calloutPositions[0].x + cellSize * 0.85,
+            isMobile ? placeholderCenterY + placeholderHeight * 0.36 : (hoverCalloutRow.bottomY + hoverCalloutRow.topY) / 2,
+            GRID_Z + 0.01,
+          ]}
+          style={{
+            transform: isMobile ? 'translate(-50%, -50%)' : 'translateY(-50%)',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
         >
-          <div className="hidden md:grid w-[280px]" style={{ gridTemplateAreas: '"stack"' }}>
+          <div
+            className="grid w-[88vw] max-w-[340px] px-3 text-center md:text-left md:w-[280px] md:px-0"
+            style={{ gridTemplateAreas: '"stack"' }}
+          >
             {DRP_GUIDED_MESSAGES.map((msg, i) => (
               <div
                 key={msg.id}
                 ref={drpCalloutRefs[i]}
-                className="w-[280px]"
+                className="w-full md:w-[280px]"
                 style={{ gridArea: 'stack', opacity: 0, willChange: 'opacity' }}
               >
                 <p className="text-xs leading-loose font-extralight" style={{ color: DRP_TEXT_COLOR }}>

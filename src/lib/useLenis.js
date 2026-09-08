@@ -60,7 +60,18 @@ export function useLenis(locked = false, isForceScrollingRef) {
       return scrollDetentRef.current.handleVirtualScroll(data, currentScroll, targetScroll)
     }
 
-    const lenis = new Lenis({ lerp: SCROLL_LERP, virtualScroll: handleVirtualScroll })
+    const lenis = new Lenis({
+      lerp: SCROLL_LERP,
+      virtualScroll: handleVirtualScroll,
+      touchMultiplier: 2.0,
+      prevent: (node) => {
+        return (
+          node?.hasAttribute?.('data-lenis-prevent') ||
+          node?.hasAttribute?.('data-lenis-prevent-touch') ||
+          node?.closest?.('[data-lenis-prevent], [data-lenis-prevent-touch], .bio-scrollbar, [data-about-text-box]')
+        )
+      },
+    })
     lenisRef.current = lenis
     if (typeof window !== 'undefined') window.__lenis = lenis
 
