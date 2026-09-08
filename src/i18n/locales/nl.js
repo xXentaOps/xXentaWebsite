@@ -78,6 +78,13 @@ export const nl = {
     sideTitleSecond: 'van Kennisbehoud',
     sideDesc:
       'Mensen onthouden slechts een fractie van wat zij lezen, maar internaliseren vaardigheden zodra zij navigeren door levensechte scenario’s met echte consequenties—waardoor statische training verandert in instinctief meesterschap.',
+    guidedMessages: [
+      'Elke casus verloopt live. Zeg wat u daadwerkelijk zou zeggen, en de ruimte reageert in realtime.',
+      'Neem iemand apart en het gesprek blijft vertrouwelijk — privé, en elke keer anders.',
+      'De casus reageert op wat er daadwerkelijk met de patiënt gebeurt, niet op een script. Mist u het moment, dan is dat direct merkbaar.',
+      'Elk personage in de ruimte, en de ruimte zelf, draait live op Gemini.',
+      'Academische vaardigheid is slechts het halve werk. Een angstig familielid kalmeren is net zo goed een vaardigheid, en niets wordt hier beoordeeld — alleen geoefend.',
+    ],
     chat: {
       room: 'Acute Opvang',
       instructions:
@@ -140,10 +147,17 @@ export const nl = {
       { num: '04', title: 'Audit-Klare Syllabus', detail: 'Geaccrediteerd einddocument' },
     ],
     scrollExplore: 'Scroll om te ontdekken',
+    guidedMessages: [
+      'We verlagen de werkdruk door docenten hun tijd terug te geven — zodat zij die kunnen besteden aan wat technologie nooit kan vervangen: inhoudelijke kwaliteit en persoonlijke aandacht voor studenten en professionals.',
+      'U bepaalt zelf hoeveel AI in elk vak wordt geïntegreerd, inclusief het niveau van betrokkenheid.',
+      'Drag-and-drop curriculumplanning met realtime werklastbalancering — zodat accreditatiecriteria en contacturen moeiteloos op elkaar aansluiten.',
+      'Van onderwijskundige theorie naar een audit-klare syllabus in seconden — volledig opgemaakt met beoordelingsrubrics, weekmijlpalen en LMS-export.',
+    ],
   },
 
   syllabusOverview: {
     title: 'Syllabus Overzicht',
+    levelPrefix: 'Niv • ',
     courses: [
       { title: 'Ondernemend Management', area: 'Zakelijk', level: 4, version: 'v.2025-03-31', timeAgo: '4 uur geleden', dotColor: '#CC0001', opacity: 0.9 },
       { title: 'Internationaal Zakendoen', area: 'Commercie', level: 4, version: 'v.2026-01-22', timeAgo: '11 uur geleden', dotColor: '#CC0001', opacity: 0.9 },
@@ -183,6 +197,23 @@ export const nl = {
       subtitle: 'Beheer referentiemateriaal dat het gedrag en de antwoorden van de AI stuurt.',
       criteria: 'Studiecriteria',
       btnNext: 'Volgende',
+      items: {
+        marketResearch: 'Marktonderzoek',
+        financialPlan: 'Financieel plan opstellen voor...',
+        formOfEntrepre: 'Ondernemingsvorm kiezen...',
+        valuePropo: 'Waardepropositie selecteren...',
+        businessModel: 'Bedrijfsmodel opbouwen',
+        businessNetwork: 'Zakelijk netwerk opzetten',
+        customerRelations: 'Klant-bedrijfsrelaties',
+        productSales: 'Productverkoop',
+      },
+      impacts: {
+        high: 'hoge impact',
+        medium: 'gemiddelde impact',
+        low: 'lage impact',
+      },
+      nothingPlanned: 'Niets gepland',
+      dragPrompt: 'Sleep criteria naar deze periode om in te plannen.',
     },
     production: {
       heading: 'Syllabusproductie',
@@ -200,14 +231,14 @@ export const nl = {
     customApps: 'Maatwerk Apps',
     agriTitle: 'AI in Agri & Food: Helderheid, Kwaliteit en een Betere Oogst',
     agriP1:
-      'Telers en agrarische ondernemingen hebben dagelijks te maken met strenge eisen rond kwaliteit en voedselveiligheid. xXenta helpt bedrijven om deze complexe compliance-eisen een vanzelfsprekend onderdeel van het dagelijks werk te maken, zoals bij gerichte taaktoewijzing, rij-/padtracking en instructies op maat.',
+      'Telers en agrarische ondernemingen hebben dagelijks te maken met strenge eisen rond kwaliteit en voedselveiligheid. xXenta helpt bedrijven om deze complexe compliance-eisen een vanzelfsprekend onderdeel van het dagelijks werk te maken, zoals bij gerichte taaktoewijzing, padregistratie en instructies op maat.',
     agriP2:
       'Door slimme technologie in te zetten als een rustige motor op de achtergrond, creëren we meer ademruimte voor medewerkers en scherper overzicht voor leidinggevenden.',
-    choxTitle: 'Beter Vakmanschap op de Werkvloer met xXenta’s Rij-Tracking',
+    choxTitle: 'Beter Vakmanschap op de Werkvloer met xXenta’s Padregistratie',
     choxP1:
       'In sectoren zoals land- en tuinbouw bestaan teams uit mensen met diverse taalachtergronden. Hoe zorgt u ervoor dat iedereen — van tomatenplukker tot gewasverzorger — zijn werk vakkundig uitvoert zonder eindeloze instructietijd?',
     choxP2:
-      'Ons rij-trackingsysteem benut AI om korte instructies te geven in de moedertaal van de medewerker: Welk gereedschap is vereist? Hoe voorkomt u schade aan het gewas? Vervolgens scant de medewerker simpelweg een tag bij aanvang en afronding van de rij.',
+      'Ons padregistratiesysteem benut AI om korte instructies te geven in de moedertaal van de medewerker: Welk gereedschap is vereist? Hoe voorkomt u schade aan het gewas? Vervolgens scant de medewerker simpelweg een tag bij aanvang en afronding van de rij.',
     choxP3:
       'Het levert een realtime dashboard op dat direct kernresultaten toont, zoals doorlooptijd en oogstopbrengst. Medewerkers weten precies wat er verwacht wordt, wat leidt tot hogere kwaliteit en minder gewasschade, en leidinggevenden zien in één oogopslag wie een handeling beheerst en wie begeleiding nodig heeft.',
     app: {

@@ -26,6 +26,7 @@ import {
   SCENE_BACKDROP_DRP_BRIGHT,
 } from './sceneConstants'
 import { useSeamlessGrid } from './useSeamlessGrid'
+import LanguageContext, { useLanguage } from '../../context/LanguageContext'
 
 function Updater({ updateFn }) {
   useFrame(updateFn)
@@ -505,6 +506,8 @@ function safeCellsBelowCenter(preferredCells, safeFraction, gridHeight, finalZoo
 //    independently. See yPhaseShiftCells and blobY below for the actual
 //    derivation.
 function SeamlessBackdrop({
+  t: tProp,
+  language: langProp,
   carouselRef,
   isVisibleRef,
   simIntroProgressRef,
@@ -520,6 +523,17 @@ function SeamlessBackdrop({
   isActive = true,
   isForceScrollingRef,
 }) {
+  const contextLanguageValue = useLanguage()
+  const t = tProp || contextLanguageValue.t
+  const language = langProp || contextLanguageValue.language || 'en'
+  const languageContextValue = {
+    ...contextLanguageValue,
+    language,
+    t,
+  }
+  const guidedMessages = t ? t('simulations.guidedMessages') : null
+  const drpGuidedMessages = t ? t('examsSyllabi.guidedMessages') : null
+
   // screenOffset 1 — this section continues the pattern one screen *below*
   // the hero (see useSeamlessGrid for the shared derivation of
   // yPhaseShiftCells/blobY this used to do inline).
@@ -2491,7 +2505,9 @@ function SeamlessBackdrop({
           position={[placeholderCenterX, placeholderCenterY, GRID_Z + 0.01]}
           style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 2 }}
         >
-          <ExamsSyllabiIntroPanel ref={drpIntroPanelRef} elementRefs={drpIntroElementRefs} />
+          <LanguageContext.Provider value={languageContextValue}>
+            <ExamsSyllabiIntroPanel t={t} language={language} ref={drpIntroPanelRef} elementRefs={drpIntroElementRefs} />
+          </LanguageContext.Provider>
         </Html>
 
         {/* "Syllabus Overview" — centred on the placeholder rectangle above
@@ -2506,14 +2522,18 @@ function SeamlessBackdrop({
           position={[placeholderCenterX, placeholderCenterY, GRID_Z + 0.01]}
           style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: 1 }}
         >
-          <SyllabusOverviewPanel
-            ref={syllabusPanelRef}
-            pillRefs={pillRefs}
-            titleRef={titleRef}
-            firstPillRef={firstPillRef}
-            cursorRef={cursorRef}
-            cursorRippleRef={cursorRippleRef}
-          />
+          <LanguageContext.Provider value={languageContextValue}>
+            <SyllabusOverviewPanel
+              t={t}
+              language={language}
+              ref={syllabusPanelRef}
+              pillRefs={pillRefs}
+              titleRef={titleRef}
+              firstPillRef={firstPillRef}
+              cursorRef={cursorRef}
+              cursorRippleRef={cursorRippleRef}
+            />
+          </LanguageContext.Provider>
         </Html>
 
         {/* "AI Impact Analysis" — centred on drp2PanelCenterX/Y rather
@@ -2524,37 +2544,41 @@ function SeamlessBackdrop({
           position={[drp2PanelCenterX, drp2PanelCenterY, GRID_Z + 0.01]}
           style={{ transform: 'translate(-50%, -50%)', pointerEvents: 'none' }}
         >
-          <AiImpactAnalysisPanel
-            ref={aiImpactPanelRef}
-            cursorRef={aiCursorRef}
-            cursorRippleRef={aiCursorRippleRef}
-            sliderFillRef={aiSliderFillRef}
-            sliderThumbRef={aiSliderThumbRef}
-            llmInputRef={aiLlmInputRef}
-            llmTextRef={aiLlmTextRef}
-            llmPlaceholderRef={aiLlmPlaceholderRef}
-            llmCaretRef={aiLlmCaretRef}
-            aiImpactCardRef={aiImpactCardRef}
-            macroPlannerViewRef={macroPlannerViewRef}
-            macroPlannerHeaderRef={macroPlannerHeaderRef}
-            macroPlannerContainerRef={macroPlannerContainerRef}
-            plannerCursorRef={plannerCursorRef}
-            plannerRippleRef={plannerRippleRef}
-            draggedCardRef={draggedCardRef}
-            dropPlaceholderRef={dropPlaceholderRef}
-            droppedCardRef={droppedCardRef}
-            sidebarPreparingCardRef={sidebarPreparingCardRef}
-            sidebarGripRef={sidebarGripRef}
-            criteriaCountRef={criteriaCountRef}
-            p12CountRef={p12CountRef}
-            p11FinancialCardRef={p11FinancialCardRef}
-            p11FinancialTitleRef={p11FinancialTitleRef}
-            p11FinancialImpactRef={p11FinancialImpactRef}
-            navAiAnalysisRef={navAiAnalysisRef}
-            navPlanningRef={navPlanningRef}
-            navProductionRef={navProductionRef}
-            syllabusProductionViewRef={syllabusProductionViewRef}
-          />
+          <LanguageContext.Provider value={languageContextValue}>
+            <AiImpactAnalysisPanel
+              t={t}
+              language={language}
+              ref={aiImpactPanelRef}
+              cursorRef={aiCursorRef}
+              cursorRippleRef={aiCursorRippleRef}
+              sliderFillRef={aiSliderFillRef}
+              sliderThumbRef={aiSliderThumbRef}
+              llmInputRef={aiLlmInputRef}
+              llmTextRef={aiLlmTextRef}
+              llmPlaceholderRef={aiLlmPlaceholderRef}
+              llmCaretRef={aiLlmCaretRef}
+              aiImpactCardRef={aiImpactCardRef}
+              macroPlannerViewRef={macroPlannerViewRef}
+              macroPlannerHeaderRef={macroPlannerHeaderRef}
+              macroPlannerContainerRef={macroPlannerContainerRef}
+              plannerCursorRef={plannerCursorRef}
+              plannerRippleRef={plannerRippleRef}
+              draggedCardRef={draggedCardRef}
+              dropPlaceholderRef={dropPlaceholderRef}
+              droppedCardRef={droppedCardRef}
+              sidebarPreparingCardRef={sidebarPreparingCardRef}
+              sidebarGripRef={sidebarGripRef}
+              criteriaCountRef={criteriaCountRef}
+              p12CountRef={p12CountRef}
+              p11FinancialCardRef={p11FinancialCardRef}
+              p11FinancialTitleRef={p11FinancialTitleRef}
+              p11FinancialImpactRef={p11FinancialImpactRef}
+              navAiAnalysisRef={navAiAnalysisRef}
+              navPlanningRef={navPlanningRef}
+              navProductionRef={navProductionRef}
+              syllabusProductionViewRef={syllabusProductionViewRef}
+            />
+          </LanguageContext.Provider>
         </Html>
       </group>
 
@@ -2584,7 +2608,7 @@ function SeamlessBackdrop({
                 <p
                   className={`text-xs leading-loose font-extralight text-white/40 ${i === 0 ? 'animate-[fadeInUp_1s_ease-out_both]' : ''}`}
                 >
-                  {callout.text}
+                  {(Array.isArray(guidedMessages) && guidedMessages[i]) || callout.text}
                 </p>
               </div>
             </Html>
@@ -2615,7 +2639,7 @@ function SeamlessBackdrop({
                 style={{ gridArea: 'stack', opacity: 0, willChange: 'opacity' }}
               >
                 <p className="text-xs leading-loose font-extralight" style={{ color: DRP_TEXT_COLOR }}>
-                  {msg.text}
+                  {(Array.isArray(drpGuidedMessages) && drpGuidedMessages[i]) || msg.text}
                 </p>
               </div>
             ))}
@@ -2945,6 +2969,8 @@ function usePinnedProgress(sectionRef, carouselRef, setDetent, introWrapperRef, 
 }
 
 export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDetent, isActive = true, isForceScrollingRef, isFooterSwiping = false }) {
+  const languageContextValue = useLanguage()
+  const { t, language } = languageContextValue
   const sectionRef = useRef(null)
   const simIntroPanelRef = useRef(null)
   const introWrapperRef = useRef(null)
@@ -3180,23 +3206,27 @@ export function BackgroundGlowSection({ carouselRef, onDrpActiveChange, setDeten
           camera={{ position: [0, 0, 8], fov: 35 }}
           gl={{ antialias: true, alpha: false, localClippingEnabled: true }}
         >
-          <SeamlessBackdrop
-            carouselRef={carouselRef}
-            isVisibleRef={isVisibleRef}
-            simIntroProgressRef={simIntroProgressRef}
-            simIntroPanelRef={simIntroPanelRef}
-            pinnedProgressRef={progressRef}
-            panProgressRef={panProgressRef}
-            drpIntroProgressRef={drpIntroProgressRef}
-            hoverProgressRef={hoverProgressRef}
-            revealProgressRef={revealProgressRef}
-            plannerProgressRef={plannerProgressRef}
-            dimRef={dimRef}
-            angryRef={angryRef}
-            isActive={isActive}
-            isForceScrollingRef={isForceScrollingRef}
-          />
-          <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} />
+          <LanguageContext.Provider value={languageContextValue}>
+            <SeamlessBackdrop
+              t={t}
+              language={language}
+              carouselRef={carouselRef}
+              isVisibleRef={isVisibleRef}
+              simIntroProgressRef={simIntroProgressRef}
+              simIntroPanelRef={simIntroPanelRef}
+              pinnedProgressRef={progressRef}
+              panProgressRef={panProgressRef}
+              drpIntroProgressRef={drpIntroProgressRef}
+              hoverProgressRef={hoverProgressRef}
+              revealProgressRef={revealProgressRef}
+              plannerProgressRef={plannerProgressRef}
+              dimRef={dimRef}
+              angryRef={angryRef}
+              isActive={isActive}
+              isForceScrollingRef={isForceScrollingRef}
+            />
+            <SceneRenderGate isVisibleRef={isVisibleRef} isActive={isActive} />
+          </LanguageContext.Provider>
         </Canvas>
 
         {/* Unified Introduction & Floren Showcase Chat Overlay */}

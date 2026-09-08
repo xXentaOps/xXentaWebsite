@@ -11,6 +11,16 @@ function AvatarIcon({ className = 'w-5 h-5 text-white/90' }) {
   )
 }
 
+function HamburgerIcon({ className = 'w-6 h-6 text-white/90' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </svg>
+  )
+}
+
 function TrainingIcon({ className = 'w-6 h-6 text-white' }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -134,19 +144,23 @@ export function NoordhuysAppPanel() {
           />
         </div>
 
-        {/* Right: Noordhuys Logo */}
-        <div style={{ width: 103.04, height: 32, opacity: 0.95 }} className="flex items-center justify-end">
-          <img
-            src="/Noordhuys.svg"
-            alt="Noordhuys"
-            style={{
-              width: 103.04,
-              height: 32,
-              objectFit: 'contain',
-              display: 'block',
-            }}
-          />
-        </div>
+        {/* Right: Minimalistic Hamburger Menu */}
+        <button
+          type="button"
+          className="flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-105 focus:outline-none"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 9999,
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+          }}
+          aria-label="Menu"
+        >
+          <HamburgerIcon className="w-5 h-5 text-white/90" />
+        </button>
       </div>
 
       {/* 2. GREETING HEADER */}

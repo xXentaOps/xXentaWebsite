@@ -76,4 +76,17 @@ describe('LanguageContext and i18n System', () => {
       expect(translations.nl[section], `nl missing ${section}`).toBeDefined()
     }
   })
+
+  it('provides all 5 Floren Showcase guided messages in both English and Dutch', () => {
+    expect(translations.en.simulations.guidedMessages).toHaveLength(5)
+    expect(translations.nl.simulations.guidedMessages).toHaveLength(5)
+
+    expect(translations.en.simulations.guidedMessages[0]).toContain('Every case runs live')
+    expect(translations.nl.simulations.guidedMessages[0]).toContain('Elke casus verloopt live')
+
+    translations.nl.simulations.guidedMessages.forEach((msg, idx) => {
+      expect(typeof msg).toBe('string')
+      expect(msg.length).toBeGreaterThan(10)
+    })
+  })
 })

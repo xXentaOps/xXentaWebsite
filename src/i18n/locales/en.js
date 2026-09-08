@@ -78,6 +78,13 @@ export const en = {
     sideTitleSecond: 'of Retention',
     sideDesc:
       'People retain a fraction of what they read, but internalize skills when navigating live scenarios with real consequence—turning static training into instinctive, real-world mastery.',
+    guidedMessages: [
+      "Every case runs live. Say what you'd actually say, and the room reacts in real time.",
+      'Pull someone aside and the conversation is theirs to keep — private, and different every time.',
+      "The case reacts to what's actually happening to the patient, not to a script. Miss the moment, and it shows.",
+      'Every character in the room, and the room itself, is running live on Gemini.',
+      'Academic skill is only half of it. Calming a terrified relative is a skill too, and nothing here is graded — only practiced.',
+    ],
     chat: {
       room: 'Trauma Bay',
       instructions:
@@ -140,10 +147,17 @@ export const en = {
       { num: '04', title: 'Audit-Ready Syllabus', detail: 'Accredited final document' },
     ],
     scrollExplore: 'Scroll to Explore',
+    guidedMessages: [
+      'We lower the workload by giving teachers their time back—so they can spend it on what technology can never replace: content quality and personal attention for students and professionals.',
+      'You control how much AI is integrated into each of your subjects, plus its level of involvement.',
+      'Drag-and-drop curriculum planning with live workload balancing — ensuring accreditation criteria and student contact hours align effortlessly.',
+      'From pedagogical theory to audit-ready syllabus in seconds — fully formatted with grading rubrics, weekly milestones, and LMS export.',
+    ],
   },
 
   syllabusOverview: {
     title: 'Syllabus Overview',
+    levelPrefix: 'LVL • ',
     courses: [
       { title: 'Entrepreneurial Management', area: 'Business', level: 4, version: 'v.2025-03-31', timeAgo: '4 hours ago', dotColor: '#CC0001', opacity: 0.9 },
       { title: 'International Business', area: 'Commerce', level: 4, version: 'v.2026-01-22', timeAgo: '11 hours ago', dotColor: '#CC0001', opacity: 0.9 },
@@ -183,6 +197,23 @@ export const en = {
       subtitle: "Manage reference materials that guide the AI's behavior and responses.",
       criteria: 'Study Criteria',
       btnNext: 'Next',
+      items: {
+        marketResearch: 'Market Research',
+        financialPlan: 'Creating a Financial Plan for...',
+        formOfEntrepre: 'Choosing a Form of Entrepre...',
+        valuePropo: 'Selection of the Value Propo...',
+        businessModel: 'Building a Business Model',
+        businessNetwork: 'Setting up a Business Network',
+        customerRelations: 'Customer-Business Relations',
+        productSales: 'Product Sales',
+      },
+      impacts: {
+        high: 'high impact',
+        medium: 'medium impact',
+        low: 'low impact',
+      },
+      nothingPlanned: 'Nothing Planned',
+      dragPrompt: 'Drag-and-drop criteria onto this period to fill it.',
     },
     production: {
       heading: 'Syllabus Production',

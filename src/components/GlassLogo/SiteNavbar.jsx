@@ -123,41 +123,42 @@ export function SiteNavbar({
           </span>
         ))}
 
-        {/* Desktop Language Switcher Pill: [ EN | NL ] */}
-        <div
-          className={`ml-2 flex items-center rounded-full border p-0.5 text-[10px] font-medium tracking-wider backdrop-blur-md transition-colors duration-300 ${
-            effectiveDrp
-              ? 'border-black/10 bg-black/5 text-[#2C2C2C]'
-              : 'border-white/10 bg-white/5 text-white/70'
-          }`}
-        >
+        {/* Desktop Language Switcher: EN / NL */}
+        <div className="ml-4 flex items-center gap-1.5 text-xs font-extralight tracking-[0.2em]">
           <button
             type="button"
             onClick={() => setLanguage('en')}
-            className={`cursor-pointer rounded-full px-2 py-0.5 transition-all duration-200 ${
+            className={`cursor-pointer transition-colors duration-200 ${
               language === 'en'
                 ? effectiveDrp
-                  ? 'bg-black/15 text-black font-semibold shadow-xs'
-                  : 'bg-white/20 text-white font-semibold shadow-xs'
+                  ? 'font-normal text-black/80'
+                  : 'font-normal text-[#F8FAFC]/70'
                 : effectiveDrp
-                ? 'text-black/50 hover:text-black/80'
-                : 'text-white/40 hover:text-white/80'
+                ? 'text-black/35 hover:text-black/70'
+                : 'text-[#F8FAFC]/30 hover:text-[#F8FAFC]/60'
             }`}
             aria-label="Switch to English"
           >
             EN
           </button>
+          <span
+            className={`select-none text-[10px] font-thin ${
+              effectiveDrp ? 'text-black/20' : 'text-[#F8FAFC]/20'
+            }`}
+          >
+            /
+          </span>
           <button
             type="button"
             onClick={() => setLanguage('nl')}
-            className={`cursor-pointer rounded-full px-2 py-0.5 transition-all duration-200 ${
+            className={`cursor-pointer transition-colors duration-200 ${
               language === 'nl'
                 ? effectiveDrp
-                  ? 'bg-black/15 text-black font-semibold shadow-xs'
-                  : 'bg-white/20 text-white font-semibold shadow-xs'
+                  ? 'font-normal text-black/80'
+                  : 'font-normal text-[#F8FAFC]/70'
                 : effectiveDrp
-                ? 'text-black/50 hover:text-black/80'
-                : 'text-white/40 hover:text-white/80'
+                ? 'text-black/35 hover:text-black/70'
+                : 'text-[#F8FAFC]/30 hover:text-[#F8FAFC]/60'
             }`}
             aria-label="Schakel naar Nederlands"
           >
@@ -166,43 +167,44 @@ export function SiteNavbar({
         </div>
       </motion.div>
 
-      {/* Mobile-only control row: language pill + hamburger button */}
-      <div className="flex items-center gap-2 md:hidden">
-        {/* Mobile Language Switcher Pill */}
-        <div
-          className={`pointer-events-auto flex items-center rounded-full border p-0.5 text-[10px] font-medium tracking-wider backdrop-blur-md transition-colors duration-300 ${
-            effectiveDrp
-              ? 'border-black/10 bg-black/5 text-[#2C2C2C]'
-              : 'border-white/10 bg-white/5 text-white/70'
-          }`}
-        >
+      {/* Mobile-only control row: language switcher + hamburger button */}
+      <div className="flex items-center gap-3 md:hidden">
+        {/* Mobile Language Switcher */}
+        <div className="pointer-events-auto flex items-center gap-1.5 text-xs font-extralight tracking-[0.2em]">
           <button
             type="button"
             onClick={() => setLanguage('en')}
-            className={`cursor-pointer rounded-full px-2 py-0.5 transition-all duration-200 ${
+            className={`cursor-pointer transition-colors duration-200 ${
               language === 'en'
                 ? effectiveDrp
-                  ? 'bg-black/15 text-black font-semibold shadow-xs'
-                  : 'bg-white/20 text-white font-semibold shadow-xs'
+                  ? 'font-normal text-black/80'
+                  : 'font-normal text-[#F8FAFC]/70'
                 : effectiveDrp
-                ? 'text-black/50 hover:text-black/80'
-                : 'text-white/40 hover:text-white/80'
+                ? 'text-black/35 hover:text-black/70'
+                : 'text-[#F8FAFC]/30 hover:text-[#F8FAFC]/60'
             }`}
             aria-label="Switch to English"
           >
             EN
           </button>
+          <span
+            className={`select-none text-[10px] font-thin ${
+              effectiveDrp ? 'text-black/20' : 'text-[#F8FAFC]/20'
+            }`}
+          >
+            /
+          </span>
           <button
             type="button"
             onClick={() => setLanguage('nl')}
-            className={`cursor-pointer rounded-full px-2 py-0.5 transition-all duration-200 ${
+            className={`cursor-pointer transition-colors duration-200 ${
               language === 'nl'
                 ? effectiveDrp
-                  ? 'bg-black/15 text-black font-semibold shadow-xs'
-                  : 'bg-white/20 text-white font-semibold shadow-xs'
+                  ? 'font-normal text-black/80'
+                  : 'font-normal text-[#F8FAFC]/70'
                 : effectiveDrp
-                ? 'text-black/50 hover:text-black/80'
-                : 'text-white/40 hover:text-white/80'
+                ? 'text-black/35 hover:text-black/70'
+                : 'text-[#F8FAFC]/30 hover:text-[#F8FAFC]/60'
             }`}
             aria-label="Schakel naar Nederlands"
           >

@@ -136,10 +136,11 @@ function PipelineStep({ stepNumber, title, detail, isLast }) {
 }
 
 export const ExamsSyllabiIntroPanel = forwardRef(function ExamsSyllabiIntroPanel(
-  { elementRefs },
+  { elementRefs, t: tProp },
   ref
 ) {
-  const { t } = useLanguage()
+  const { t: contextT } = useLanguage()
+  const t = tProp || contextT
   const pipeline = t('examsSyllabi.pipeline') || []
 
   return (

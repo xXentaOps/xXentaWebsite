@@ -390,10 +390,14 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
     navPlanningRef,
     navProductionRef,
     syllabusProductionViewRef,
+    t: tProp,
+    language: languageProp,
   },
   ref,
 ) {
-  const { t } = useLanguage()
+  const contextLanguageValue = useLanguage()
+  const t = tProp || contextLanguageValue.t
+  const language = languageProp || contextLanguageValue.language || 'en'
   const rawNavItems = t('aiImpact.tabs')
   const navItems = Array.isArray(rawNavItems) ? rawNavItems : DEFAULT_NAV_ITEMS
 
@@ -675,6 +679,7 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
             impactDesc={t('aiImpact.cards.concept.impactDesc') || 'Generative AI can analyze trends, generate creative concepts, and outline the societal impact of ideas at lightning speed.'}
             lowImpactText={t('aiImpact.cards.concept.lowImpact') || 'Low Impact'}
             highImpactText={t('aiImpact.cards.concept.highImpact') || 'High Impact'}
+            placeholderText={t('aiImpact.cards.concept.placeholder') || 'Specify focus for LLM'}
             sliderFillWidth={65}
             thumbLeft={55}
           />
@@ -697,6 +702,8 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
           p11FinancialCardRef={p11FinancialCardRef}
           p11FinancialTitleRef={p11FinancialTitleRef}
           p11FinancialImpactRef={p11FinancialImpactRef}
+          t={t}
+          language={language}
           style={{
             position: 'absolute',
             top: 0,
@@ -709,6 +716,8 @@ export const AiImpactAnalysisPanel = forwardRef(function AiImpactAnalysisPanel(
         {/* Step 4: Syllabus Production View (slides in from the right) */}
         <SyllabusProductionPanel
           ref={syllabusProductionViewRef}
+          t={t}
+          language={language}
           style={{
             position: 'absolute',
             top: 0,

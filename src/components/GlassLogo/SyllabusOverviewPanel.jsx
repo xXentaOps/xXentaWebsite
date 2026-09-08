@@ -131,7 +131,7 @@ function FileIcon({ idSuffix }) {
   )
 }
 
-function CoursePill({ course, index, pillRef }) {
+function CoursePill({ course, index, pillRef, levelPrefix = 'LVL • ' }) {
   return (
     <div
       ref={pillRef}
@@ -170,7 +170,7 @@ function CoursePill({ course, index, pillRef }) {
         }}
       >
         <span style={{ fontFamily: LEVEL_FONT, fontWeight: 700, fontSize: 9.5, lineHeight: '13.5px', letterSpacing: '0.45px', color: TEXT_COLOR }}>
-          LVL • {course.level}
+          {levelPrefix}{course.level}
         </span>
       </div>
       {/* Right-justified group — its own marginRight mirrors the circle's
@@ -264,12 +264,14 @@ function MinimalCursor({ cursorRef, rippleRef }) {
 // scale currently applied, since that anchor is what's centred, not this
 // element's own untransformed layout box.
 export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
-  { pillRefs, titleRef, firstPillRef, cursorRef, cursorRippleRef },
+  { pillRefs, titleRef, firstPillRef, cursorRef, cursorRippleRef, t: tProp },
   ref
 ) {
-  const { t } = useLanguage()
-  const title = t('syllabusOverview.title', 'Syllabus Overview')
-  const courses = t('syllabusOverview.courses', COURSES)
+  const { t: contextT } = useLanguage()
+  const t = tProp || contextT
+  const title = t('syllabusOverview.title') || 'Syllabus Overview'
+  const courses = t('syllabusOverview.courses') || COURSES
+  const levelPrefix = t('syllabusOverview.levelPrefix') || 'LVL • '
 
   return (
     <div
@@ -310,6 +312,7 @@ export const SyllabusOverviewPanel = forwardRef(function SyllabusOverviewPanel(
             key={course.title}
             course={course}
             index={index}
+            levelPrefix={levelPrefix}
             pillRef={(el) => {
               if (index === 0 && firstPillRef) {
                 if (typeof firstPillRef === 'function') firstPillRef(el)

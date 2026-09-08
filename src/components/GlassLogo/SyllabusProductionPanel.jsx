@@ -11,10 +11,11 @@ const BTN_BORDER = '0.5px solid rgba(147, 140, 137, 0.3)'
 const BTN_TEXT = '#E8E6E6'
 
 export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPanel(
-  { style, className = '' },
+  { style, className = '', t: tProp, language: languageProp },
   ref
 ) {
-  const { t } = useLanguage()
+  const { t: contextT } = useLanguage()
+  const t = tProp || contextT
   return (
     <div
       ref={ref}

@@ -105,8 +105,9 @@ function PlannerCursor({ cursorRef, rippleRef }) {
   )
 }
 
-export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style }, ref) {
-  const { t } = useLanguage()
+export const MacroPlannerHeader = forwardRef(function MacroPlannerHeader({ style, t: tProp }, ref) {
+  const { t: contextT } = useLanguage()
+  const t = tProp || contextT
   return (
     <div
       ref={ref}
@@ -335,12 +336,14 @@ export const MacroPlannerContainer = forwardRef(function MacroPlannerContainer(
     criteriaCountRef,
     p12CountRef,
     p11FinancialCardRef,
-p11FinancialTitleRef,
+    p11FinancialTitleRef,
     p11FinancialImpactRef,
+    t: tProp,
   },
   ref
 ) {
-  const { t } = useLanguage()
+  const { t: contextT } = useLanguage()
+  const t = tProp || contextT
 
   return (
     <div
@@ -727,18 +730,30 @@ p11FinancialTitleRef,
                 overflow: 'hidden',
               }}
             >
-              <PeriodItemCard title="Market Research" impact="high impact" />
               <PeriodItemCard
-                title="Creating a Financial Plan for..."
-                impact="medium impact"
+                title={t('aiImpact.planner.items.marketResearch') || 'Market Research'}
+                impact={t('aiImpact.planner.impacts.high') || 'high impact'}
+              />
+              <PeriodItemCard
+                title={t('aiImpact.planner.items.financialPlan') || 'Creating a Financial Plan for...'}
+                impact={t('aiImpact.planner.impacts.medium') || 'medium impact'}
                 isHighlighted={true}
                 cardRef={p11FinancialCardRef}
                 titleRef={p11FinancialTitleRef}
                 impactRef={p11FinancialImpactRef}
               />
-              <PeriodItemCard title="Choosing a Form of Entrepre..." impact="high impact" />
-              <PeriodItemCard title="Selection of the Value Propo..." impact="low impact" />
-              <PeriodItemCard title="Building a Business Model" impact="high impact" />
+              <PeriodItemCard
+                title={t('aiImpact.planner.items.formOfEntrepre') || 'Choosing a Form of Entrepre...'}
+                impact={t('aiImpact.planner.impacts.high') || 'high impact'}
+              />
+              <PeriodItemCard
+                title={t('aiImpact.planner.items.valuePropo') || 'Selection of the Value Propo...'}
+                impact={t('aiImpact.planner.impacts.low') || 'low impact'}
+              />
+              <PeriodItemCard
+                title={t('aiImpact.planner.items.businessModel') || 'Building a Business Model'}
+                impact={t('aiImpact.planner.impacts.high') || 'high impact'}
+              />
             </div>
           </div>
 
@@ -805,9 +820,18 @@ p11FinancialTitleRef,
                 overflow: 'hidden',
               }}
             >
-              <PeriodItemCard title="Setting up a Business Network" impact="high impact" />
-              <PeriodItemCard title="Customer-Business Relations" impact="medium impact" />
-              <PeriodItemCard title="Product Sales" impact="medium impact" />
+              <PeriodItemCard
+                title={t('aiImpact.planner.items.businessNetwork') || 'Setting up a Business Network'}
+                impact={t('aiImpact.planner.impacts.high') || 'high impact'}
+              />
+              <PeriodItemCard
+                title={t('aiImpact.planner.items.customerRelations') || 'Customer-Business Relations'}
+                impact={t('aiImpact.planner.impacts.medium') || 'medium impact'}
+              />
+              <PeriodItemCard
+                title={t('aiImpact.planner.items.productSales') || 'Product Sales'}
+                impact={t('aiImpact.planner.impacts.medium') || 'medium impact'}
+              />
 
               {/* Drop slot dashed outline placeholder */}
               <div
@@ -871,7 +895,7 @@ p11FinancialTitleRef,
                     opacity: 0.8,
                   }}
                 >
-                  {t('aiImpact.cards.concept.highImpact') || 'high impact'}
+                  {t('aiImpact.planner.impacts.high') || t('aiImpact.cards.concept.highImpact') || 'high impact'}
                 </span>
               </div>
             </div>
@@ -953,7 +977,7 @@ p11FinancialTitleRef,
                   marginBottom: 4,
                 }}
               >
-                Nothing Planned
+                {t('aiImpact.planner.nothingPlanned') || 'Nothing Planned'}
               </span>
               <span
                 style={{
@@ -968,7 +992,7 @@ p11FinancialTitleRef,
                   maxWidth: 120,
                 }}
               >
-                Drag-and-drop criteria onto this period to fill it.
+                {t('aiImpact.planner.dragPrompt') || 'Drag-and-drop criteria onto this period to fill it.'}
               </span>
             </div>
           </div>
@@ -995,9 +1019,14 @@ export const MacroPlannerView = forwardRef(function MacroPlannerView(
     p11FinancialCardRef,
     p11FinancialTitleRef,
     p11FinancialImpactRef,
+    t: tProp,
+    language: languageProp,
   },
   ref
 ) {
+  const { t: contextT } = useLanguage()
+  const t = tProp || contextT
+
   return (
     <div
       ref={ref}
@@ -1011,7 +1040,7 @@ export const MacroPlannerView = forwardRef(function MacroPlannerView(
         ...style,
       }}
     >
-      <MacroPlannerHeader ref={headerRef} />
+      <MacroPlannerHeader ref={headerRef} t={t} />
       <MacroPlannerContainer
         ref={containerRef}
         plannerCursorRef={plannerCursorRef}
@@ -1026,6 +1055,7 @@ export const MacroPlannerView = forwardRef(function MacroPlannerView(
         p11FinancialCardRef={p11FinancialCardRef}
         p11FinancialTitleRef={p11FinancialTitleRef}
         p11FinancialImpactRef={p11FinancialImpactRef}
+        t={t}
       />
     </div>
   )
