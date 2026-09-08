@@ -2,9 +2,9 @@ import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
-// Temporary isolated-component preview route: visit ?preview=logo to view
-// the glass logo work in progress without touching the real homepage.
-const isLogoPreview = new URLSearchParams(window.location.search).get('preview') === 'logo'
+// Default to the full xXenta website (GlassLogoPreview). Visit ?preview=cube
+// if you need to inspect the legacy placeholder Three.js cube.
+const isLegacyCube = new URLSearchParams(window.location.search).get('preview') === 'cube'
 
 // Dynamic imports, not static ones — App and GlassLogoPreview pull in
 // entirely separate, unrelated Three.js scenes (App's own placeholder cube
@@ -53,7 +53,7 @@ container.__reactRoot ??= createRoot(container)
 container.__reactRoot.render(
   <StrictMode>
     <LanguageProvider>
-      <Suspense fallback={null}>{isLogoPreview ? <GlassLogoPreview /> : <App />}</Suspense>
+      <Suspense fallback={null}>{isLegacyCube ? <App /> : <GlassLogoPreview />}</Suspense>
     </LanguageProvider>
   </StrictMode>,
 )
