@@ -290,8 +290,8 @@ function ProductionPerformanceChart({ scrollProgress }) {
   const initial = liveStateRef.current
 
   return (
-    <div className="col-span-9 flex flex-col justify-between h-full min-h-0 gap-2">
-      <div className="relative w-full flex-1 min-h-[135px] max-h-[175px]">
+    <div className="col-span-8 lg:col-span-9 flex flex-col justify-between h-full min-h-0 gap-1 sm:gap-2">
+      <div className="relative w-full flex-1 min-h-[110px] sm:min-h-[135px] max-h-[175px]">
         {/* Floating Tooltip when hovering over a day */}
         {hoveredDay !== null && (
           <div
@@ -550,30 +550,30 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
 
       {/* --- Top Header Navigation with authentic Desktop macOS Window controls --- */}
       <header
-        className="w-full h-14 flex items-center justify-between px-6 shrink-0 z-30 relative"
+        className="w-full h-11 sm:h-14 flex items-center justify-between px-3.5 sm:px-6 shrink-0 z-30 relative"
         style={{
-          backgroundColor: 'rgba(47, 50, 59, 0.85)',
+          backgroundColor: 'rgba(47, 50, 59, 0.92)',
           borderBottom: '0.666667px solid #3F3F47',
           backdropFilter: 'blur(12px)',
         }}
       >
         {/* Desktop window controls (macOS traffic lights) + ChoXPro Brand Indicator */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 pr-3 border-r border-white/10">
-            <div className="w-3 h-3 rounded-full bg-[#FF5F56] border border-black/25 shadow-sm" />
-            <div className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-black/25 shadow-sm" />
-            <div className="w-3 h-3 rounded-full bg-[#27C93F] border border-black/25 shadow-sm" />
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-2 pr-2.5 sm:pr-3 border-r border-white/10">
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#FF5F56] border border-black/25 shadow-sm" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#FFBD2E] border border-black/25 shadow-sm" />
+            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#27C93F] border border-black/25 shadow-sm" />
           </div>
-          <div className="flex items-center gap-2.5">
-            <span className="text-sm font-bold tracking-wide text-white">ChoXPro</span>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            <span className="text-xs sm:text-sm font-bold tracking-wide text-white">ChoXPro</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
               {t('noordhuys.dashboard.planning')}
             </span>
           </div>
         </div>
 
-        {/* Centered navigation items */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 w-max">
+        {/* Centered navigation items (desktop) */}
+        <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-1 w-max">
           {[
             { id: 'setupOverview', label: t('noordhuys.dashboard.setupOverview'), icon: OverviewIcon },
             { id: 'planning', label: t('noordhuys.dashboard.planning'), icon: CalendarIcon },
@@ -601,34 +601,45 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
             )
           })}
         </div>
+
+        {/* Mobile compact tabs */}
+        <div className="flex md:hidden items-center gap-1">
+          <span className="text-[10px] font-medium text-[#C27AFF] px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20">
+            {t('noordhuys.dashboard.planning')}
+          </span>
+          <span className="text-[10px] font-medium text-[#9F9FA9] px-1.5 py-0.5">
+            {t('noordhuys.dashboard.liveView')}
+          </span>
+        </div>
+
         {/* Right side status indicator */}
-        <div className="flex items-center gap-2 opacity-60 text-xs text-zinc-400">
+        <div className="flex items-center gap-1.5 opacity-60 text-xs text-zinc-400">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[11px] font-medium tracking-wide">LIVE</span>
+          <span className="text-[10px] sm:text-[11px] font-medium tracking-wide">LIVE</span>
         </div>
       </header>
 
       {/* --- Desktop Content Container --- */}
-      <div className="w-full flex-1 flex flex-col p-6 overflow-hidden z-20">
+      <div className="w-full flex-1 flex flex-col p-3 sm:p-5 lg:p-6 overflow-hidden z-20">
         <div
-          className="w-full flex-1 flex flex-col justify-between gap-3.5 origin-top transition-transform duration-150"
+          className="w-full flex-1 flex flex-col justify-between gap-2.5 sm:gap-3.5 origin-top transition-transform duration-150 overflow-y-auto no-scrollbar"
         >
           {/* Header Row: Title & Week Badge */}
           <div className="flex items-center justify-between w-full shrink-0">
             <h1
-              className="text-xl font-bold text-[#F4F4F5] tracking-tight leading-7"
+              className="text-base sm:text-xl font-bold text-[#F4F4F5] tracking-tight leading-6 sm:leading-7"
               style={{ letterSpacing: '-0.5px' }}
             >
               {t('noordhuys.dashboard.title')}
             </h1>
             <div
-              className="h-7 px-3 rounded-full flex items-center gap-1.5 text-xs font-medium text-[#E4E4E7]"
+              className="h-6 sm:h-7 px-2.5 sm:px-3 rounded-full flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-[#E4E4E7]"
               style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.05)',
                 border: '0.666667px solid rgba(255, 255, 255, 0.1)',
               }}
             >
-              <CalendarIcon className="w-3.5 h-3.5" color="#C27AFF" />
+              <CalendarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" color="#C27AFF" />
               <span>{t('noordhuys.dashboard.week')}</span>
             </div>
           </div>
@@ -636,16 +647,16 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
           {/* --- Card 1: New Task Form --- */}
           <div
             ref={card1Ref}
-            className={`w-full rounded-[14px] p-4.5 flex flex-col gap-3 relative shrink-0 ${openDropdown ? 'z-30' : 'z-10'}`}
+            className={`w-full rounded-[12px] sm:rounded-[14px] p-3 sm:p-4.5 flex flex-col gap-2.5 sm:gap-3 relative shrink-0 ${openDropdown ? 'z-30' : 'z-10'}`}
             style={{
               backgroundColor: 'rgba(47, 50, 59, 0.4)',
               boxShadow: '0px 0px 0px 1px rgba(255, 255, 255, 0.1), 0px 20px 25px -5px rgba(0, 0, 0, 0.1)',
             }}
           >
             {/* Subheader */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3">
               <div
-                className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-[8px] sm:rounded-[10px] flex items-center justify-center shrink-0"
                 style={{
                   backgroundColor: 'rgba(97, 95, 255, 0.2)',
                   boxShadow: '0px 0px 0px 1px rgba(97, 95, 255, 0.3)',
@@ -664,20 +675,20 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                 </svg>
               </div>
               <div className="flex flex-col">
-                <span className="text-base font-bold text-[#F4F4F5] leading-tight">{t('noordhuys.dashboard.newTask')}</span>
-                <span className="text-xs text-[#9F9FA9] leading-tight">{t('noordhuys.dashboard.newTaskSub')}</span>
+                <span className="text-sm sm:text-base font-bold text-[#F4F4F5] leading-tight">{t('noordhuys.dashboard.newTask')}</span>
+                <span className="text-[10px] sm:text-xs text-[#9F9FA9] leading-tight">{t('noordhuys.dashboard.newTaskSub')}</span>
               </div>
             </div>
 
-            {/* Inputs Row (5 desktop columns across) */}
-            <div className="grid grid-cols-5 gap-3 items-end">
+            {/* Inputs Row (2 cols on mobile, 5 desktop columns across) */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 items-end">
               {/* Field: DATE */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
+              <div className="flex flex-col gap-1 sm:gap-1.5">
+                <label className="text-[10px] sm:text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
                   {t('noordhuys.dashboard.date')}
                 </label>
                 <div
-                  className="h-10 px-3 rounded-[8px] flex items-center gap-2 text-sm text-[#E4E4E7]"
+                  className="h-8.5 sm:h-10 px-2.5 sm:px-3 rounded-[8px] flex items-center gap-2 text-xs sm:text-sm text-[#E4E4E7]"
                   style={{
                     backgroundColor: 'rgba(47, 50, 59, 0.5)',
                     border: '0.666667px solid rgba(255, 255, 255, 0.1)',
@@ -689,26 +700,26 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               </div>
 
               {/* Field: STAFF MEMBER */}
-              <div className="flex flex-col gap-1.5 relative">
-                <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
+              <div className="flex flex-col gap-1 sm:gap-1.5 relative">
+                <label className="text-[10px] sm:text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
                   {t('noordhuys.dashboard.staffMember')}
                 </label>
                 <button
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'staff' ? null : 'staff')}
-                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
+                  className="w-full h-8.5 sm:h-10 px-2.5 sm:px-3 rounded-[8px] flex items-center justify-between text-xs sm:text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
                   style={{
                     backgroundColor: 'rgba(47, 50, 59, 0.5)',
                     border: '0.666667px solid rgba(255, 255, 255, 0.1)',
                   }}
                 >
-                  <div className="flex items-center gap-2 truncate min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 truncate min-w-0">
                     <UserIcon className="w-3.5 h-3.5 shrink-0" color="#9F9FA9" />
                     <span className="truncate">{selectedStaff}</span>
                   </div>
                   <ChevronDownIcon
                     className={`w-3.5 h-3.5 shrink-0 ml-1 origin-center transition-transform duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] ${
-                      openDropdown === 'staff' ? 'rotate-0 text-[#F4F4F5]' : '-rotate-90 text-[#9F9FA9]'
+                      openDropdown === 'staff' ? 'rotate-180 text-[#F4F4F5]' : 'rotate-0 text-[#9F9FA9]'
                     }`}
                   />
                 </button>
@@ -725,7 +736,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                         transition: { duration: 0.25, ease: [0.25, 0.1, 0.25, 1] },
                       }}
                       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-                      className="absolute top-full mt-1.5 left-0 right-0 w-full rounded-[10px] p-2 flex flex-col gap-1 z-40 shadow-2xl overflow-hidden origin-top"
+                      className="absolute top-full mt-1.5 left-0 right-0 w-full rounded-[10px] p-2 flex flex-col gap-0.5 z-40 shadow-2xl overflow-hidden origin-top"
                       style={{
                         backgroundColor: 'rgba(47, 50, 59, 0.82)',
                         backdropFilter: 'blur(16px)',
@@ -786,20 +797,20 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               </div>
 
               {/* Field: TASK */}
-              <div className="flex flex-col gap-1.5 relative">
-                <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
+              <div className="flex flex-col gap-1 sm:gap-1.5 relative">
+                <label className="text-[10px] sm:text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
                   {t('noordhuys.dashboard.task')}
                 </label>
                 <button
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'task' ? null : 'task')}
-                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
+                  className="w-full h-8.5 sm:h-10 px-2.5 sm:px-3 rounded-[8px] flex items-center justify-between text-xs sm:text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
                   style={{
                     backgroundColor: 'rgba(47, 50, 59, 0.5)',
                     border: '0.666667px solid rgba(255, 255, 255, 0.1)',
                   }}
                 >
-                  <div className="flex items-center gap-2 truncate min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 truncate min-w-0">
                     <TaskIcon className="w-3.5 h-3.5 shrink-0" color="#9F9FA9" />
                     <span
                       className="px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0"
@@ -815,7 +826,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                   </div>
                   <ChevronDownIcon
                     className={`w-3.5 h-3.5 shrink-0 ml-1 origin-center transition-transform duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] ${
-                      openDropdown === 'task' ? 'rotate-0 text-[#F4F4F5]' : '-rotate-90 text-[#9F9FA9]'
+                      openDropdown === 'task' ? 'rotate-180 text-[#F4F4F5]' : 'rotate-0 text-[#9F9FA9]'
                     }`}
                   />
                 </button>
@@ -881,26 +892,26 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               </div>
 
               {/* Field: LOCATION */}
-              <div className="flex flex-col gap-1.5 relative">
-                <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
+              <div className="flex flex-col gap-1 sm:gap-1.5 relative">
+                <label className="text-[10px] sm:text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
                   {t('noordhuys.dashboard.location')}
                 </label>
                 <button
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'location' ? null : 'location')}
-                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
+                  className="w-full h-8.5 sm:h-10 px-2.5 sm:px-3 rounded-[8px] flex items-center justify-between text-xs sm:text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
                   style={{
                     backgroundColor: 'rgba(47, 50, 59, 0.5)',
                     border: '0.666667px solid rgba(255, 255, 255, 0.1)',
                   }}
                 >
-                  <div className="flex items-center gap-2 truncate min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 truncate min-w-0">
                     <LocationIcon className="w-3.5 h-3.5 shrink-0" color="#9F9FA9" />
                     <span className="truncate">{selectedLocation}</span>
                   </div>
                   <ChevronDownIcon
                     className={`w-3.5 h-3.5 shrink-0 ml-1 origin-center transition-transform duration-300 ease-[cubic-bezier(0.33,1,0.68,1)] ${
-                      openDropdown === 'location' ? 'rotate-0 text-[#F4F4F5]' : '-rotate-90 text-[#9F9FA9]'
+                      openDropdown === 'location' ? 'rotate-180 text-[#F4F4F5]' : 'rotate-0 text-[#9F9FA9]'
                     }`}
                   />
                 </button>
@@ -956,7 +967,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               {/* Action Button: ASSIGN */}
               <button
                 type="button"
-                className="h-10 px-5 rounded-[8px] flex items-center justify-center font-semibold text-sm transition-all duration-200 cursor-pointer active:scale-95"
+                className="h-8.5 sm:h-10 px-4 sm:px-5 rounded-[8px] flex items-center justify-center font-semibold text-xs sm:text-sm transition-all duration-200 cursor-pointer active:scale-95 col-span-2 lg:col-span-1 shadow-md"
                 style={{
                   backgroundColor: 'rgba(97, 95, 255, 0.2)',
                   boxShadow: '0px 0px 0px 0.5px rgba(97, 95, 255, 0.3)',
@@ -970,109 +981,111 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
 
           {/* --- Card 2: Weekly Assignments Table --- */}
           <div
-            className="w-full rounded-[14px] p-4.5 flex flex-col gap-2.5 shrink-0"
+            className="w-full rounded-[12px] sm:rounded-[14px] p-3 sm:p-4.5 flex flex-col gap-2 shrink-0"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               border: '0.666667px solid rgba(255, 255, 255, 0.1)',
             }}
           >
-            <span className="text-sm font-semibold text-[#F4F4F5]">{t('noordhuys.dashboard.weeklyAssignments')}</span>
+            <span className="text-xs sm:text-sm font-semibold text-[#F4F4F5]">{t('noordhuys.dashboard.weeklyAssignments')}</span>
 
             <div
-              className="w-full rounded-lg overflow-hidden"
+              className="w-full rounded-lg overflow-x-auto no-scrollbar"
               style={{ border: '0.666667px solid rgba(255, 255, 255, 0.1)' }}
             >
-              {/* Table Header */}
-              <div
-                className="grid grid-cols-12 px-3.5 h-9 items-center text-xs font-medium text-[#9F9FA9]"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  borderBottom: '0.666667px solid rgba(255, 255, 255, 0.1)',
-                }}
-              >
-                <div className="col-span-2">{t('noordhuys.dashboard.colDate')}</div>
-                <div className="col-span-3">{t('noordhuys.dashboard.colStaff')}</div>
-                <div className="col-span-3">{t('noordhuys.dashboard.colTask')}</div>
-                <div className="col-span-3">{t('noordhuys.dashboard.colLocation')}</div>
-                <div className="col-span-1 text-right">{t('noordhuys.dashboard.colAction')}</div>
-              </div>
+              <div className="min-w-[420px] lg:min-w-0">
+                {/* Table Header */}
+                <div
+                  className="grid grid-cols-12 px-3 sm:px-3.5 h-7.5 sm:h-9 items-center text-[10px] sm:text-xs font-medium text-[#9F9FA9]"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    borderBottom: '0.666667px solid rgba(255, 255, 255, 0.1)',
+                  }}
+                >
+                  <div className="col-span-2">{t('noordhuys.dashboard.colDate')}</div>
+                  <div className="col-span-3">{t('noordhuys.dashboard.colStaff')}</div>
+                  <div className="col-span-3">{t('noordhuys.dashboard.colTask')}</div>
+                  <div className="col-span-3">{t('noordhuys.dashboard.colLocation')}</div>
+                  <div className="col-span-1 text-right">{t('noordhuys.dashboard.colAction')}</div>
+                </div>
 
-              {/* Row 1: Mehmet Kaya */}
-              <div
-                className="grid grid-cols-12 px-3.5 py-3 items-center text-xs gap-2"
-                style={{
-                  borderBottom: '0.666667px solid rgba(255, 255, 255, 0.06)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                }}
-              >
-                <div className="col-span-2 flex items-center gap-2 text-[#A1A1A1]">
-                  <CalendarIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span>{t('noordhuys.dashboard.sampleRow1Date')}</span>
+                {/* Row 1: Mehmet Kaya */}
+                <div
+                  className="grid grid-cols-12 px-3 sm:px-3.5 py-2 sm:py-3 items-center text-[11px] sm:text-xs gap-1 sm:gap-2"
+                  style={{
+                    borderBottom: '0.666667px solid rgba(255, 255, 255, 0.06)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                  }}
+                >
+                  <div className="col-span-2 flex items-center gap-1.5 sm:gap-2 text-[#A1A1A1]">
+                    <CalendarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" color="#9F9FA9" />
+                    <span className="truncate">{t('noordhuys.dashboard.sampleRow1Date')}</span>
+                  </div>
+                  <div className="col-span-3 flex items-center gap-1.5 sm:gap-2 text-[#D4D4D8]">
+                    <UserIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" color="#9F9FA9" />
+                    <span className="font-medium truncate">Mehmet Kaya</span>
+                  </div>
+                  <div className="col-span-3">
+                    <span
+                      className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-lg text-[10px] sm:text-xs font-medium text-[#A3B3FF] truncate max-w-full"
+                      style={{
+                        backgroundColor: 'rgba(97, 95, 255, 0.2)',
+                        border: '0.666667px solid rgba(97, 95, 255, 0.3)',
+                      }}
+                    >
+                      {t('noordhuys.dashboard.tasks.maintenance')} (M002)
+                    </span>
+                  </div>
+                  <div className="col-span-3 flex items-center gap-1.5 sm:gap-2 text-[#D4D4D8]">
+                    <LocationIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" color="#9F9FA9" />
+                    <span className="truncate">{t('noordhuys.dashboard.locations.gh')}</span>
+                  </div>
+                  <div className="col-span-1 flex items-center justify-end">
+                    <button
+                      type="button"
+                      className="w-6 h-6 rounded-md flex items-center justify-center cursor-pointer hover:bg-white/10 text-[#9F9FA9] transition-colors"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="col-span-3 flex items-center gap-2 text-[#D4D4D8]">
-                  <UserIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span className="font-medium">Mehmet Kaya</span>
-                </div>
-                <div className="col-span-3">
-                  <span
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium text-[#A3B3FF]"
-                    style={{
-                      backgroundColor: 'rgba(97, 95, 255, 0.2)',
-                      border: '0.666667px solid rgba(97, 95, 255, 0.3)',
-                    }}
-                  >
-                    {t('noordhuys.dashboard.tasks.maintenance')} (M002)
-                  </span>
-                </div>
-                <div className="col-span-3 flex items-center gap-2 text-[#D4D4D8]">
-                  <LocationIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span>{t('noordhuys.dashboard.locations.gh')}</span>
-                </div>
-                <div className="col-span-1 flex items-center justify-end">
-                  <button
-                    type="button"
-                    className="w-6 h-6 rounded-md flex items-center justify-center cursor-pointer hover:bg-white/10 text-[#9F9FA9] transition-colors"
-                  >
-                    <TrashIcon className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
 
-              {/* Row 2: Ayşe Demir */}
-              <div
-                className="grid grid-cols-12 px-3.5 py-3 items-center text-xs gap-2"
-                style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}
-              >
-                <div className="col-span-2 flex items-center gap-2 text-[#A1A1A1]">
-                  <CalendarIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span>{t('noordhuys.dashboard.sampleRow2Date')}</span>
-                </div>
-                <div className="col-span-3 flex items-center gap-2 text-[#D4D4D8]">
-                  <UserIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span className="font-medium">Ayşe Demir</span>
-                </div>
-                <div className="col-span-3">
-                  <span
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium text-[#A3B3FF]"
-                    style={{
-                      backgroundColor: 'rgba(97, 95, 255, 0.2)',
-                      border: '0.666667px solid rgba(97, 95, 255, 0.3)',
-                    }}
-                  >
-                    {t('noordhuys.dashboard.tasks.packaging')} (P001)
-                  </span>
-                </div>
-                <div className="col-span-3 flex items-center gap-2 text-[#D4D4D8]">
-                  <LocationIcon className="w-3.5 h-3.5" color="#9F9FA9" />
-                  <span>{t('noordhuys.dashboard.locations.packFac')}</span>
-                </div>
-                <div className="col-span-1 flex items-center justify-end">
-                  <button
-                    type="button"
-                    className="w-6 h-6 rounded-md flex items-center justify-center cursor-pointer hover:bg-white/10 text-[#9F9FA9] transition-colors"
-                  >
-                    <TrashIcon className="w-3.5 h-3.5" />
-                  </button>
+                {/* Row 2: Ayşe Demir */}
+                <div
+                  className="grid grid-cols-12 px-3 sm:px-3.5 py-2 sm:py-3 items-center text-[11px] sm:text-xs gap-1 sm:gap-2"
+                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}
+                >
+                  <div className="col-span-2 flex items-center gap-1.5 sm:gap-2 text-[#A1A1A1]">
+                    <CalendarIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" color="#9F9FA9" />
+                    <span className="truncate">{t('noordhuys.dashboard.sampleRow2Date')}</span>
+                  </div>
+                  <div className="col-span-3 flex items-center gap-1.5 sm:gap-2 text-[#D4D4D8]">
+                    <UserIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" color="#9F9FA9" />
+                    <span className="font-medium truncate">Ayşe Demir</span>
+                  </div>
+                  <div className="col-span-3">
+                    <span
+                      className="inline-flex items-center px-1.5 sm:px-2.5 py-0.5 rounded-lg text-[10px] sm:text-xs font-medium text-[#A3B3FF] truncate max-w-full"
+                      style={{
+                        backgroundColor: 'rgba(97, 95, 255, 0.2)',
+                        border: '0.666667px solid rgba(97, 95, 255, 0.3)',
+                      }}
+                    >
+                      {t('noordhuys.dashboard.tasks.packaging')} (P001)
+                    </span>
+                  </div>
+                  <div className="col-span-3 flex items-center gap-1.5 sm:gap-2 text-[#D4D4D8]">
+                    <LocationIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" color="#9F9FA9" />
+                    <span className="truncate">{t('noordhuys.dashboard.locations.packFac')}</span>
+                  </div>
+                  <div className="col-span-1 flex items-center justify-end">
+                    <button
+                      type="button"
+                      className="w-6 h-6 rounded-md flex items-center justify-center cursor-pointer hover:bg-white/10 text-[#9F9FA9] transition-colors"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1080,29 +1093,29 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
 
           {/* --- Card 3: Production Performance --- */}
           <div
-            className="w-full rounded-[14px] p-4.5 flex flex-col gap-2.5 flex-1 min-h-0 justify-between"
+            className="w-full rounded-[12px] sm:rounded-[14px] p-3 sm:p-4.5 flex flex-col gap-2 flex-1 min-h-0 justify-between shrink-0"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               border: '0.666667px solid rgba(255, 255, 255, 0.1)',
             }}
           >
-            <span className="text-sm font-semibold text-[#F4F4F5] shrink-0">{t('noordhuys.dashboard.productionPerf')}</span>
+            <span className="text-xs sm:text-sm font-semibold text-[#F4F4F5] shrink-0">{t('noordhuys.dashboard.productionPerf')}</span>
 
-            <div className="grid grid-cols-12 gap-5 items-center flex-1 min-h-0">
+            <div className="grid grid-cols-12 gap-3 sm:gap-5 items-center flex-1 min-h-0">
               {/* Left Column: Productivity Area Chart with Scroll-Driven Dynamic Curves & Tooltip */}
               <ProductionPerformanceChart scrollProgress={scrollProgress} />
 
               {/* Right Column: Storage Space Donut Chart */}
               <div
-                className="col-span-3 flex flex-col items-center justify-center gap-2 border-l border-white/10 pl-5 py-1"
+                className="col-span-4 lg:col-span-3 flex flex-col items-center justify-center gap-1 sm:gap-2 border-l border-white/10 pl-2 sm:pl-5 py-1"
               >
-                <div className="flex items-center gap-2 self-start text-xs text-[#D4D4D8]">
-                  <HardDriveIcon className="w-3.5 h-3.5" color="#71717B" />
-                  <span className="font-medium">{t('noordhuys.dashboard.storageSpace')}</span>
+                <div className="flex items-center gap-1.5 self-start text-[10px] sm:text-xs text-[#D4D4D8]">
+                  <HardDriveIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" color="#71717B" />
+                  <span className="font-medium truncate">{t('noordhuys.dashboard.storageSpace')}</span>
                 </div>
 
                 {/* Donut Gauge */}
-                <div className="relative w-34 h-34 flex items-center justify-center my-0.5">
+                <div className="relative w-20 h-20 sm:w-28 sm:h-28 lg:w-34 lg:h-34 flex items-center justify-center my-0.5">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                     {/* Background Track */}
                     <circle
@@ -1113,7 +1126,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                       stroke="rgba(255, 255, 255, 0.1)"
                       strokeWidth="9"
                     />
-                    {/* Progress Arc: 78% of 2 * PI * 40 (approx 251.3) => strokeDasharray: 196, 252 */}
+                    {/* Progress Arc: 78% */}
                     <circle
                       cx="50"
                       cy="50"
@@ -1126,13 +1139,13 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-bold text-[#F4F4F5] leading-none" style={{ fontFamily: "'Inter', sans-serif" }}>
+                    <span className="text-base sm:text-2xl font-bold text-[#F4F4F5] leading-none" style={{ fontFamily: "'Inter', sans-serif" }}>
                       78%
                     </span>
                   </div>
                 </div>
 
-                <span className="text-[11px] text-[#9F9FA9] font-medium" style={{ fontFamily: "'Inter', sans-serif" }}>
+                <span className="text-[9px] sm:text-[11px] text-[#9F9FA9] font-medium text-center" style={{ fontFamily: "'Inter', sans-serif" }}>
                   {t('noordhuys.dashboard.used')}
                 </span>
               </div>

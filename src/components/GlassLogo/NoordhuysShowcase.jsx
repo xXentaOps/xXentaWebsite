@@ -325,19 +325,28 @@ function NoordhuysBackdrop({
       const zoomFactor = nextScale / finalZoomScale
       const marginPx = Math.max(24, (PAGE_MARGIN_VH / 100) * size.height)
       const maxAvailableWidth = Math.max(400, size.width - marginPx - 460)
-      // On mobile, size ChoXPro so the full desktop app window fits cleanly on screen
-      const choxScale = isMobile
-        ? Math.min(0.38, Math.max(0.28, (size.width - 24) / CHOX_DESIGN_WIDTH))
-        : Math.min(1, maxAvailableHeight / CHOX_DESIGN_HEIGHT, (0.96 * maxAvailableWidth) / CHOX_DESIGN_WIDTH)
-      const choxWidthPx = CHOX_DESIGN_WIDTH * choxScale
-      const choxScreenCenterX = isMobile ? size.width / 2 : (size.width - marginPx) - choxWidthPx / 2
-      const finalChoxDeltaX = choxScreenCenterX - size.width / 2
+      const maxAvailableHeight = Math.max(300, size.height - 2 * marginPx)
 
-      const currentDeltaX = finalChoxDeltaX * zoomFactor
-      currentChoxScale = choxScale * zoomFactor
-      const currentChoxDeltaY = isMobile ? Math.min(45, Math.max(25, size.height * 0.05)) : 0
+      if (isMobile) {
+        currentChoxScale = zoomFactor
+        const currentDeltaY = Math.min(35, Math.max(15, size.height * 0.035))
+        choxRef.current.style.width = 'calc(100vw - 24px)'
+        choxRef.current.style.maxWidth = '430px'
+        choxRef.current.style.height = `${Math.min(560, Math.max(460, size.height - 180))}px`
+        choxRef.current.style.transform = `translate3d(0, ${currentDeltaY}px, 0) scale(${currentChoxScale})`
+      } else {
+        const choxScale = Math.min(1, maxAvailableHeight / CHOX_DESIGN_HEIGHT, (0.96 * maxAvailableWidth) / CHOX_DESIGN_WIDTH)
+        const choxWidthPx = CHOX_DESIGN_WIDTH * choxScale
+        const choxScreenCenterX = (size.width - marginPx) - choxWidthPx / 2
+        const finalChoxDeltaX = choxScreenCenterX - size.width / 2
 
-      choxRef.current.style.transform = `translate3d(${currentDeltaX}px, ${currentChoxDeltaY}px, 0) scale(${currentChoxScale})`
+        const currentDeltaX = finalChoxDeltaX * zoomFactor
+        currentChoxScale = choxScale * zoomFactor
+        choxRef.current.style.width = `${CHOX_DESIGN_WIDTH}px`
+        choxRef.current.style.maxWidth = 'none'
+        choxRef.current.style.height = `${CHOX_DESIGN_HEIGHT}px`
+        choxRef.current.style.transform = `translate3d(${currentDeltaX}px, 0, 0) scale(${currentChoxScale})`
+      }
     }
 
     // Keep ChoXPro Row Tracking context block scrolling in lockstep with the background grid
@@ -651,7 +660,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
 
   const initialChoxBaseScale = typeof window !== 'undefined'
     ? isMobile
-      ? Math.min(0.38, Math.max(0.28, (window.innerWidth - 24) / CHOX_DESIGN_WIDTH))
+      ? 1
       : Math.min(
           1,
           Math.max(300, window.innerHeight - 2 * initialMargin) / CHOX_DESIGN_HEIGHT,
@@ -663,7 +672,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
       ? 0
       : ((window.innerWidth - initialMargin) - (CHOX_DESIGN_WIDTH * initialChoxBaseScale) / 2) - window.innerWidth / 2
     : 0
-  const initialChoxDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(45, Math.max(25, window.innerHeight * 0.05)) : 0
+  const initialChoxDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(35, Math.max(15, window.innerHeight * 0.035)) : 0
 
   return (
     <section ref={sectionRef} className="relative w-full bg-[#0F172B]" style={{ height: `${SECTION_VH}vh` }}>
@@ -828,8 +837,9 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
               data-lenis-prevent-touch
               className="transform-gpu relative flex items-center justify-center pointer-events-auto"
               style={{
-                width: CHOX_DESIGN_WIDTH,
-                height: CHOX_DESIGN_HEIGHT,
+                width: isMobile ? 'calc(100vw - 24px)' : CHOX_DESIGN_WIDTH,
+                maxWidth: isMobile ? '430px' : 'none',
+                height: isMobile ? 'min(560px, calc(100vh - 180px))' : CHOX_DESIGN_HEIGHT,
                 transform: `translate3d(${initialChoxDeltaX}px, ${initialChoxDeltaY}px, 0) scale(${initialChoxBaseScale})`,
                 transformOrigin: 'center center',
               }}
