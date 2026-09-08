@@ -1484,6 +1484,8 @@ export const AboutUsSection = forwardRef(function AboutUsSection(
         selectedIndex={selectedMember}
         onSelect={setSelectedMember}
         nameIconAnchorRef={setNameIconAnchorNode}
+        onTeamPrev={teamPrev}
+        onTeamNext={teamNext}
       />
       {SHOW_GRID_LINES && <GridAlignmentOverlay gridMetricsRef={gridMetricsRef} />}
 

@@ -6,6 +6,7 @@ import { aboutUsGridMetrics, getAboutUsZoomScale } from './aboutUsGridCells'
 import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
 import { TEAM_MEMBERS } from './teamData'
 import { GRID_SPEED, mainSlidePx, teamContentSlidePx } from './teamTransition'
+import { useSwipe } from './useSwipe'
 
 // The seven member photos, each filling exactly one square of the existing
 // background grid, in a staggered block five columns wide by three rows
@@ -267,6 +268,83 @@ const NAME_LABEL_TRANSITION = { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
 // off its square once the slide landed. Folding the same travel in here is
 // what makes them land *on* the squares instead.
 export function computeLayout(width, height) {
+  const isMobile = width < 768
+  if (isMobile) {
+    const margin = 20
+    const availableWidth = width - margin * 2
+    const cols = 3
+    const gap = 8
+    const mobileCell = Math.min(108, Math.floor((availableWidth - (cols - 1) * gap) / cols))
+    const gridW = cols * mobileCell + (cols - 1) * gap
+    const originX = Math.round((width - gridW) / 2)
+
+    // Sizing detail mode on mobile: centered photo on top
+    const detailSize = Math.min(220, Math.round(width * 0.52))
+    const detailLeft = Math.round((width - detailSize) / 2)
+    const detailTop = Math.max(68, Math.round(height * 0.08))
+
+    // Name + rule + bio panel sits below detail photo
+    const panelTop = detailTop + detailSize + 14
+    const panelHeight = Math.max(140, height - panelTop - 68)
+
+    // 7 members layout: 3 on row 0, 3 on row 1, 1 centered on row 2
+    const mobileTiles = [
+      { left: originX, top: 0 },
+      { left: originX + 1 * (mobileCell + gap), top: 0 },
+      { left: originX + 2 * (mobileCell + gap), top: 0 },
+      { left: originX, top: 1 * (mobileCell + gap) },
+      { left: originX + 1 * (mobileCell + gap), top: 1 * (mobileCell + gap) },
+      { left: originX + 2 * (mobileCell + gap), top: 1 * (mobileCell + gap) },
+      { left: originX + 1 * (mobileCell + gap), top: 2 * (mobileCell + gap) },
+    ]
+
+    const gridH = 3 * mobileCell + 2 * gap
+    const arrowsH = 44
+    const arrowsMt = 28
+    const titleH = 32
+    const totalOverviewH = titleH + 12 + gridH + arrowsMt + arrowsH
+    const gridOriginY = Math.max(76, Math.round((height - totalOverviewH) / 2) + titleH + 12)
+
+    const positionedTiles = mobileTiles.map((t) => ({
+      left: t.left,
+      top: gridOriginY + t.top,
+    }))
+
+    return {
+      cell: mobileCell,
+      isMobile: true,
+      origin: { x: originX, y: gridOriginY },
+      tiles: positionedTiles,
+      decorativeSquares: [],
+      titleWords: [
+        {
+          text: 'Board',
+          left: originX,
+          top: gridOriginY - 40,
+        },
+        {
+          text: 'Members',
+          left: originX + 56,
+          top: gridOriginY - 40,
+        },
+      ],
+      detail: {
+        left: detailLeft,
+        top: detailTop,
+        size: detailSize,
+      },
+      nameBox: {
+        left: margin,
+        top: panelTop,
+        width: availableWidth,
+      },
+      textBox: {
+        width: availableWidth,
+      },
+      panelHeight,
+    }
+  }
+
   const settled = aboutUsGridMetrics(width, height)
   const { cell } = settled
   const wrap = (value) => ((value % cell) + cell) % cell
@@ -292,6 +370,7 @@ export function computeLayout(width, height) {
 
   return {
     cell,
+    isMobile: false,
     // The grid's own origin in this same CSS-px space — exposed so a caller
     // can invert the col/row math above (which cell a given px point falls
     // in), rather than every consumer needing its own copy of column/row/
@@ -360,7 +439,15 @@ export function computeLayout(width, height) {
 // selectedIndex is owned by AboutUsSection rather than here, because the
 // arrows that walk through it live in AboutUsIntro — three components need
 // to agree on it, so it sits in the one place that already renders both.
-export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSelect, nameIconAnchorRef }) {
+export function MeetTheTeamGrid({
+  teamProgress,
+  isTeamOpen,
+  selectedIndex,
+  onSelect,
+  nameIconAnchorRef,
+  onTeamPrev,
+  onTeamNext,
+}) {
   const { t } = useLanguage()
   const [layout, setLayout] = useState(() => computeLayout(window.innerWidth, window.innerHeight))
 
@@ -370,6 +457,18 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
     window.addEventListener('resize', relayout)
     return () => window.removeEventListener('resize', relayout)
   }, [])
+
+  useSwipe({
+    enabled: isTeamOpen,
+    onSwipeLeft: () => {
+      if (selectedIndex != null) {
+        onTeamNext?.()
+      }
+    },
+    onSwipeRight: () => {
+      onTeamPrev?.()
+    },
+  })
 
   const x = useTransform(teamProgress, (p) => teamContentSlidePx(p, window.innerWidth))
   const display = useTransform(teamProgress, (p) => (p > 0.001 || isTeamOpen ? 'block' : 'none'))
@@ -517,14 +616,14 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
         aria-hidden
         className="absolute font-normal text-[#F8FAFC]"
         style={{
-          left: layout.titleWords[0].left + MEMBERS_OFFSET_X_PX,
-          top: layout.titleWords[0].top + layout.cell + MEMBERS_OFFSET_Y_PX,
-          fontSize: window.innerHeight * MEMBERS_FONT_FRACTION,
-          letterSpacing: `${window.innerHeight * MEMBERS_FONT_FRACTION * -0.03}px`,
+          left: layout.isMobile ? '50%' : layout.titleWords[0].left + MEMBERS_OFFSET_X_PX,
+          top: layout.isMobile ? layout.titleWords[0].top : layout.titleWords[0].top + layout.cell + MEMBERS_OFFSET_Y_PX,
+          fontSize: layout.isMobile ? Math.min(layout.cell * 0.45, 42) : window.innerHeight * MEMBERS_FONT_FRACTION,
+          letterSpacing: `${(layout.isMobile ? Math.min(layout.cell * 0.45, 42) : window.innerHeight * MEMBERS_FONT_FRACTION) * -0.03}px`,
           lineHeight: 1,
           opacity: membersOpacity,
-          filter: `blur(${MEMBERS_BLUR_PX}px)`,
-          transform: 'translateZ(0)',
+          filter: `blur(${layout.isMobile ? 2 : MEMBERS_BLUR_PX}px)`,
+          transform: layout.isMobile ? 'translateX(-50%) translateZ(0)' : 'translateZ(0)',
           willChange: 'transform, opacity',
         }}
       >
@@ -629,6 +728,13 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
                 loading="eager"
                 className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
               />
+              {!isDetail && layout.isMobile && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-1 pt-3 text-center">
+                  <p className="truncate text-[10px] font-light tracking-wider text-white/90">
+                    {splitName(member.name).first}
+                  </p>
+                </div>
+              )}
             </motion.button>
             {/* The name, below its own square — only while in the grid
                 (never during a detail view, where the tile itself is
@@ -739,8 +845,8 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
     setBioOverflows(el.scrollHeight > el.clientHeight + 1)
     const nameHeight = nameRef.current ? nameRef.current.getBoundingClientRect().height : 0
     const nameTop = Math.max(0, (layout.cell - nameHeight) / 2)
-    setNameTopOffset(nameTop)
-    setRuleTopOffset(layout.cell - nameTop - nameHeight - RULE_GRID_LINE_ALIGN_PX)
+    setNameTopOffset(layout.isMobile ? 0 : nameTop)
+    setRuleTopOffset(layout.isMobile ? 8 : (layout.cell - nameTop - nameHeight - RULE_GRID_LINE_ALIGN_PX))
 
     const updateScrollState = () => {
       setScrollState({
@@ -751,7 +857,7 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
     updateScrollState()
     el.addEventListener('scroll', updateScrollState)
     return () => el.removeEventListener('scroll', updateScrollState)
-  }, [layout.cell, layout.panelHeight, layout.textBox.width, bioRef])
+  }, [layout.cell, layout.panelHeight, layout.textBox.width, layout.isMobile, bioRef])
 
   return (
     // flex column, bounded to panelHeight: makes the bio block below
@@ -815,10 +921,10 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
               it uses for "New Way of" and the switching Learning/Managing/
               Growing word alike, so the name picks up the Hero's own voice
               rather than the page's usual white/90. */}
-          <p className="min-w-0 break-words text-[64px] leading-[1.1] font-bold text-[#F8FAFC]">{first}</p>
+          <p className="min-w-0 break-words text-[28px] sm:text-[38px] md:text-[64px] leading-[1.08] font-bold text-[#F8FAFC]">{first}</p>
           {/* "A little bigger" than the first name — one step up, same
               weight/color, not a different voice. */}
-          <p className="min-w-0 break-words text-[78px] leading-[1.1] font-bold text-[#F8FAFC]">{last}</p>
+          <p className="min-w-0 break-words text-[32px] sm:text-[44px] md:text-[78px] leading-[1.08] font-bold text-[#F8FAFC]">{last}</p>
         </div>
         {/* A near-zero-size marker, not the icon itself — the icon is a
             real 3D glass object drawn in AboutUsSection's own WebGL canvas
@@ -895,9 +1001,10 @@ function MemberDetailPanel({ member, layout, bioScrollRef, nameIconAnchorRef }) 
           composite for no visible effect). */}
       <div
         ref={bioRef}
-        className="bio-scrollbar mt-3 min-h-0 flex-1 overflow-y-auto pointer-events-auto"
+        className="bio-scrollbar mt-3 min-h-0 flex-1 overflow-y-auto pointer-events-auto touch-pan-y"
         style={{
           width: layout.textBox.width,
+          WebkitOverflowScrolling: 'touch',
           '--scrollbar-thickness': `${RULE_THICKNESS_PX}px`,
           ...(bioOverflows
             ? {

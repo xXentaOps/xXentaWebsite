@@ -1024,14 +1024,62 @@ export default function GlassLogoPreview() {
       lock()
     }
 
+    let touchStartX = 0
+    let touchStartY = 0
+    let touchStartTime = 0
+
+    function onTouchStart(e) {
+      if (e.touches.length !== 1) return
+      const t = e.touches[0]
+      touchStartX = t.clientX
+      touchStartY = t.clientY
+      touchStartTime = Date.now()
+    }
+
+    function onTouchEnd(e) {
+      if (e.changedTouches.length !== 1) return
+      if (isContactOpenRef.current || isSecurityOpenRef.current || isFooterSwipingRef.current) return
+
+      const t = e.changedTouches[0]
+      const dx = t.clientX - touchStartX
+      const dy = t.clientY - touchStartY
+      const duration = Date.now() - touchStartTime
+
+      if (duration > 700) return
+      const absX = Math.abs(dx)
+      const absY = Math.abs(dy)
+
+      // Vertical swipe dominance
+      if (absY < 50 || absY < absX * 1.3) return
+
+      // Swiping DOWN from the top of the hero (dy > 0): opens About Us
+      if (dy > 0 && !isOpenNow && !isLocked) {
+        if (getTargetScroll() <= TOP_EPSILON_PX && (typeof window !== 'undefined' ? window.scrollY <= 10 : true)) {
+          open()
+        }
+      }
+      // Swiping UP while About Us is open (dy < 0): dismisses About Us back to Hero
+      else if (dy < 0 && isOpenNow) {
+        const target = e.target
+        const isOverScrollable = Boolean(target?.closest?.('.bio-scrollbar, [data-about-text-box], [data-scrollable="true"]'))
+        if (!isOverScrollable && !aboutUsSectionRef.current?.isTeamOpen()) {
+          dismiss()
+        }
+      }
+    }
+
     lockApiRef.current = { open, dismiss, lock, unlock, enterAboutUs }
     window.addEventListener('wheel', onWheel, { passive: true })
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchend', onTouchEnd, { passive: true })
     return () => {
       window.removeEventListener('wheel', onWheel)
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchend', onTouchEnd)
       clearTimeout(gestureTimer)
       clearTimeout(fallbackTimer)
       clearTimeout(closeHoldCeiling)

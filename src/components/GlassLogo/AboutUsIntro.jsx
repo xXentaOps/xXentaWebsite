@@ -7,6 +7,7 @@ import { computeLayout } from './MeetTheTeamGrid'
 import { SLIDES } from './aboutUsSlides'
 import { AboutUsStats } from './AboutUsStats'
 import { pageMarginPx } from './pageMargin'
+import { useSwipe } from './useSwipe'
 // Which grid squares this page's content sits on — its own module now that
 // AboutUsSection's canvas needs the same answers to put its ambient squares
 // on the stats' own cells. See that file's own comment.
@@ -392,6 +393,20 @@ export function AboutUsIntro({
   const nextTargetFrom = () => pendingIndexRef.current ?? slideIndexRef.current
   const goPrev = () => startTransition(Math.max(0, nextTargetFrom() - 1))
   const goNext = () => startTransition(Math.min(SLIDES.length - 1, nextTargetFrom() + 1))
+
+  useSwipe({
+    enabled: isOpen && !isTeamOpen,
+    onSwipeLeft: () => {
+      if (showMeetButton) {
+        onOpenTeam?.()
+      } else {
+        goNext()
+      }
+    },
+    onSwipeRight: () => {
+      goPrev()
+    },
+  })
 
   // Bubbles the current slide's photo up — same "report state, don't lift
   // it" shape as BackgroundGrid's own onActiveIndexChange — so AboutUsSection
