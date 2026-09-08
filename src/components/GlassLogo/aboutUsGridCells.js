@@ -48,8 +48,8 @@ export const CIRCLE_SIZE = 220
 // grid cells and centering the composition with balanced top and bottom margins.
 export function getAboutUsZoomScale(width, height) {
   if (width < 768) return ABOUT_US_GRID_ZOOM_SCALE * 0.5
-  // Juliana's desktop baseline (1920x1080 or large displays): preserve 1.25 (200px cells)
-  if (width >= 1500 && height >= 950) return ABOUT_US_GRID_ZOOM_SCALE
+  // Desktop baseline (1920x1080 desktop/laptop displays with browser chrome, or large displays): preserve 1.25 (200px cells)
+  if (width >= 1400 && height >= 820) return ABOUT_US_GRID_ZOOM_SCALE
 
   const margin = pageMarginPx(height)
   // Need at least 8.5 cells between margins (3 for stats, 1 column gap, 4 for photo, 0.5 safe margin)

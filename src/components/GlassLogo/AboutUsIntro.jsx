@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useTransform } from 'framer-motion'
 import { useLanguage } from '../../context/LanguageContext'
 import { MAIN_SLIDE_VW, mainSlidePx } from './teamTransition'
 import { CornerBrackets } from './CornerBrackets'
+import { computeLayout } from './MeetTheTeamGrid'
 import { SLIDES } from './aboutUsSlides'
 import { AboutUsStats } from './AboutUsStats'
 import { pageMarginPx } from './pageMargin'
@@ -163,6 +164,8 @@ export function AboutUsIntro({
   // reading it re-evaluates on every frame of the slide anyway, and this
   // changing should never itself cost a render.
   const arrowRestCenterRef = useRef(null)
+  const arrowTargetCenterRef = useRef(null)
+  const arrowTargetYOffsetRef = useRef(0)
 
   // The About Us -> Meet the Team slide, DOM side. teamProgress is already
   // eased (see teamTransition), so both of these are plain linear functions
@@ -170,21 +173,31 @@ export function AboutUsIntro({
   //
   // mainX moves everything in this subtree off to the left together.
   const mainX = useTransform(teamProgress, (p) => mainSlidePx(p, window.innerWidth))
-  // The arrows are the exception: they stop at the middle of the screen
-  // rather than leaving with everything else. They live *inside* the sliding
-  // subtree (nested under the photo block, so they stay put relative to the
-  // window at rest), which means this has to be the offset that *cancels*
-  // mainX and lands them on centre instead — hence subtracting mainX rather
-  // than just animating to the target. Written out algebraically:
-  //   net wanted = p * (screenCentre - restCentre)
+  // The arrows are the exception: they stop at the Meet the Team target rather
+  // than leaving with everything else. They live *inside* the sliding subtree
+  // (nested under the photo block, so they stay put relative to the window at rest),
+  // which means this has to be the offset that *cancels* mainX and lands them
+  // symmetrically centered in the gap between the enlarged photo and bio text
+  // (Option C: originX + 2.5*cell).
+  // Written out algebraically:
+  //   net wanted = p * (targetCentre - restCentre)
   //   net actual = mainX + arrowsX
-  // so arrowsX = p * (screenCentre - restCentre) - mainX, and mainX is
+  // so arrowsX = p * (targetCentre - restCentre) - mainX, and mainX is
   // -p * width * MAIN_SLIDE_VW, giving the + term below.
   const arrowsX = useTransform(teamProgress, (p) => {
     const restCentre = arrowRestCenterRef.current
     if (restCentre == null) return 0
-    const toCentre = window.innerWidth / 2 - restCentre
+    const targetCentre = arrowTargetCenterRef.current ?? window.innerWidth / 2
+    const toCentre = targetCentre - restCentre
     return p * (toCentre + window.innerWidth * MAIN_SLIDE_VW)
+  })
+
+  // In Meet the Team, the chevrons sit safely below both the enlarged photo
+  // and the bio text panel (Option C: centered in the gap, below the content).
+  // arrowsY applies the exact vertical delta between that target and the
+  // resting Y position of the arrows.
+  const arrowsY = useTransform(teamProgress, (p) => {
+    return p * (arrowTargetYOffsetRef.current ?? 0)
   })
 
   const { t, language } = useLanguage()
@@ -512,6 +525,8 @@ export function AboutUsIntro({
         windowEl.style.height = `${mobilePhotoHeight}px`
         image.style.height = `${effectiveImageHeight}px`
         arrowRestCenterRef.current = window.innerWidth / 2
+        arrowTargetCenterRef.current = window.innerWidth / 2
+        arrowTargetYOffsetRef.current = 0
 
         if (textColumnRef.current) {
           textColumnRef.current.style.left = `${margin}px`
@@ -560,6 +575,18 @@ export function AboutUsIntro({
       windowEl.style.height = `${effectiveWindowHeight}px`
       image.style.height = `${effectiveImageHeight}px`
       arrowRestCenterRef.current = photoLeftPx + effectiveWindowWidth / 2
+
+      const teamLayout = computeLayout(window.innerWidth, window.innerHeight)
+      const teamCell = teamLayout.cell
+      const teamOriginX = teamLayout.origin.x
+      const teamOriginY = teamLayout.origin.y
+      const teamArrowsMt = Math.max(32, Math.round(44 * S))
+      const targetCenterX = teamOriginX + 2.5 * teamCell
+      const targetCenterY = teamOriginY + 3 * teamCell + teamArrowsMt
+      const restY = photoTop + effectiveWindowHeight + arrowsMt
+
+      arrowTargetCenterRef.current = targetCenterX
+      arrowTargetYOffsetRef.current = targetCenterY - restY
 
       if (arrowsWrapperRef.current) {
         arrowsWrapperRef.current.style.marginTop = `${arrowsMt}px`
@@ -959,7 +986,7 @@ export function AboutUsIntro({
               horizontal one. */}
           <motion.div
             ref={arrowsWrapperRef}
-            style={{ x: arrowsX, willChange: 'transform' }}
+            style={{ x: arrowsX, y: arrowsY, willChange: 'transform' }}
             className="pointer-events-none absolute top-full left-0 flex w-full justify-center mt-10 sm:mt-16 md:mt-24"
           >
           {/* Centred via real flexbox (justify-center on the wrapper above),

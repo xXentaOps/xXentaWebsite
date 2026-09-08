@@ -2,8 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useTransform } from 'framer-motion'
 import { useLanguage } from '../../context/LanguageContext'
 import { assetUrl } from '../../lib/assetUrl'
-import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
-import { gridScreenMetrics } from './gridScreenMetrics'
+import { aboutUsGridMetrics } from './aboutUsGridCells'
 import { TEAM_MEMBERS } from './teamData'
 import { GRID_SPEED, mainSlidePx, teamContentSlidePx } from './teamTransition'
 
@@ -267,12 +266,7 @@ const NAME_LABEL_TRANSITION = { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
 // off its square once the slide landed. Folding the same travel in here is
 // what makes them land *on* the squares instead.
 export function computeLayout(width, height) {
-  const settled = gridScreenMetrics({
-    width,
-    height,
-    scale: ABOUT_US_GRID_ZOOM_SCALE,
-    screenOffset: -1,
-  })
+  const settled = aboutUsGridMetrics(width, height)
   const { cell } = settled
   const wrap = (value) => ((value % cell) + cell) % cell
   const phaseX = wrap(settled.phaseX + mainSlidePx(1, width) * GRID_SPEED)
