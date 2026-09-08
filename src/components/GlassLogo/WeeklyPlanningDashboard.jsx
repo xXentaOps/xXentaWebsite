@@ -290,7 +290,7 @@ function ProductionPerformanceChart({ scrollProgress }) {
   const initial = liveStateRef.current
 
   return (
-    <div className="lg:col-span-9 flex flex-col justify-between h-full min-h-0 gap-2">
+    <div className="col-span-9 flex flex-col justify-between h-full min-h-0 gap-2">
       <div className="relative w-full flex-1 min-h-[135px] max-h-[175px]">
         {/* Floating Tooltip when hovering over a day */}
         {hoveredDay !== null && (
@@ -548,7 +548,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
         }}
       />
 
-      {/* --- Top Header Navigation --- */}
+      {/* --- Top Header Navigation with authentic Desktop macOS Window controls --- */}
       <header
         className="w-full h-14 flex items-center justify-between px-6 shrink-0 z-30 relative"
         style={{
@@ -557,12 +557,19 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
           backdropFilter: 'blur(12px)',
         }}
       >
-        {/* ChoXPro Brand Indicator on the left */}
-        <div className="flex items-center gap-2.5">
-          <span className="text-sm font-bold tracking-wide text-white">ChoXPro</span>
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-            {t('noordhuys.dashboard.planning')}
-          </span>
+        {/* Desktop window controls (macOS traffic lights) + ChoXPro Brand Indicator */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 pr-3 border-r border-white/10">
+            <div className="w-3 h-3 rounded-full bg-[#FF5F56] border border-black/25 shadow-sm" />
+            <div className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-black/25 shadow-sm" />
+            <div className="w-3 h-3 rounded-full bg-[#27C93F] border border-black/25 shadow-sm" />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-bold tracking-wide text-white">ChoXPro</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              {t('noordhuys.dashboard.planning')}
+            </span>
+          </div>
         </div>
 
         {/* Centered navigation items */}
@@ -594,23 +601,22 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
             )
           })}
         </div>
-        {/* Right side subtle window indicator dots */}
-        <div className="flex items-center gap-1.5 opacity-50">
-          <div className="w-2.5 h-2.5 rounded-full bg-zinc-600/70" />
-          <div className="w-2.5 h-2.5 rounded-full bg-zinc-600/70" />
-          <div className="w-2.5 h-2.5 rounded-full bg-zinc-600/70" />
+        {/* Right side status indicator */}
+        <div className="flex items-center gap-2 opacity-60 text-xs text-zinc-400">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[11px] font-medium tracking-wide">LIVE</span>
         </div>
       </header>
 
-      {/* --- Responsive Content Container with scaling for all viewports --- */}
-      <div className="w-full flex-1 flex flex-col p-5 md:p-6 overflow-hidden z-20">
+      {/* --- Desktop Content Container --- */}
+      <div className="w-full flex-1 flex flex-col p-6 overflow-hidden z-20">
         <div
-          className="w-full flex-1 flex flex-col justify-between gap-3 md:gap-3.5 origin-top transition-transform duration-150"
+          className="w-full flex-1 flex flex-col justify-between gap-3.5 origin-top transition-transform duration-150"
         >
           {/* Header Row: Title & Week Badge */}
           <div className="flex items-center justify-between w-full shrink-0">
             <h1
-              className="text-lg md:text-xl font-bold text-[#F4F4F5] tracking-tight leading-7"
+              className="text-xl font-bold text-[#F4F4F5] tracking-tight leading-7"
               style={{ letterSpacing: '-0.5px' }}
             >
               {t('noordhuys.dashboard.title')}
@@ -630,7 +636,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
           {/* --- Card 1: New Task Form --- */}
           <div
             ref={card1Ref}
-            className={`w-full rounded-[14px] p-4 md:p-4.5 flex flex-col gap-3 relative shrink-0 ${openDropdown ? 'z-30' : 'z-10'}`}
+            className={`w-full rounded-[14px] p-4.5 flex flex-col gap-3 relative shrink-0 ${openDropdown ? 'z-30' : 'z-10'}`}
             style={{
               backgroundColor: 'rgba(47, 50, 59, 0.4)',
               boxShadow: '0px 0px 0px 1px rgba(255, 255, 255, 0.1), 0px 20px 25px -5px rgba(0, 0, 0, 0.1)',
@@ -663,15 +669,15 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               </div>
             </div>
 
-            {/* Inputs Row */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+            {/* Inputs Row (5 desktop columns across) */}
+            <div className="grid grid-cols-5 gap-3 items-end">
               {/* Field: DATE */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[11px] font-semibold text-[#9F9FA9] tracking-[0.5px] uppercase">
                   {t('noordhuys.dashboard.date')}
                 </label>
                 <div
-                  className="h-10 px-3 rounded-[8px] flex items-center gap-2 text-xs md:text-sm text-[#E4E4E7]"
+                  className="h-10 px-3 rounded-[8px] flex items-center gap-2 text-sm text-[#E4E4E7]"
                   style={{
                     backgroundColor: 'rgba(47, 50, 59, 0.5)',
                     border: '0.666667px solid rgba(255, 255, 255, 0.1)',
@@ -690,7 +696,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                 <button
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'staff' ? null : 'staff')}
-                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-xs md:text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
+                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
                   style={{
                     backgroundColor: 'rgba(47, 50, 59, 0.5)',
                     border: '0.666667px solid rgba(255, 255, 255, 0.1)',
@@ -787,7 +793,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                 <button
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'task' ? null : 'task')}
-                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-xs md:text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
+                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
                   style={{
                     backgroundColor: 'rgba(47, 50, 59, 0.5)',
                     border: '0.666667px solid rgba(255, 255, 255, 0.1)',
@@ -882,7 +888,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                 <button
                   type="button"
                   onClick={() => setOpenDropdown(openDropdown === 'location' ? null : 'location')}
-                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-xs md:text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
+                  className="w-full h-10 px-3 rounded-[8px] flex items-center justify-between text-sm text-[#E4E4E7] cursor-pointer hover:border-white/20 transition-colors"
                   style={{
                     backgroundColor: 'rgba(47, 50, 59, 0.5)',
                     border: '0.666667px solid rgba(255, 255, 255, 0.1)',
@@ -950,7 +956,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
               {/* Action Button: ASSIGN */}
               <button
                 type="button"
-                className="h-10 px-5 rounded-[8px] flex items-center justify-center font-semibold text-xs md:text-sm transition-all duration-200 cursor-pointer active:scale-95"
+                className="h-10 px-5 rounded-[8px] flex items-center justify-center font-semibold text-sm transition-all duration-200 cursor-pointer active:scale-95"
                 style={{
                   backgroundColor: 'rgba(97, 95, 255, 0.2)',
                   boxShadow: '0px 0px 0px 0.5px rgba(97, 95, 255, 0.3)',
@@ -964,7 +970,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
 
           {/* --- Card 2: Weekly Assignments Table --- */}
           <div
-            className="w-full rounded-[14px] p-4 md:p-4.5 flex flex-col gap-2.5 shrink-0"
+            className="w-full rounded-[14px] p-4.5 flex flex-col gap-2.5 shrink-0"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               border: '0.666667px solid rgba(255, 255, 255, 0.1)',
@@ -993,7 +999,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
 
               {/* Row 1: Mehmet Kaya */}
               <div
-                className="grid grid-cols-12 px-3.5 py-2.5 md:py-3 items-center text-xs gap-2"
+                className="grid grid-cols-12 px-3.5 py-3 items-center text-xs gap-2"
                 style={{
                   borderBottom: '0.666667px solid rgba(255, 255, 255, 0.06)',
                   backgroundColor: 'rgba(255, 255, 255, 0.02)',
@@ -1034,7 +1040,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
 
               {/* Row 2: Ayşe Demir */}
               <div
-                className="grid grid-cols-12 px-3.5 py-2.5 md:py-3 items-center text-xs gap-2"
+                className="grid grid-cols-12 px-3.5 py-3 items-center text-xs gap-2"
                 style={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}
               >
                 <div className="col-span-2 flex items-center gap-2 text-[#A1A1A1]">
@@ -1074,7 +1080,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
 
           {/* --- Card 3: Production Performance --- */}
           <div
-            className="w-full rounded-[14px] p-4 md:p-4.5 flex flex-col gap-2.5 flex-1 min-h-0 justify-between"
+            className="w-full rounded-[14px] p-4.5 flex flex-col gap-2.5 flex-1 min-h-0 justify-between"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               border: '0.666667px solid rgba(255, 255, 255, 0.1)',
@@ -1082,13 +1088,13 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
           >
             <span className="text-sm font-semibold text-[#F4F4F5] shrink-0">{t('noordhuys.dashboard.productionPerf')}</span>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center flex-1 min-h-0">
+            <div className="grid grid-cols-12 gap-5 items-center flex-1 min-h-0">
               {/* Left Column: Productivity Area Chart with Scroll-Driven Dynamic Curves & Tooltip */}
               <ProductionPerformanceChart scrollProgress={scrollProgress} />
 
               {/* Right Column: Storage Space Donut Chart */}
               <div
-                className="lg:col-span-3 flex flex-col items-center justify-center gap-2 lg:border-l lg:border-white/10 lg:pl-5 py-1"
+                className="col-span-3 flex flex-col items-center justify-center gap-2 border-l border-white/10 pl-5 py-1"
               >
                 <div className="flex items-center gap-2 self-start text-xs text-[#D4D4D8]">
                   <HardDriveIcon className="w-3.5 h-3.5" color="#71717B" />
@@ -1096,7 +1102,7 @@ export function WeeklyPlanningDashboard({ scrollProgress }) {
                 </div>
 
                 {/* Donut Gauge */}
-                <div className="relative w-32 h-32 md:w-34 md:h-34 flex items-center justify-center my-0.5">
+                <div className="relative w-34 h-34 flex items-center justify-center my-0.5">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                     {/* Background Track */}
                     <circle

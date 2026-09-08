@@ -325,10 +325,9 @@ function NoordhuysBackdrop({
       const zoomFactor = nextScale / finalZoomScale
       const marginPx = Math.max(24, (PAGE_MARGIN_VH / 100) * size.height)
       const maxAvailableWidth = Math.max(400, size.width - marginPx - 460)
-      // On mobile, size ChoXPro with genuine desktop app dimensions (scale ~0.58-0.68)
-      // and allow interactive horizontal panning so users can explore the full dashboard.
+      // On mobile, size ChoXPro so the full desktop app window fits cleanly on screen
       const choxScale = isMobile
-        ? Math.min(0.68, Math.max(0.58, (size.height * 0.56) / CHOX_DESIGN_HEIGHT))
+        ? Math.min(0.38, Math.max(0.28, (size.width - 24) / CHOX_DESIGN_WIDTH))
         : Math.min(1, maxAvailableHeight / CHOX_DESIGN_HEIGHT, (0.96 * maxAvailableWidth) / CHOX_DESIGN_WIDTH)
       const choxWidthPx = CHOX_DESIGN_WIDTH * choxScale
       const choxScreenCenterX = isMobile ? size.width / 2 : (size.width - marginPx) - choxWidthPx / 2
@@ -336,10 +335,9 @@ function NoordhuysBackdrop({
 
       const currentDeltaX = finalChoxDeltaX * zoomFactor
       currentChoxScale = choxScale * zoomFactor
-      const currentChoxDeltaY = isMobile ? Math.min(85, Math.max(55, size.height * 0.11)) : 0
-      const mobilePanX = isMobile && choxPanXRef?.current ? choxPanXRef.current : 0
+      const currentChoxDeltaY = isMobile ? Math.min(45, Math.max(25, size.height * 0.05)) : 0
 
-      choxRef.current.style.transform = `translate3d(${currentDeltaX + mobilePanX}px, ${currentChoxDeltaY}px, 0) scale(${currentChoxScale})`
+      choxRef.current.style.transform = `translate3d(${currentDeltaX}px, ${currentChoxDeltaY}px, 0) scale(${currentChoxScale})`
     }
 
     // Keep ChoXPro Row Tracking context block scrolling in lockstep with the background grid
@@ -653,7 +651,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
 
   const initialChoxBaseScale = typeof window !== 'undefined'
     ? isMobile
-      ? Math.min(0.68, Math.max(0.58, (window.innerHeight * 0.56) / CHOX_DESIGN_HEIGHT))
+      ? Math.min(0.38, Math.max(0.28, (window.innerWidth - 24) / CHOX_DESIGN_WIDTH))
       : Math.min(
           1,
           Math.max(300, window.innerHeight - 2 * initialMargin) / CHOX_DESIGN_HEIGHT,
@@ -665,7 +663,7 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
       ? 0
       : ((window.innerWidth - initialMargin) - (CHOX_DESIGN_WIDTH * initialChoxBaseScale) / 2) - window.innerWidth / 2
     : 0
-  const initialChoxDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(85, Math.max(55, window.innerHeight * 0.11)) : 0
+  const initialChoxDeltaY = isMobile && typeof window !== 'undefined' ? Math.min(45, Math.max(25, window.innerHeight * 0.05)) : 0
 
   return (
     <section ref={sectionRef} className="relative w-full bg-[#0F172B]" style={{ height: `${SECTION_VH}vh` }}>
@@ -795,29 +793,29 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
               pointerEvents: choxPointerEvents,
             }}
           >
-            {/* Mobile-only clean top context text for ChoXPro: scrollable card with full copy */}
+            {/* Mobile-only clean top context text for ChoXPro: free-floating, clean, scrollable if needed */}
             <div
               data-lenis-prevent
               data-lenis-prevent-touch
-              className="lg:hidden pointer-events-auto absolute top-12 sm:top-16 inset-x-4 max-w-sm mx-auto z-30 max-h-[26vh] overflow-y-auto bio-scrollbar rounded-xl bg-black/55 backdrop-blur-md border border-white/10 px-4 py-3 text-center flex flex-col items-center shadow-lg"
+              className="lg:hidden pointer-events-auto absolute top-14 sm:top-18 inset-x-0 px-6 text-center flex flex-col items-center max-w-sm mx-auto z-30 max-h-[16vh] sm:max-h-[19vh] overflow-y-auto no-scrollbar"
               style={{
                 WebkitOverflowScrolling: 'touch',
                 touchAction: 'pan-y',
               }}
             >
-              <h3 className="text-xs sm:text-sm font-medium tracking-tight text-white/95 leading-snug">
+              <h3 className="text-base sm:text-lg font-light tracking-tight text-white/95 leading-snug">
                 {t('noordhuys.choxTitle')}
               </h3>
-              <p className="mt-2 text-[11px] sm:text-xs leading-relaxed font-extralight text-white/70">
+              <p className="mt-2 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/70">
                 {t('noordhuys.choxP1')}
               </p>
               {t('noordhuys.choxP2') && (
-                <p className="mt-2 text-[11px] sm:text-xs leading-relaxed font-extralight text-white/60">
+                <p className="mt-2 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/60">
                   {t('noordhuys.choxP2')}
                 </p>
               )}
               {t('noordhuys.choxP3') && (
-                <p className="mt-2 text-[11px] sm:text-xs leading-relaxed font-extralight text-white/60">
+                <p className="mt-2 text-xs sm:text-[13px] leading-relaxed font-extralight text-white/60">
                   {t('noordhuys.choxP3')}
                 </p>
               )}
@@ -828,62 +826,18 @@ export function NoordhuysShowcase({ carouselRef, isActive = true, isForceScrolli
               id="choxpro-design-stage"
               data-lenis-prevent
               data-lenis-prevent-touch
-              className="transform-gpu relative flex items-center justify-center pointer-events-auto cursor-grab active:cursor-grabbing"
+              className="transform-gpu relative flex items-center justify-center pointer-events-auto"
               style={{
                 width: CHOX_DESIGN_WIDTH,
                 height: CHOX_DESIGN_HEIGHT,
                 transform: `translate3d(${initialChoxDeltaX}px, ${initialChoxDeltaY}px, 0) scale(${initialChoxBaseScale})`,
                 transformOrigin: 'center center',
-                touchAction: 'pan-y',
-              }}
-              onTouchStart={(e) => {
-                if (!isMobile) return
-                isDraggingChoxRef.current = true
-                lastTouchXRef.current = e.touches[0].clientX
-                lastTouchYRef.current = e.touches[0].clientY
-                isHorizontalPanRef.current = null
-              }}
-              onTouchMove={(e) => {
-                if (!isMobile || !isDraggingChoxRef.current) return
-                const touchX = e.touches[0].clientX
-                const touchY = e.touches[0].clientY
-                const dx = touchX - lastTouchXRef.current
-                const dy = touchY - lastTouchYRef.current
-
-                if (isHorizontalPanRef.current === null) {
-                  if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-                    isHorizontalPanRef.current = Math.abs(dx) > Math.abs(dy)
-                  }
-                }
-
-                if (isHorizontalPanRef.current) {
-                  if (e.cancelable) e.preventDefault()
-                  lastTouchXRef.current = touchX
-                  lastTouchYRef.current = touchY
-                  choxPanXRef.current += dx
-                  const currentScale = Math.min(0.68, Math.max(0.58, ((typeof window !== 'undefined' ? window.innerHeight : 800) * 0.56) / CHOX_DESIGN_HEIGHT))
-                  const maxPan = Math.max(40, (CHOX_DESIGN_WIDTH * currentScale - (typeof window !== 'undefined' ? window.innerWidth : 390)) / 2 + 40)
-                  choxPanXRef.current = Math.max(-maxPan, Math.min(maxPan, choxPanXRef.current))
-                }
-              }}
-              onTouchEnd={() => {
-                isDraggingChoxRef.current = false
-                isHorizontalPanRef.current = null
-              }}
-              onTouchCancel={() => {
-                isDraggingChoxRef.current = false
-                isHorizontalPanRef.current = null
               }}
             >
-              <div className="relative w-full h-full rounded-[24px] overflow-hidden border border-white/15 bg-[#2F323B] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-md">
+              <div className="relative w-full h-full rounded-[20px] overflow-hidden border border-white/15 bg-[#2F323B] shadow-[0_25px_70px_-15px_rgba(0,0,0,0.7)] backdrop-blur-md">
                 {/* Subtle top edge glass reflection */}
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent z-40" />
                 <WeeklyPlanningDashboard scrollProgress={progress} />
-              </div>
-
-              {/* Mobile touch explore hint */}
-              <div className="lg:hidden pointer-events-none absolute -bottom-7 flex items-center justify-center gap-1.5 text-[10px] uppercase tracking-widest text-white/40">
-                <span>← Swipe to explore desktop dashboard →</span>
               </div>
 
               {/* ChoXPro Row Tracking context block to the left of the planning dashboard (Desktop only) */}
