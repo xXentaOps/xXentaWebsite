@@ -10,7 +10,7 @@ const TOPICS = [
   { id: 'general', labelKey: 'contact.topics.general', defaultLabel: 'General Inquiry' },
 ]
 
-const DEFAULT_WEB3FORMS_KEY = 'c1f5875b-c7e1-4e90-b7ec-b24972cc1009'
+const DEFAULT_WEB3FORMS_KEY = '40daef95-4529-489d-92b2-1c1c1679bd7f'
 
 export function ContactPage({ isOpen, onClose, onSecurityClick }) {
   const { t } = useLanguage()
