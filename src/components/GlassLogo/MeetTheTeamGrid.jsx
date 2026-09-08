@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useTransform } from 'framer-motion'
 import { useLanguage } from '../../context/LanguageContext'
+import { assetUrl } from '../../lib/assetUrl'
 import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
 import { gridScreenMetrics } from './gridScreenMetrics'
 import { TEAM_MEMBERS } from './teamData'
@@ -195,7 +196,7 @@ export const TEAM_MEMBER_COUNT = MEMBERS.length
 export function preloadTeamImages() {
   if (typeof window === 'undefined') return
   MEMBERS.forEach((m) => {
-    const src = `/team/${m.photo || `${m.id}.jpg`}`
+    const src = assetUrl(`/team/${m.photo || `${m.id}.jpg`}`)
     const img = new Image()
     img.src = src
     if (img.decode) {
@@ -619,7 +620,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
                   fight. This sits on the image *inside* it instead, so the
                   two compose instead of overwriting each other. */}
               <img
-                src={`/team/${member.photo || `${member.id}.jpg`}`}
+                src={assetUrl(`/team/${member.photo || `${member.id}.jpg`}`)}
                 alt={member.name}
                 draggable={false}
                 decoding="async"

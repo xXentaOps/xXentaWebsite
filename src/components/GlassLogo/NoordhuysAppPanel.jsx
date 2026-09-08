@@ -1,5 +1,8 @@
 import React from 'react'
 import { useLanguage } from '../../context/LanguageContext'
+import { assetUrl } from '../../lib/assetUrl'
+
+const LEAVES_IMAGE_URL = assetUrl('/leaves.png')
 
 // SVG Icons matching the design's vectors and styling
 function AvatarIcon({ className = 'w-5 h-5 text-white/90' }) {
@@ -229,7 +232,7 @@ export function NoordhuysAppPanel() {
           }}
         >
           <img
-            src="/leaves.png"
+            src={LEAVES_IMAGE_URL}
             alt=""
             className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
             style={{ objectPosition: 'center' }}
@@ -298,7 +301,7 @@ export function NoordhuysAppPanel() {
           }}
         >
           <img
-            src="/leaves.png"
+            src={LEAVES_IMAGE_URL}
             alt=""
             className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
             style={{ objectPosition: 'center' }}
@@ -365,7 +368,7 @@ export function NoordhuysAppPanel() {
           }}
         >
           <img
-            src="/leaves.png"
+            src={LEAVES_IMAGE_URL}
             alt=""
             className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
             style={{ objectPosition: 'center' }}
@@ -432,7 +435,7 @@ export function NoordhuysAppPanel() {
           }}
         >
           <img
-            src="/leaves.png"
+            src={LEAVES_IMAGE_URL}
             alt=""
             className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
             style={{ objectPosition: 'center' }}

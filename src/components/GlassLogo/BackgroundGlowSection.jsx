@@ -27,6 +27,7 @@ import {
 } from './sceneConstants'
 import { useSeamlessGrid } from './useSeamlessGrid'
 import LanguageContext, { useLanguage } from '../../context/LanguageContext'
+import { assetUrl } from '../../lib/assetUrl'
 
 function Updater({ updateFn }) {
   useFrame(updateFn)
@@ -409,7 +410,7 @@ const BACKDROP_DRP = new Color(SCENE_BACKDROP_DRP)
 const BACKDROP_DRP_BRIGHT = new Color(SCENE_BACKDROP_DRP_BRIGHT)
 // A path into /public, same convention every image on this site uses (see
 // SPEAKERS' own avatar entries in chatShowcaseScript.js).
-const PLACEHOLDER_IMAGE_URL = '/DRP_1.png'
+const PLACEHOLDER_IMAGE_URL = assetUrl('/DRP_1.png')
 
 // Loads DRP_1.png and hands back the material that actually shows it — its
 // own component, not inlined into the mesh below, specifically so only
@@ -446,7 +447,7 @@ function PlaceholderImageMaterial({ clippingPlanes }) {
 // isn't on screen at all until the reveal phase's own pan (see
 // revealWorldDistance) brings it into view, so there's nothing for an
 // entrance fade to actually soften here the way there was for DRP_1.
-const DRP2_IMAGE_URL = '/DRP_2.png'
+const DRP2_IMAGE_URL = assetUrl('/DRP_2.png')
 
 function Drp2ImageMaterial({ clippingPlanes }) {
   const texture = useLoader(TextureLoader, DRP2_IMAGE_URL)

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { assetUrl } from '../../lib/assetUrl'
 
 /**
  * NoordhuysVideoContainer
@@ -143,7 +144,7 @@ export function NoordhuysVideoContainer({
       {/* Video Element */}
       <video
         ref={videoRef}
-        src="/Noordhuys.mp4"
+        src={assetUrl('/Noordhuys.mp4')}
         autoPlay
         loop
         muted

@@ -5,6 +5,7 @@ import { OVERLAY_LAYER } from './GlassLogoGroup'
 import { glassMaterialProps, useGlowOverlayMaterial } from './glassMaterial'
 import { TransmissionMaterial } from './TransmissionMaterial'
 import { useExtrudedSvgGeometry } from './useExtrudedSvgGeometry'
+import { assetUrl } from '../../lib/assetUrl'
 
 // The Google Cloud icon itself — a real 3D glass structure, the same
 // technique and material as the hero's own xXenta logo (TransmissionMaterial
@@ -16,7 +17,7 @@ import { useExtrudedSvgGeometry } from './useExtrudedSvgGeometry'
 // what TransmissionMaterial's real refraction is for (see its own file and
 // GlassLogoGroup's comments) — the reason it was reserved for the hero logo
 // specifically until now.
-const SVG_URL = '/google-cloud.svg'
+const SVG_URL = assetUrl('/google-cloud.svg')
 // google-cloud.svg's own viewBox is 0 0 48 48.
 const SVG_VIEWBOX_SIZE = 48
 // Proportional to the hero logo's own depth=5/bevelThickness=0.6/

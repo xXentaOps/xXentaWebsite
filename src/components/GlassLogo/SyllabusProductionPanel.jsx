@@ -1,5 +1,6 @@
 import { forwardRef } from 'react'
 import { useLanguage } from '../../context/LanguageContext'
+import { assetUrl } from '../../lib/assetUrl'
 
 const CARD_BG = 'rgba(241, 245, 249, 0.3)'
 const INNER_CARD_BG = 'rgba(255, 255, 255, 0.15)'
@@ -408,7 +409,7 @@ export const SyllabusProductionPanel = forwardRef(function SyllabusProductionPan
           }}
         >
           <img
-            src="/syllabus.png"
+            src={assetUrl('/syllabus.png')}
             alt="Entrepreneurial Management Syllabus"
             style={{
               width: '100%',

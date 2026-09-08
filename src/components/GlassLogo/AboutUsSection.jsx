@@ -4,6 +4,7 @@ import { Canvas, extend, useFrame, useThree } from '@react-three/fiber'
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion'
 import { AdditiveBlending, Color, MathUtils } from 'three'
 import { useLanguage } from '../../context/LanguageContext'
+import { assetUrl } from '../../lib/assetUrl'
 // Same font file, weight, letter-spacing factor, color and fill opacity as
 // HeroTitle's own "New Way of Learning" — asked for directly ("same grey
 // color, boldness, everything") for the "Members of the Board" title below.
@@ -215,7 +216,7 @@ function DecorativeGridSquares({ teamProgress, isOpen, highQuality, visible, isW
   return squares.map((square, i) => (
     <SlideGroup key={i} progress={teamProgress} slidePx={teamContentSlidePx}>
       <GlassIcon
-        svgUrl="/square.svg"
+        svgUrl={assetUrl('/square.svg')}
         viewBoxSize={100}
         domRect={{ left: square.left, top: square.top, width: square.size, height: square.size }}
         isOpen={isOpen}
@@ -1370,7 +1371,7 @@ export const AboutUsSection = forwardRef(function AboutUsSection(
                   every profile. */}
               <SlideGroup key={MEMBERS[selectedMember].id} progress={teamProgress} slidePx={teamContentSlidePx}>
                 <GlassIcon
-                  svgUrl={`/${MEMBERS[selectedMember].nameIcon.svg}.svg`}
+                  svgUrl={assetUrl(`/${MEMBERS[selectedMember].nameIcon.svg}.svg`)}
                   viewBoxSize={MEMBERS[selectedMember].nameIcon.viewBoxSize}
                   depthScale={MEMBERS[selectedMember].nameIcon.depthScale}
                   sizeScale={MEMBERS[selectedMember].nameIcon.sizeScale}

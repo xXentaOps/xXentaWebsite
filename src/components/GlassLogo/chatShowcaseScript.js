@@ -14,6 +14,8 @@
 // `/team/${id}.jpg`) — so dropping a .webp in there and naming it here is the
 // whole job. null renders the empty plate instead, which is what all three do
 // today.
+import { assetUrl } from '../../lib/assetUrl'
+
 export const ROOM = {
   id: 'room',
   name: 'Trauma Bay',
@@ -27,7 +29,7 @@ export const SPEAKERS = {
     // is genuinely written in caps in the design, so a role that shouldn't be
     // shouted can simply be written in mixed case here.
     role: 'RESIDENT',
-    avatar: '/DrSam.png',
+    avatar: assetUrl('/DrSam.png'),
   },
   // Not medical staff — Peter's daughter, in the waiting room asking what's
   // happening. Worried in the room everyone can see; once pulled aside
@@ -37,13 +39,13 @@ export const SPEAKERS = {
     name: 'Carla',
     short: 'Carla',
     role: "PATIENT'S DAUGHTER",
-    avatar: '/Carla.png',
+    avatar: assetUrl('/Carla.png'),
   },
   peter: {
     name: 'Peter',
     short: 'Peter',
     role: 'PATIENT',
-    avatar: '/Peter.png',
+    avatar: assetUrl('/Peter.png'),
   },
 }
 

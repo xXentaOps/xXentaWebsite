@@ -4,15 +4,16 @@
 // oxlint's own only-export-components warning, which was firing on that
 // file) — edits to the slideshow could silently fail to reach a running
 // browser tab via HMR, no error, just stale code still running. Giving this
-// data its own file makes AboutUsIntro.jsx a clean component-only module.
-export const TEAM_PHOTO_SRC = '/team-photo-web.jpg'
+import { assetUrl } from '../../lib/assetUrl'
+
+export const TEAM_PHOTO_SRC = assetUrl('/team-photo-web.jpg')
 
 // The photo block is a small slideshow — the group photo (with its own
 // "Meet the Team" CTA) always sits last, and whatever comes before it exists
 // to be browsed through, not landed on.
 export const SLIDES = [
   {
-    photo: '/noordhuys-photo.jpg',
+    photo: assetUrl('/noordhuys-photo.jpg'),
     alt: "Showcasing of Noordhuys's First App with xXenta",
     caption: "Showcasing of Noordhuys's First App with xXenta",
     headline: 'Demonstrable Craftsmanship in Partnering with Noordhuys',
@@ -22,7 +23,7 @@ export const SLIDES = [
     ],
   },
   {
-    photo: '/drp-photo.jpg',
+    photo: assetUrl('/drp-photo.jpg'),
     alt: '1st Edition of Knight of the Prompt Hosted at De Rooi Pannen',
     caption: '1st Edition of Knight of the Prompt Hosted at De Rooi Pannen',
     headline: 'Our Impact at De Rooi Pannen',

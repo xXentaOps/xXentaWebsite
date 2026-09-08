@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLanguage } from '../../context/LanguageContext'
+import { assetUrl } from '../../lib/assetUrl'
 import { CornerBrackets } from './CornerBrackets'
 import { TEAM_MEMBERS } from './teamData'
 
@@ -30,7 +31,7 @@ function TeamMemberCard({ member }) {
     >
       <div className="relative aspect-square w-full overflow-hidden bg-white/5">
         <img
-          src={`/team/${member.photo || `${member.id}.jpg`}`}
+          src={assetUrl(`/team/${member.photo || `${member.id}.jpg`}`)}
           alt={member.name}
           draggable={false}
           className="h-full w-full object-cover"
