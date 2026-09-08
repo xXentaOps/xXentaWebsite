@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useTransform } from 'framer-motion'
 import { useLanguage } from '../../context/LanguageContext'
 import { MAIN_SLIDE_VW, mainSlidePx } from './teamTransition'
 import { CornerBrackets } from './CornerBrackets'
 import { SLIDES } from './aboutUsSlides'
 import { AboutUsStats } from './AboutUsStats'
+import { pageMarginPx } from './pageMargin'
 // Which grid squares this page's content sits on — its own module now that
 // AboutUsSection's canvas needs the same answers to put its ambient squares
 // on the stats' own cells. See that file's own comment.
@@ -17,6 +18,7 @@ import {
   STATS_CELLS_X,
   TEXT_ROW_OFFSET,
 } from './aboutUsGridCells'
+import { ABOUT_US_GRID_ZOOM_SCALE, TARGET_CELL_PX } from './gridConstants'
 
 // How far the photo runs past the window, in cells — how much there is to
 // reveal, in other words, and the reason the parallax is worth having.
@@ -51,6 +53,17 @@ const PARALLAX_LAMBDA = 6
 // text-xs/tracking-[0.2em]/uppercase plus its 20px side padding — tune
 // live if the label ever looks cramped or the pill overly roomy.
 const PILL_WIDTH = 172
+
+// Extra clearance between text and scrollbar for paragraphs long enough to scroll,
+// exactly matching MeetTheTeamGrid's detailed profiles.
+const BIO_SCROLL_GUTTER_PX = 24
+const BIO_FADE_PX = 32
+
+function bioFadeMask(atTop, atBottom) {
+  const top = atTop ? 'black 0' : `transparent 0, black ${BIO_FADE_PX}px`
+  const bottom = atBottom ? 'black 100%' : `black calc(100% - ${BIO_FADE_PX}px), transparent 100%`
+  return `linear-gradient(to bottom, ${top}, ${bottom})`
+}
 
 // Same no-fill blue as CornerBrackets/EDGE_STYLE, but circled — a bare
 // chevron (tried first, alongside the photo) read as too easy to miss;
@@ -184,6 +197,90 @@ export function AboutUsIntro({
   const baseSlide = SLIDES[slideIndex]
   const localizedSlide = t(`aboutUs.slides.${slideIndex}`, baseSlide)
   const slide = { ...baseSlide, ...localizedSlide }
+
+  const paragraphs = useMemo(() => {
+    if (slide.paragraphs && Array.isArray(slide.paragraphs)) return slide.paragraphs
+    if (Array.isArray(slide.body)) return slide.body
+    return [slide.body, slide.bodySecondary, slide.bodyTertiary].filter(Boolean)
+  }, [slide])
+
+  const headingRef = useRef(null)
+  const textScrollRef = useRef(null)
+  const arrowsWrapperRef = useRef(null)
+  const [textOverflows, setTextOverflows] = useState(false)
+  const [scrollState, setScrollState] = useState({ atTop: true, atBottom: true })
+  const [textScrollMaxHeight, setTextScrollMaxHeight] = useState(undefined)
+  const [gridCell, setGridCell] = useState(() =>
+    aboutUsGridMetrics(
+      typeof window !== 'undefined' ? window.innerWidth : 1920,
+      typeof window !== 'undefined' ? window.innerHeight : 1080,
+    ).cell,
+  )
+
+  useLayoutEffect(() => {
+    if (textScrollRef.current) {
+      textScrollRef.current.scrollTop = 0
+    }
+  }, [slideIndex])
+
+  useLayoutEffect(() => {
+    const el = textScrollRef.current
+    if (!el) return
+    const checkOverflow = () => {
+      setTextOverflows(el.scrollHeight > el.clientHeight + 1)
+      setScrollState({
+        atTop: el.scrollTop <= 1,
+        atBottom: el.scrollTop >= el.scrollHeight - el.clientHeight - 1,
+      })
+    }
+    checkOverflow()
+    el.addEventListener('scroll', checkOverflow)
+    window.addEventListener('resize', checkOverflow)
+    return () => {
+      el.removeEventListener('scroll', checkOverflow)
+      window.removeEventListener('resize', checkOverflow)
+    }
+  }, [slideIndex, slide?.headline, paragraphs, textScrollMaxHeight])
+
+  // When text overflows and has a scrollable container, hovering over the
+  // text box (heading + scrollable copy) must allow scrolling freely up and down
+  // without fear of accidentally triggering dismissal back to the Hero section.
+  // Wheel events over the text box are intercepted here: we stop propagation
+  // so GlassLogoPreview's window wheel listener never sees them, prevent the
+  // browser's default overscroll bounce/chaining, and directly scroll textScrollRef.
+  // When reaching the top or bottom boundary, el.scrollTop simply clamps, keeping
+  // the user safely within the text box.
+  useEffect(() => {
+    const column = textColumnRef.current
+    if (!column) return
+
+    const onColumnWheel = (e) => {
+      const scrollEl = textScrollRef.current
+      if (!scrollEl) return
+      const isScrollable = scrollEl.scrollHeight > scrollEl.clientHeight + 1
+      if (isScrollable) {
+        const delta =
+          e.deltaMode === 1
+            ? e.deltaY * 20
+            : e.deltaMode === 2
+            ? e.deltaY * window.innerHeight
+            : e.deltaY
+
+        scrollEl.scrollTop += delta
+      }
+
+      // Always isolate the text box from window wheel events so wheeling
+      // over headline / body text never accidentally dismisses to Hero
+      e.stopPropagation()
+      e.preventDefault()
+    }
+
+    column.addEventListener('wheel', onColumnWheel, { capture: true, passive: false })
+    return () => {
+      column.removeEventListener('wheel', onColumnWheel, { capture: true, passive: false })
+    }
+  }, [slideIndex])
+
   // Whether the right arrow slot is currently the "Meet the Team" pill
   // instead of a real arrow — see that slot's own render for the morph
   // between the two.
@@ -371,71 +468,143 @@ export function AboutUsIntro({
     const { cell, phaseX, phaseY } = metrics
     const { column, row } = photoCellIndices(window.innerWidth, window.innerHeight)
     const photoLeftPx = phaseX + column * cell
-    block.style.left = `${photoLeftPx}px`
-    // The arrow row is centred on the window, so the window's own centre is
-    // where the arrows rest — see arrowRestCenterRef.
-    arrowRestCenterRef.current = photoLeftPx + (cell * PHOTO_CELLS_X) / 2
-    block.style.top = `${phaseY + row * cell}px`
-    const windowHeight = cell * PHOTO_CELLS_Y
-    windowEl.style.width = `${cell * PHOTO_CELLS_X}px`
-    windowEl.style.height = `${windowHeight}px`
-    // Sized rather than measured — see PHOTO_OVERFLOW_CELLS. object-cover on
-    // the image then crops whichever axis has to give, so the window is
-    // always filled edge to edge whatever shape the photo is.
-    const imageHeight = windowHeight + PHOTO_OVERFLOW_CELLS * cell
-    image.style.height = `${imageHeight}px`
-    // Where the stats' own left edge lands — the first cell boundary at or
-    // after the page's shared margin, rounded out to the grid (see
-    // statsCellIndices). Computed once here and used for both the stats
-    // block below and the text column just above it, so the two can share
-    // one left edge exactly rather than the text using the raw margin and
-    // the stats independently rounding out from it, which is what put a few
-    // px of daylight between "12.4K" and the headline above it.
+
     const stats = statsCellIndices(window.innerWidth, window.innerHeight)
     const statsLeftPx = phaseX + stats.column * cell
-    // The text column's own edge — TEXT_COLUMN_INSET_PX further right than
-    // the square itself, to land level with "12.4K" rather than with the
-    // square's own boundary. Only the text uses this; the stats block below
-    // still sits at the bare statsLeftPx, since it's the square that has to
-    // stay grid-aligned, not the column drawn on top of it.
     const textLeftPx = statsLeftPx + TEXT_COLUMN_INSET_PX
-    if (textColumnRef.current) {
-      textColumnRef.current.style.left = `${textLeftPx}px`
-      // Whatever's left between the text column's own left edge and the
-      // photo's, minus the gap above, is exactly how wide the heading
-      // (unconstrained by its own width now — see the JSX) can get without
-      // ever touching it. The body copy keeps its own, tighter width (see
-      // the JSX) regardless of how wide this column itself is allowed to
-      // grow. Measured from textLeftPx, not the raw margin, now that the
-      // column starts there instead — the margin alone would overstate how
-      // much room is actually available past the new, further-right edge.
-      textColumnRef.current.style.maxWidth = `${photoLeftPx - textLeftPx - HEADING_RIGHT_GAP_PX}px`
-      // Placed on the grid now rather than vertically centred on the
-      // viewport, which is what it used to be (top-1/2 -translate-y-1/2).
-      // Centring put the copy in the upper-middle of the screen with the
-      // Google Cloud plaque filling the space beneath it; with that plaque
-      // gone the column was asked to sit lower, roughly where the plaque
-      // itself had been. Anchoring it to a whole row of the same grid the
-      // photo and the stats are on gets that without a hand-tuned pixel
-      // offset, and keeps all three agreeing about where "down" is at any
-      // viewport size.
-      // When a slide has no stats above it (hasStats === false), the text sits
-      // in row 0 where the stats block used to be rather than row 1.
-      const offset = slide?.hasStats === false ? 0 : TEXT_ROW_OFFSET
-      textColumnRef.current.style.top = `${phaseY + (row + offset) * cell + TEXT_ROW_NUDGE_PX}px`
+    const rawHeadingWidth = photoLeftPx - textLeftPx - HEADING_RIGHT_GAP_PX
+
+    const margin = Math.max(16, pageMarginPx(window.innerHeight))
+    const isMobile = window.innerWidth < 768
+
+    setGridCell((prev) => (prev === cell ? prev : cell))
+
+    let effectiveWindowWidth = cell * PHOTO_CELLS_X
+    let effectiveWindowHeight = cell * PHOTO_CELLS_Y
+    let effectiveImageHeight = effectiveWindowHeight + PHOTO_OVERFLOW_CELLS * cell
+
+    if (isMobile) {
+        const mobilePhotoWidth = Math.min(320, window.innerWidth - margin * 2)
+        const mobilePhotoHeight = Math.round(mobilePhotoWidth * 0.58)
+        const mobilePhotoLeft = (window.innerWidth - mobilePhotoWidth) / 2
+
+        effectiveWindowWidth = mobilePhotoWidth
+        effectiveWindowHeight = mobilePhotoHeight
+        effectiveImageHeight = mobilePhotoHeight + 40
+
+        const textTop = slide?.hasStats === false ? 68 : 155
+        const actualHeadingH = headingRef.current
+          ? Math.max(headingRef.current.getBoundingClientRect().height, 125)
+          : 125
+        const scrollContainerTop = textTop + actualHeadingH + 16
+
+        // Reserve vertical space from the bottom for photo + caption + arrows + bottom padding
+        const bottomReserved = 20 + 44 + 8 + 24
+        let mobilePhotoTop = window.innerHeight - mobilePhotoHeight - bottomReserved
+        const minPhotoTop = scrollContainerTop + 100
+        if (mobilePhotoTop < minPhotoTop) {
+          mobilePhotoTop = minPhotoTop
+        }
+
+        block.style.left = `${mobilePhotoLeft}px`
+        block.style.top = `${mobilePhotoTop}px`
+        windowEl.style.width = `${mobilePhotoWidth}px`
+        windowEl.style.height = `${mobilePhotoHeight}px`
+        image.style.height = `${effectiveImageHeight}px`
+        arrowRestCenterRef.current = window.innerWidth / 2
+
+        if (textColumnRef.current) {
+          textColumnRef.current.style.left = `${margin}px`
+          textColumnRef.current.style.maxWidth = `${window.innerWidth - margin * 2}px`
+          textColumnRef.current.style.width = `${window.innerWidth - margin * 2}px`
+          textColumnRef.current.style.top = `${textTop}px`
+        }
+
+        const availableScroll = Math.max(80, mobilePhotoTop - scrollContainerTop - 36)
+        setTextScrollMaxHeight(availableScroll)
+
+        if (statsRef.current) {
+          statsRef.current.style.left = `${margin}px`
+          statsRef.current.style.width = `${window.innerWidth - margin * 2}px`
+          statsRef.current.style.top = '60px'
+          statsRef.current.style.height = '60px'
+        }
+
+        if (arrowsWrapperRef.current) {
+          arrowsWrapperRef.current.style.marginTop = '36px'
+        }
+
+        if (badgeAnchorRef?.current) {
+          const badgeSize = Math.min(220, Math.round(mobilePhotoWidth * 0.45))
+          const badgeOffset = -Math.round(badgeSize * 0.22)
+          badgeAnchorRef.current.style.width = `${badgeSize}px`
+          badgeAnchorRef.current.style.height = `${badgeSize}px`
+          badgeAnchorRef.current.style.bottom = `${badgeOffset}px`
+          badgeAnchorRef.current.style.right = `${badgeOffset}px`
+        }
+    } else {
+      // GRID-LOCKED MODE (Desktops, Laptops, and Tablets >= 768px)
+      // The grid scale adaptively fits the viewport, ensuring that each of the 3 stats
+      // is always framed inside its own grid square without separating from the grid.
+      const S = cell / (TARGET_CELL_PX * ABOUT_US_GRID_ZOOM_SCALE)
+      const photoTop = phaseY + row * cell
+
+      effectiveWindowWidth = cell * PHOTO_CELLS_X
+      effectiveWindowHeight = cell * PHOTO_CELLS_Y
+      effectiveImageHeight = effectiveWindowHeight + PHOTO_OVERFLOW_CELLS * cell
+      const arrowsMt = Math.max(44, Math.round(96 * S))
+
+      block.style.left = `${photoLeftPx}px`
+      block.style.top = `${photoTop}px`
+      windowEl.style.width = `${effectiveWindowWidth}px`
+      windowEl.style.height = `${effectiveWindowHeight}px`
+      image.style.height = `${effectiveImageHeight}px`
+      arrowRestCenterRef.current = photoLeftPx + effectiveWindowWidth / 2
+
+      if (arrowsWrapperRef.current) {
+        arrowsWrapperRef.current.style.marginTop = `${arrowsMt}px`
+      }
+
+      // Stats block: spans exactly STATS_CELLS_X (3) cells wide, 1 cell high!
+      if (statsRef.current) {
+        statsRef.current.style.left = `${statsLeftPx}px`
+        statsRef.current.style.top = `${photoTop}px`
+        statsRef.current.style.width = `${cell * STATS_CELLS_X}px`
+        statsRef.current.style.height = `${cell}px`
+      }
+
+      const textColumnInset = Math.round(TEXT_COLUMN_INSET_PX * S)
+      const textLeftPx = statsLeftPx + textColumnInset
+      const desiredGap = Math.round(HEADING_RIGHT_GAP_PX * S)
+      const maxAllowedGap = Math.max(16, Math.round((photoLeftPx - textLeftPx) * 0.15))
+      const headingRightGap = S >= 0.85 ? desiredGap : Math.min(desiredGap, maxAllowedGap)
+      const maxTextWidth = Math.max(220, photoLeftPx - textLeftPx - headingRightGap)
+      const effectiveTextTop = slide?.hasStats === false ? photoTop : photoTop + cell + Math.round(TEXT_ROW_NUDGE_PX * S)
+
+      if (textColumnRef.current) {
+        textColumnRef.current.style.left = `${textLeftPx}px`
+        textColumnRef.current.style.maxWidth = `${maxTextWidth}px`
+        textColumnRef.current.style.width = ''
+        textColumnRef.current.style.top = `${effectiveTextTop}px`
+      }
+
+      const headlineHeight = headingRef.current?.offsetHeight ?? 80
+      const availableScroll = Math.max(100, window.innerHeight - effectiveTextTop - headlineHeight - 40)
+      setTextScrollMaxHeight(availableScroll)
+
+      if (badgeAnchorRef?.current) {
+        const badgeScale = S
+        const badgeSize = Math.round(380 * badgeScale)
+        const badgeOffset = -Math.round(95 * badgeScale)
+        badgeAnchorRef.current.style.width = `${badgeSize}px`
+        badgeAnchorRef.current.style.height = `${badgeSize}px`
+        badgeAnchorRef.current.style.bottom = `${badgeOffset}px`
+        badgeAnchorRef.current.style.right = `${badgeOffset}px`
+      }
     }
-    // The stats span STATS_CELLS_X whole squares from statsLeftPx, level
-    // with the row the photo begins on. Their cell indices come from the
-    // shared helper rather than being worked out here, since AboutUsSection's
-    // ambient squares have to land on these exact same cells.
-    if (statsRef.current) {
-      statsRef.current.style.left = `${statsLeftPx}px`
-      statsRef.current.style.top = `${phaseY + stats.row * cell}px`
-      statsRef.current.style.width = `${cell * STATS_CELLS_X}px`
-      statsRef.current.style.height = `${cell}px`
-    }
-    return imageHeight - windowHeight
-  }, [windowRef, slide?.hasStats])
+
+    return effectiveImageHeight - effectiveWindowHeight
+  }, [windowRef, slide?.hasStats, slide?.headline, slideIndex, badgeAnchorRef])
 
   // Laid out against the *settled* grid — the size and phase it rests at
   // once About Us is open — and never against the live, mid-zoom one, which
@@ -479,17 +648,6 @@ export function AboutUsIntro({
     window.addEventListener('resize', layOut)
     return () => window.removeEventListener('resize', layOut)
   }, [applyLayout])
-
-  // Update text column's vertical position when navigating between slides
-  // so slides without stats (hasStats === false) sit in row 0 where the
-  // stats block used to be.
-  useLayoutEffect(() => {
-    if (!textColumnRef.current) return
-    const { cell, phaseY } = aboutUsGridMetrics(window.innerWidth, window.innerHeight)
-    const { row } = photoCellIndices(window.innerWidth, window.innerHeight)
-    const offset = slide?.hasStats === false ? 0 : TEXT_ROW_OFFSET
-    textColumnRef.current.style.top = `${phaseY + (row + offset) * cell + TEXT_ROW_NUDGE_PX}px`
-  }, [slideIndex, slide?.hasStats])
 
   // Only the parallax runs per frame now — the layout above is fixed until
   // the window resizes, so there is nothing about it to recompute.
@@ -578,7 +736,7 @@ export function AboutUsIntro({
           than merely near them. This replaced the Google Cloud Partner
           plaque that used to sit at the bottom of the copy column. */}
       <div ref={statsRef} className="pointer-events-none absolute">
-        <AboutUsStats aboutUsProgress={aboutUsProgress} slideIndex={slideIndex} />
+        <AboutUsStats aboutUsProgress={aboutUsProgress} slideIndex={slideIndex} cell={gridCell} />
       </div>
 
       {/* left/top/maxWidth all written by the layout pass above now — left
@@ -586,7 +744,12 @@ export function AboutUsIntro({
           asked to start at the stats' own left edge instead (see
           statsLeftPx above), which only the layout pass can answer since it
           depends on the grid's phase. */}
-      <div ref={textColumnRef} className="absolute transition-[top] duration-300 ease-out">
+      <div
+        ref={textColumnRef}
+        data-about-text-box="true"
+        data-about-text-scrollable={textOverflows ? 'true' : undefined}
+        className="pointer-events-auto absolute transition-[top] duration-300 ease-out"
+      >
         {/* Keyed on slideIndex so each slide's copy is its own mount —
             unlike imageRef, nothing outside this fade depends on the
             heading/paragraph nodes staying the same element across slides,
@@ -600,28 +763,39 @@ export function AboutUsIntro({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
           >
-            <h1 className="text-[38px] leading-[1.25] font-light text-white/90 md:text-[46px]">
+            <h1
+              ref={headingRef}
+              className="text-[22px] sm:text-[24px] md:text-[26px] lg:text-[36px] xl:text-[46px] leading-[1.2] xl:leading-[1.25] font-light text-white/90"
+            >
               {slide.headline}
             </h1>
-            {/* No max-w of its own any more — asked for directly, the same
-                room the heading gets rather than a tighter fixed 280px.
-                Both now simply fill whatever textColumnRef's own maxWidth
-                (set imperatively, see applyLayout) allows. */}
-            {/* Paragraphs — supports slide.paragraphs array, or slide.body,
-                slide.bodySecondary, and slide.bodyTertiary */}
-            {(
-              slide.paragraphs ||
-              (Array.isArray(slide.body)
-                ? slide.body
-                : [slide.body, slide.bodySecondary, slide.bodyTertiary].filter(Boolean))
-            ).map((paragraph, idx) => (
-              <p
-                key={idx}
-                className="mt-6 text-[13px] leading-[1.9] font-extralight text-white/60"
-              >
-                {paragraph}
-              </p>
-            ))}
+            {/* Scrollable body paragraphs container using .bio-scrollbar and bioFadeMask,
+                mirroring MeetTheTeamGrid's detailed profiles. */}
+            <div
+              ref={textScrollRef}
+              className="bio-scrollbar mt-4 md:mt-6 overflow-y-auto pointer-events-auto min-h-0"
+              style={{
+                maxHeight: textScrollMaxHeight,
+                '--scrollbar-thickness': '5px',
+                overscrollBehavior: 'contain',
+                ...(textOverflows
+                  ? {
+                      WebkitMaskImage: bioFadeMask(scrollState.atTop, scrollState.atBottom),
+                      maskImage: bioFadeMask(scrollState.atTop, scrollState.atBottom),
+                    }
+                  : null),
+              }}
+            >
+              {paragraphs.map((paragraph, idx) => (
+                <p
+                  key={idx}
+                  className={`text-[12px] md:text-[13px] leading-[1.7] md:leading-[1.9] font-extralight text-white/60 ${idx === 0 ? '' : 'mt-3 md:mt-4'}`}
+                  style={textOverflows ? { paddingRight: BIO_SCROLL_GUTTER_PX } : undefined}
+                >
+                  {paragraph}
+                </p>
+              ))}
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -762,7 +936,7 @@ export function AboutUsIntro({
             initial={{ opacity: 0, y: -16, filter: 'blur(8px)' }}
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="pointer-events-none absolute top-full left-0 mt-6 max-w-[420px] text-xs leading-[1.7] font-extralight text-white/50"
+            className="pointer-events-none absolute top-full left-0 mt-2 sm:mt-6 max-w-[420px] text-[11px] sm:text-xs leading-[1.6] sm:leading-[1.7] font-extralight text-white/50"
           >
             {slide.caption || slide.alt}
           </motion.p>
@@ -784,8 +958,9 @@ export function AboutUsIntro({
               stage wants needs no vertical move at all, only this
               horizontal one. */}
           <motion.div
+            ref={arrowsWrapperRef}
             style={{ x: arrowsX, willChange: 'transform' }}
-            className="pointer-events-none absolute top-full left-0 flex w-full justify-center mt-24"
+            className="pointer-events-none absolute top-full left-0 flex w-full justify-center mt-10 sm:mt-16 md:mt-24"
           >
           {/* Centred via real flexbox (justify-center on the wrapper above),
               not the left-1/2 + child's own -translate-x-1/2 trick this used

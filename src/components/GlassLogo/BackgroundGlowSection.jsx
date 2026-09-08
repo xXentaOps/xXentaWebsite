@@ -721,10 +721,11 @@ function SeamlessBackdrop({
   // chat phase reads exactly as it always has) and ramps up with panT.
   const lineOpacityBoostRef = useRef(1)
 
-  // Left edge of column EDGE_COLUMN_FROM_LEFT — same formula BackgroundGrid
-  // uses for its own buttons' left/right columns (buttonLeftX there), just
-  // counted from this plane's left edge instead of its right.
-  const edgeX = -(gridWidth * OVERSCALE) / 2 + EDGE_COLUMN_FROM_LEFT * cellSize
+  // Left edge of column EDGE_COLUMN_FROM_LEFT — dynamically clamped to totalCols
+  // so narrow tablet/mobile viewports keep edgeX on the screen's left half.
+  const totalCols = Math.max(1, Math.floor((gridWidth * OVERSCALE) / cellSize))
+  const effectiveEdgeCol = totalCols <= 6 ? Math.max(0, Math.floor(totalCols / 4)) : EDGE_COLUMN_FROM_LEFT
+  const edgeX = -(gridWidth * OVERSCALE) / 2 + effectiveEdgeCol * cellSize
   const edgeXUV = (edgeX + (gridWidth * OVERSCALE) / 2) / (gridWidth * OVERSCALE)
 
   // The page's own left margin (see pageMargin.js), converted from its
@@ -749,7 +750,9 @@ function SeamlessBackdrop({
   // identically with the group, so solving *that* against the target is
   // what actually lines up the stroke's visible edge, not its midpoint.
   const edgeHalfWidthWorld = EDGE_STYLE.halfWidthPx * (gridWidth / size.width)
-  const finalZoomScale = targetEdgeLeftX / (edgeX - edgeHalfWidthWorld)
+  const denom = edgeX - edgeHalfWidthWorld
+  const rawScale = denom < -0.05 ? targetEdgeLeftX / denom : 1.3
+  const finalZoomScale = Math.max(1.0, Math.min(2.5, rawScale))
   // How far the grid may drift upward across the pinned phase, in world
   // units — see DRIFT_SLACK_FRACTION. The plane covers gridHeight × OVERSCALE
   // × finalZoomScale once fully zoomed, of which gridHeight is on screen, so
@@ -777,7 +780,8 @@ function SeamlessBackdrop({
   // Column B's own edge — same row as column A (edgeBottomY/edgeTopY, and
   // their UVs, are unchanged), a different column. Only the X side needs
   // recomputing.
-  const edgeXB = -(gridWidth * OVERSCALE) / 2 + EDGE_COLUMN_FROM_LEFT_B * cellSize
+  const effectiveEdgeColB = totalCols <= 6 ? Math.min(totalCols - 1, effectiveEdgeCol + 2) : EDGE_COLUMN_FROM_LEFT_B
+  const edgeXB = -(gridWidth * OVERSCALE) / 2 + effectiveEdgeColB * cellSize
 
   // A row some whole number of cells below the row columns A/B sit on at
   // rest (edgeBottomY/edgeTopY, offset 0) — X unchanged, only Y (and its

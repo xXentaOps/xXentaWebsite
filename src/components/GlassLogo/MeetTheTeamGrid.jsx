@@ -369,6 +369,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
   }, [])
 
   const x = useTransform(teamProgress, (p) => teamContentSlidePx(p, window.innerWidth))
+  const display = useTransform(teamProgress, (p) => (p > 0.001 || isTeamOpen ? 'block' : 'none'))
   const isDetail = selectedIndex != null
   // Same direction-aware fade as BoardTitleWord in AboutUsSection.jsx (see
   // its own comment) — entering keeps the original instant appearance
@@ -495,7 +496,7 @@ export function MeetTheTeamGrid({ teamProgress, isTeamOpen, selectedIndex, onSel
     // while About Us is up so seven member names aren't announced from a
     // stage nobody has opened yet.
     <motion.div
-      style={{ x, willChange: 'transform' }}
+      style={{ x, willChange: 'transform', display }}
       aria-hidden={!isTeamOpen}
       className="pointer-events-none absolute inset-0 z-50"
     >

@@ -143,13 +143,17 @@ function NoordhuysBackdrop({
   const colorProgressRef = useRef(0)
   const choxColorProgressRef = useRef(0)
 
-  const edgeX = -(gridWidth * OVERSCALE) / 2 + EDGE_COLUMN_FROM_LEFT * cellSize
+  const totalCols = Math.max(1, Math.floor((gridWidth * OVERSCALE) / cellSize))
+  const effectiveEdgeCol = totalCols <= 6 ? Math.max(0, Math.floor(totalCols / 4)) : EDGE_COLUMN_FROM_LEFT
+  const edgeX = -(gridWidth * OVERSCALE) / 2 + effectiveEdgeCol * cellSize
 
   const heroMarginPx = pageMarginPx(size.height)
   const heroMarginWorld = heroMarginPx * (gridWidth / size.width)
   const targetEdgeLeftX = -gridWidth / 2 + heroMarginWorld
   const edgeHalfWidthWorld = EDGE_STYLE.halfWidthPx * (gridWidth / size.width)
-  const finalZoomScale = targetEdgeLeftX / (edgeX - edgeHalfWidthWorld)
+  const denom = edgeX - edgeHalfWidthWorld
+  const rawScale = denom < -0.05 ? targetEdgeLeftX / denom : 1.3
+  const finalZoomScale = Math.max(1.0, Math.min(2.5, rawScale))
   const driftWorld = Math.max(0, ((gridHeight * (OVERSCALE * finalZoomScale - 1)) / 2) * DRIFT_SLACK_FRACTION)
 
   const centerPhase = 0.5 + yPhaseShiftCells

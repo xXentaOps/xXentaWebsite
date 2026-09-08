@@ -1,4 +1,4 @@
-import { ABOUT_US_GRID_ZOOM_SCALE } from './gridConstants'
+import { ABOUT_US_GRID_ZOOM_SCALE, TARGET_CELL_PX } from './gridConstants'
 import { gridScreenMetrics } from './gridScreenMetrics'
 import { pageMarginPx } from './pageMargin'
 
@@ -41,6 +41,63 @@ export const STATS_CELLS_X = 3
 // photo's *middle* row instead — one row up from that, still clear of the
 // stats' own row directly above it.
 export const TEXT_ROW_OFFSET = 1
+export const CIRCLE_SIZE = 220
+
+// Dynamically adapts the grid zoom scale based on viewport dimensions so the
+// WebGL grid and content scale in lockstep, keeping stats strictly framed inside
+// grid cells and centering the composition with balanced top and bottom margins.
+export function getAboutUsZoomScale(width, height) {
+  if (width < 768) return ABOUT_US_GRID_ZOOM_SCALE * 0.5
+  // Juliana's desktop baseline (1920x1080 or large displays): preserve 1.25 (200px cells)
+  if (width >= 1500 && height >= 950) return ABOUT_US_GRID_ZOOM_SCALE
+
+  const margin = pageMarginPx(height)
+  // Need at least 8.5 cells between margins (3 for stats, 1 column gap, 4 for photo, 0.5 safe margin)
+  const maxCellByWidth = (width - margin * 2) / 8.5
+  const maxSByWidth = Math.min(1.0, maxCellByWidth / (TARGET_CELL_PX * ABOUT_US_GRID_ZOOM_SCALE))
+
+  let bestS = Math.min(1.0, maxSByWidth)
+  let minCost = Infinity
+
+  for (let s = Math.min(1.0, maxSByWidth); s >= 0.35; s -= 0.01) {
+    const scale = ABOUT_US_GRID_ZOOM_SCALE * s
+    const { cell, phaseX, phaseY } = gridScreenMetrics({ width, height, scale, screenOffset: -1 })
+
+    // Check horizontal fit: ensure photo and stats have at least 1 whole column gap
+    const statsCol = Math.ceil((margin - phaseX) / cell)
+    const lastBoundary = Math.floor((width - margin - phaseX) / cell)
+    const photoCol = lastBoundary - PHOTO_CELLS_X - PHOTO_COLUMN_INSET
+    if (photoCol < statsCol + STATS_CELLS_X + 1) {
+      continue
+    }
+
+    const photoH = PHOTO_CELLS_Y * cell
+    const circleOffset = (CIRCLE_SIZE / 2) * s
+    const arrowsMt = Math.max(44, Math.round(96 * s))
+    const arrowsH = 44
+
+    const idealPhotoTop = (height - (photoH + arrowsMt + arrowsH) + circleOffset) / 2
+    const row = Math.max(0, Math.round((idealPhotoTop - phaseY) / cell))
+
+    const photoTop = phaseY + row * cell
+    const circleTop = photoTop - circleOffset
+    const arrowsBottom = photoTop + photoH + arrowsMt + arrowsH
+
+    const topMargin = circleTop
+    const bottomMargin = height - arrowsBottom
+
+    if (topMargin < 30 || bottomMargin < 30) continue
+
+    const diff = Math.abs(topMargin - bottomMargin)
+    const cost = diff * 1.5 + (1.0 - s) * 80
+
+    if (cost < minCost) {
+      minCost = cost
+      bestS = s
+    }
+  }
+  return ABOUT_US_GRID_ZOOM_SCALE * bestS
+}
 
 // The grid as About Us rests on it: the cell size and boundary phase once
 // the reveal has settled and the zoom has landed. Every position below is
@@ -49,7 +106,7 @@ export function aboutUsGridMetrics(width, height) {
   return gridScreenMetrics({
     width,
     height,
-    scale: ABOUT_US_GRID_ZOOM_SCALE,
+    scale: getAboutUsZoomScale(width, height),
     screenOffset: -1,
   })
 }
@@ -58,35 +115,21 @@ export function aboutUsGridMetrics(width, height) {
 // own phase. Worked out from the *settled* geometry — the cell size the grid
 // rests at once About Us is open, which depends on nothing but the viewport
 // — rather than from the live one, and never from measuring the element.
-//
-// Both of those matter, and the second one caused a real bug. Snapping to
-// the nearest boundary means a rounding step, and a rounding step is
-// discontinuous: the first version sized the window from the live cell each
-// frame, which re-flowed the flex row it sat in, which moved the element,
-// which moved what "nearest" meant — so during the zoom the rounding kept
-// flipping and the photo jumped a whole cell at a time, repeatedly. Choosing
-// the indices from something the layout cannot influence removes the loop
-// rather than damping it.
 export function photoCellIndices(width, height) {
   const { cell, phaseX, phaseY } = aboutUsGridMetrics(width, height)
-  // Anchored to the page's own right-hand boundary (see pageMargin.js,
-  // mirrored from the left edge where the hero's title and the placeholder
-  // copy's blue cell edge both sit), then held PHOTO_COLUMN_INSET columns
-  // in from it rather than flush against it — flush read as crowding the
-  // true edge of the screen, reported directly.
-  //
-  // The boundary itself is the last cell edge that still lands inside the
-  // margin, so the gap it and the inset together leave is somewhere between
-  // PHOTO_COLUMN_INSET cells plus the margin and PHOTO_COLUMN_INSET+1 cells
-  // plus the margin — never exactly one number, because the grid's phase
-  // falls where it falls and a window that sits on whole squares cannot also
-  // end on an arbitrary pixel. Staying on the grid is the thing worth
-  // keeping; the margin and the inset both just draw a line the photo may
-  // not cross.
   const lastBoundary = Math.floor((width - pageMarginPx(height) - phaseX) / cell)
-  const column = lastBoundary - PHOTO_CELLS_X - PHOTO_COLUMN_INSET
-  // ...and vertically centred, to the nearest whole cell.
-  const row = Math.round((height / 2 - (PHOTO_CELLS_Y * cell) / 2 - phaseY) / cell)
+  const column = Math.max(0, lastBoundary - PHOTO_CELLS_X - PHOTO_COLUMN_INSET)
+
+  const scale = getAboutUsZoomScale(width, height)
+  const S = scale / ABOUT_US_GRID_ZOOM_SCALE
+  const photoH = PHOTO_CELLS_Y * cell
+  const circleOffset = (CIRCLE_SIZE / 2) * S
+  const arrowsMt = Math.max(44, Math.round(96 * S))
+  const arrowsH = 44
+
+  const idealPhotoTop = (height - (photoH + arrowsMt + arrowsH) + circleOffset) / 2
+  const row = Math.max(0, Math.round((idealPhotoTop - phaseY) / cell))
+
   return { column, row }
 }
 

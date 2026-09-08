@@ -20,6 +20,7 @@ import { AboutUsIntro } from './AboutUsIntro'
 import { SLIDE_PHOTOS } from './aboutUsSlides'
 import {
   aboutUsGridMetrics,
+  getAboutUsZoomScale,
   PHOTO_CELLS_Y,
   photoOriginOffsets,
   statsOriginOffsets,
@@ -672,13 +673,15 @@ function SeamlessGridBackdrop({
   // that is itself sliding, so shifting it again would double the motion).
   const gridXPhaseRef = useRef(0)
 
+  const targetZoomScale = getAboutUsZoomScale(size.width, size.height)
+
   useFrame(() => {
     const group = gridGroupRef.current
     if (!group) return
     gridXPhaseRef.current = teamProgress
       ? gridPhaseShiftCells(teamProgress.get(), size.width)
       : 0
-    const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, aboutUsProgress.get())
+    const scale = MathUtils.lerp(1, targetZoomScale, aboutUsProgress.get())
     group.scale.set(scale, scale, 1)
     group.position.y = (gridHeight / 2) * (scale - 1)
     // Publish where the cells land, for AboutUsIntro's photo window — see
@@ -713,7 +716,7 @@ function SeamlessGridBackdrop({
           actually seen directly, and the soft plane alone is what gives the
           crisp lines their glow. */}
       <group ref={gridGroupRef}>
-        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(THROUGH_GLASS_STYLE, ABOUT_US_GRID_ZOOM_SCALE, throughGlassOpacityScale)} layer={layer} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
+        <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(THROUGH_GLASS_STYLE, targetZoomScale, throughGlassOpacityScale)} layer={layer} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
         {/* Skipped for the badge's own capture-only copy (see
             CaptureGridBackdrop) — the hero's own glass logo never refracts
             this crisp plane either (see BackgroundGrid.jsx, where it sits on
@@ -723,7 +726,7 @@ function SeamlessGridBackdrop({
             includeCrispLines, same as always, since only this prop (not the
             layer) decides whether it renders at all in a given copy. */}
         {includeCrispLines && (
-          <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(DIRECT_STYLE, ABOUT_US_GRID_ZOOM_SCALE)} layer={layer} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
+          <GridPlane z={GRID_Z} width={gridWidth} height={gridHeight} repeat={repeat} style={scaleStyleForZoom(DIRECT_STYLE, targetZoomScale)} layer={layer} yPhaseShiftCells={yPhaseShiftCells} xPhaseShiftCellsRef={gridXPhaseRef} />
         )}
       </group>
     </>
@@ -1043,11 +1046,14 @@ export const AboutUsSection = forwardRef(function AboutUsSection(
   // CornerBracketCapture's own bars are. CIRCLE_SIZE itself now lives at
   // module scope (see its own comment there) — NAME_ICON_SIZE_PX shares it.
   const CIRCLE_X_OFFSET = 35
+  const photoScale = photoRect ? photoRect.width / 800 : 1
+  const scaledCircleSize = Math.round(CIRCLE_SIZE * photoScale)
+  const scaledCircleXOffset = Math.round(CIRCLE_X_OFFSET * photoScale)
   const circleRect = photoRect && {
-    left: photoRect.left - CIRCLE_SIZE / 2 + CIRCLE_X_OFFSET,
-    top: photoRect.top - CIRCLE_SIZE / 2,
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
+    left: photoRect.left - scaledCircleSize / 2 + scaledCircleXOffset,
+    top: photoRect.top - scaledCircleSize / 2,
+    width: scaledCircleSize,
+    height: scaledCircleSize,
   }
   const openDirectionRef = useRef(openDirection)
   openDirectionRef.current = openDirection

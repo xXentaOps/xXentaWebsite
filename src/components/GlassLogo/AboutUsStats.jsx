@@ -112,7 +112,20 @@ function Stat({
   isPlaying,
   hasPlayed,
   onPlayed,
+  cell,
 }) {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+  const isTablet = typeof window !== 'undefined' && window.innerWidth < 1024
+  const cellScale = cell ? Math.min(1.0, Math.max(0.4, cell / 200)) : 1.0
+
+  const baseFigure = isMobile ? Math.min(figureSize, 36) : isTablet ? Math.min(figureSize, 48) : figureSize
+  const baseSuffix = isMobile ? Math.min(suffixSize, 20) : isTablet ? Math.min(suffixSize, 26) : suffixSize
+
+  const effectiveFigureSize = Math.round(baseFigure * cellScale)
+  const effectiveSuffixSize = Math.round(baseSuffix * cellScale)
+  const labelFontSize = Math.max(8, Math.round(10 * cellScale))
+  const labelMarginTop = Math.max(4, Math.round(12 * cellScale))
+
   const { language } = useLanguage()
   const isNumeric = typeof value === 'number'
   const count = useMotionValue(0)
@@ -236,7 +249,7 @@ function Stat({
             see FIGURE_SIZE_PX's own comment for why a per-stat runtime
             value can't be a text-[Npx] class. */}
         {prefix && (
-          <span style={{ fontSize: figureSize }} className="leading-none font-medium tracking-tight">
+          <span style={{ fontSize: effectiveFigureSize }} className="leading-none font-medium tracking-tight">
             {prefix}
           </span>
         )}
@@ -245,14 +258,14 @@ function Stat({
             the @fontsource imports in index.css, which stop at 500);
             anything bolder in a class here would silently render as this
             same cut rather than as the weight it names. */}
-        <motion.span style={{ fontSize: figureSize }} className="leading-none font-medium tracking-tight">
+        <motion.span style={{ fontSize: effectiveFigureSize }} className="leading-none font-medium tracking-tight">
           {text}
         </motion.span>
         {/* Smaller and set apart from the digits — the unit belongs to the
             number but shouldn't compete with it for the same size. Scaled
             up in step with the figure so the pairing stays as it was. */}
         {suffix && (
-          <span style={{ fontSize: suffixSize }} className="ml-1 leading-none font-medium">
+          <span style={{ fontSize: effectiveSuffixSize }} className="ml-1 leading-none font-medium">
             {suffix}
           </span>
         )}
@@ -266,8 +279,13 @@ function Stat({
           and a label long enough to wrap (these are capped at 85% of the
           square) would still set its own two lines flush left inside it. */}
       <p
-        className="mt-3 max-w-[85%] text-center text-[10px] leading-[1.5] font-extralight tracking-[0.15em] uppercase"
-        style={{ color: STAT_BLUE, opacity: 0.45 }}
+        className="max-w-[85%] text-center leading-[1.5] font-extralight tracking-[0.15em] uppercase"
+        style={{
+          color: STAT_BLUE,
+          opacity: 0.45,
+          fontSize: `${labelFontSize}px`,
+          marginTop: `${labelMarginTop}px`,
+        }}
       >
         {label}
       </p>
@@ -281,7 +299,7 @@ function Stat({
 // against the grid, never measured" treatment the photo block gets. Usually
 // three separate ones, one per square; SINGLE_STAT_SLIDES swaps that for one
 // wide figure spanning all three (see BIG_STAT's own comment).
-export function AboutUsStats({ aboutUsProgress, slideIndex }) {
+export function AboutUsStats({ aboutUsProgress, slideIndex, cell }) {
   const { t } = useLanguage()
   // Driven by how far the reveal has actually travelled, not by isOpen
   // (which is what this used first — it flips true the instant the slide
@@ -347,6 +365,7 @@ export function AboutUsStats({ aboutUsProgress, slideIndex }) {
         <Stat
           key={stat.id || stat.label}
           {...stat}
+          cell={cell}
           label={t(stat.labelKey, stat.defaultLabel || stat.label)}
           delay={index * COUNT_STAGGER}
           isPlaying={playing}

@@ -230,7 +230,8 @@ export function GlassLogoGroup({ targetSize = 4, highQuality = true, blurredText
   const textRevealMaterial = useTextRevealMaterial()
   const blurMaterial = useSeparableBlurMaterial()
 
-  const scale = targetSize / Math.max(size.x, size.y)
+  const responsiveTargetSize = Math.min(targetSize, Math.max(1.1, viewport.width * 0.44))
+  const scale = responsiveTargetSize / Math.max(size.x, size.y)
 
   // Half the canvas's actual pixel resolution, not full (drei's useFBO with
   // no args) — every one of these three ends up Gaussian-blurred (see the

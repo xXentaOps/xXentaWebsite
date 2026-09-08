@@ -90,9 +90,13 @@ export function SiteNavbar({
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
-        className="pointer-events-auto hidden items-center gap-2 text-xs font-extralight tracking-[0.2em] uppercase md:flex md:gap-4"
+        className="pointer-events-auto hidden items-center gap-2 text-[11px] font-extralight tracking-[0.14em] uppercase md:flex md:gap-2.5 lg:gap-4 lg:text-xs lg:tracking-[0.2em]"
       >
-        <span onClick={onAboutUsClick} className={navLinkClass(isAboutUsActive, effectiveDrp)}>
+        <span
+          data-nav-about
+          onClick={onAboutUsClick}
+          className={navLinkClass(isAboutUsActive, effectiveDrp)}
+        >
           {t('common.navbar.aboutUs')}
         </span>
         <span
@@ -124,7 +128,7 @@ export function SiteNavbar({
         ))}
 
         {/* Desktop Language Switcher: EN / NL */}
-        <div className="ml-4 flex items-center gap-1.5 text-xs font-extralight tracking-[0.2em]">
+        <div className="ml-2 flex items-center gap-1.5 text-[11px] font-extralight tracking-[0.14em] lg:ml-4 lg:text-xs lg:tracking-[0.2em]">
           <button
             type="button"
             onClick={() => setLanguage('en')}

@@ -903,7 +903,18 @@ export default function GlassLogoPreview() {
         // still fires either way, so a scroll down here is simply inert,
         // the same as it already is for every other wheel event this
         // branch doesn't act on.
-        if (delta > 0 && !gestureUsed && !aboutUsSectionRef.current?.isTeamOpen()) {
+        const target =
+          event.target ||
+          (event.clientX != null && event.clientY != null
+            ? document.elementFromPoint(event.clientX, event.clientY)
+            : null)
+        const isOverTextBox = Boolean(target?.closest?.('[data-about-text-box]'))
+        if (
+          delta > 0 &&
+          !gestureUsed &&
+          !aboutUsSectionRef.current?.isTeamOpen() &&
+          !isOverTextBox
+        ) {
           gestureUsed = true
           classifier.lastActionAt = now
           dismiss()

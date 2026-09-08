@@ -3,6 +3,7 @@ import { Html, shaderMaterial } from '@react-three/drei'
 import { extend, useFrame, useThree } from '@react-three/fiber'
 import { MathUtils } from 'three'
 import { ABOUT_US_GRID_ZOOM_SCALE, DIRECT_STYLE, EDGE_STYLE, OVERSCALE, TARGET_CELL_PX, THROUGH_GLASS_STYLE } from './gridConstants'
+import { getAboutUsZoomScale } from './aboutUsGridCells'
 import { OVERLAY_LAYER } from './GlassLogoGroup'
 import { useLanguage } from '../../context/LanguageContext'
 
@@ -606,7 +607,8 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
     if (aboutUsProgress && aboutUsProgress.get() >= 0.99) return
     const group = gridGroupRef.current
     if (!group) return
-    const scale = MathUtils.lerp(1, ABOUT_US_GRID_ZOOM_SCALE, aboutUsProgress.get())
+    const targetZoomScale = getAboutUsZoomScale(size.width, size.height)
+    const scale = MathUtils.lerp(1, targetZoomScale, aboutUsProgress.get())
     group.scale.set(scale, scale, 1)
     group.position.y = (height / 2) * (1 - scale)
   })
@@ -616,7 +618,8 @@ export function BackgroundGrid({ z, onActiveIndexChange, onScrollLockChange, isF
   const cellSize = TARGET_CELL_PX * (width / size.width)
   const repeat = [(width * OVERSCALE) / cellSize, (height * OVERSCALE) / cellSize]
 
-  const buttonColumn = Math.floor(repeat[0]) - BUTTON_COLUMN_FROM_RIGHT
+  const effectiveButtonColFromRight = repeat[0] <= 5 ? 1 : BUTTON_COLUMN_FROM_RIGHT
+  const buttonColumn = Math.max(0, Math.floor(repeat[0]) - effectiveButtonColFromRight)
   // Left/right edges of the button column's cell — x doesn't need exact
   // centering (only top/bottom margins do), so this stays quantized to the
   // grid's own column phase like before.

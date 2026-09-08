@@ -684,11 +684,16 @@ function useHeroTitleLines(activeIndex) {
   const breakpoint = useBreakpoint()
   const fontFractionScale = FONT_FRACTION_SCALE_BY_BREAKPOINT[breakpoint] ?? 1
 
-  const learningFontSize = height * LEARNING_FONT_FRACTION * fontFractionScale
-  const newWayOfFontSize = height * NEW_WAY_OF_FONT_FRACTION * fontFractionScale
+  const targetLearningFontSize = height * LEARNING_FONT_FRACTION * fontFractionScale
+  const maxWordWidthUnits = width * (breakpoint === 'mobile' ? 0.85 : breakpoint === 'tablet' ? 0.88 : 0.92)
+  const approxWordAspect = 4.3
+  const maxLearningSizeByWidth = maxWordWidthUnits / approxWordAspect
+  const learningFontSize = Math.min(targetLearningFontSize, maxLearningSizeByWidth)
+  const effectiveScale = targetLearningFontSize > 0 ? learningFontSize / targetLearningFontSize : 1
+  const newWayOfFontSize = height * NEW_WAY_OF_FONT_FRACTION * fontFractionScale * effectiveScale
   // Margins scale off this fixed reference, not learningFontSize — see
   // MARGIN_REFERENCE_FONT_FRACTION.
-  const marginFontSize = height * MARGIN_REFERENCE_FONT_FRACTION
+  const marginFontSize = Math.min(height * MARGIN_REFERENCE_FONT_FRACTION, width * 0.12)
   const leftX = -width / 2 + LEFT_MARGIN_EM * marginFontSize
   // BOTTOM_MARGIN_EM is the gap below the active word's actual ink-bottom; y itself is
   // the font-box center (anchorY: 'middle'), so that real ink-to-center
